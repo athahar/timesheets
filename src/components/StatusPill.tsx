@@ -13,7 +13,6 @@ export const StatusPill: React.FC<StatusPillProps> = ({
   size = 'md',
   style,
 }) => {
-  console.log('🎨 StatusPill: Rendering with status:', status);
 
   // Simplified version to avoid theme issues
   const getSimpleConfig = () => {

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Session } from '../types';
+import { Session, ActivityItem } from '../types';
 import { Button } from '../components/Button';
 import { StatusPill } from '../components/StatusPill';
 import { MarkAsPaidModal } from '../components/MarkAsPaidModal';
@@ -16,7 +16,8 @@ import { theme } from '../styles/theme';
 import {
   getCurrentUser,
   getClientSessionsForProvider,
-} from '../services/storage';
+  getActivities,
+} from '../services/storageService';
 
 interface ServiceProviderSummaryScreenProps {
   route: {
@@ -34,6 +35,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
 }) => {
   const { providerId, providerName } = route.params;
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [unpaidHours, setUnpaidHours] = useState(0);
   const [unpaidBalance, setUnpaidBalance] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -42,19 +44,48 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
 
   const loadData = async () => {
     try {
+      console.log('🔍 ServiceProviderSummaryScreen: Loading data for providerId:', providerId);
+
       const user = await getCurrentUser();
+      console.log('👤 Current user:', user);
       setCurrentUser(user || 'Client');
 
       // Get sessions for this client with the provider
+      console.log('📊 Fetching sessions for user:', user, 'with provider:', providerId);
       const userSessions = await getClientSessionsForProvider(user || '', providerId);
+      console.log('📊 Sessions received:', userSessions.length, 'sessions');
+      console.log('📊 Session details:', userSessions.map(s => ({
+        id: s.id.substring(0, 8) + '...',
+        clientId: s.clientId?.substring(0, 8) + '...',
+        providerId: s.providerId?.substring(0, 8) + '...',
+        status: s.status,
+        amount: s.amount
+      })));
+
+      // Get activities for this client - need to use the client record ID, not auth user ID
+      const activitiesData = await getActivities();
+      console.log('🔍 All activities:', activitiesData.length);
+
+      // Get the client record ID from the first session (since we know sessions are filtered correctly)
+      const clientRecordId = userSessions.length > 0 ? userSessions[0].clientId : null;
+      console.log('🔍 Looking for activities with clientId:', clientRecordId);
+
+      const clientActivities = activitiesData.filter(a => {
+        console.log('🔍 Activity:', a.id, 'clientId:', a.clientId, 'type:', a.type);
+        return a.clientId === clientRecordId;
+      });
+      console.log('🔍 Filtered client activities:', clientActivities.length);
+      setActivities(clientActivities);
 
       // Calculate unpaid amounts
       const unpaidSessions = userSessions.filter(session =>
         session.status === 'unpaid' || session.status === 'requested'
       );
+      console.log('💰 Unpaid sessions:', unpaidSessions.length);
 
       const unpaidHoursTotal = unpaidSessions.reduce((total, session) => total + (session.duration || 0), 0);
       const unpaidBalanceTotal = unpaidSessions.reduce((total, session) => total + (session.amount || 0), 0);
+      console.log('💰 Totals - Hours:', unpaidHoursTotal, 'Balance:', unpaidBalanceTotal);
 
       setSessions(userSessions);
       setUnpaidHours(unpaidHoursTotal);
@@ -87,20 +118,41 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
     return `${hours}h ${minutes}m`;
   };
 
-  const formatHours = (hours: number) => {
-    const h = Math.floor(hours);
-    const m = Math.round((hours - h) * 60);
-    return `${h}hr ${m}min`;
+  const formatHours = (totalHours: number) => {
+    const hours = Math.floor(totalHours);
+    const minutes = Math.round((totalHours % 1) * 60);
+    if (hours === 0) {
+      return `${minutes}min`;
+    }
+    return minutes > 0 ? `${hours}hr ${minutes}min` : `${hours}hr`;
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'numeric',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
+  // Combine sessions and payment activities into unified timeline - memoized for performance
+  const timelineItems = useMemo(() => {
+    const items = [
+      // Map sessions to timeline items
+      ...sessions.map(session => ({
+        type: 'session' as const,
+        id: session.id,
+        timestamp: session.endTime || session.startTime,
+        data: session
+      })),
+      // Map payment activities to timeline items
+      ...activities
+        .filter(a => a.type === 'payment_completed')
+        .map(activity => ({
+          type: 'payment' as const,
+          id: activity.id,
+          timestamp: activity.data.paymentDate ? new Date(activity.data.paymentDate) : activity.timestamp,
+          data: activity
+        }))
+    ];
+
+    // Sort by timestamp (most recent first)
+    items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    return items;
+  }, [sessions, activities]);
 
   const formatCurrency = (amount: number) => {
     return `$${amount.toFixed(2)}`;
@@ -165,55 +217,79 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
           </View>
         )}
 
-        {/* Sessions History */}
-        <View style={styles.historySection}>
-          <Text style={styles.historyTitle}>Recent Work Sessions</Text>
+        {/* Activity Timeline */}
+        <View style={styles.timelineSection}>
+          <Text style={styles.timelineTitle}>Activity Timeline</Text>
 
-          {sessions.length === 0 ? (
-            <View style={[styles.emptyState, theme.shadows.card]}>
-              <Text style={styles.emptyStateText}>No work sessions yet</Text>
+          {timelineItems.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>No activity yet</Text>
               <Text style={styles.emptyStateSubtext}>
-                Work sessions will appear here
+                Work sessions and payments will appear here
               </Text>
             </View>
           ) : (
-            sessions
-              .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
-              .slice(0, 10)
-              .map((session, index) => (
-              <View key={session.id}>
-                <View style={styles.sessionRow}>
-                  {/* Left side: date + time (stacked) */}
-                  <View style={styles.sessionLeft}>
-                    <Text style={styles.sessionDate}>
-                      {formatDate(session.startTime)}
-                    </Text>
-                    <Text style={styles.sessionTimeRange}>
-                      {new Date(session.startTime).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })} - {session.endTime ? new Date(session.endTime).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      }) : 'In Progress'} ({session.endTime ? formatTime((new Date(session.endTime).getTime() - new Date(session.startTime).getTime()) / 1000) : 'Active'})
-                    </Text>
+            timelineItems.slice(0, 20).map((item, index) => (
+              <View key={item.id} style={styles.timelineItem}>
+                {item.type === 'session' ? (
+                  // Work Session Line
+                  <View style={styles.timelineLine}>
+                    <Text style={styles.timelineIcon}>🕒</Text>
+                    <View style={styles.timelineContent}>
+                      <Text style={styles.timelineMainText}>
+                        Work: {new Date(item.data.startTime).toLocaleDateString('en-US', {
+                          month: '2-digit',
+                          day: '2-digit',
+                          year: 'numeric'
+                        })}
+                      </Text>
+                      <Text style={styles.timelineSubText}>
+                        {item.data.endTime
+                          ? (() => {
+                              const durationMs = new Date(item.data.endTime).getTime() - new Date(item.data.startTime).getTime();
+                              const hours = Math.floor(durationMs / (1000 * 60 * 60));
+                              const minutes = Math.round((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+                              const startTime = new Date(item.data.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                              const endTime = new Date(item.data.endTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                              return `${hours}hr${minutes > 0 ? ` ${minutes}min` : ''} (${startTime}-${endTime})`;
+                            })()
+                          : 'Active Session - In Progress'
+                        }
+                      </Text>
+                    </View>
+                    <View style={styles.timelineRight}>
+                      <Text style={styles.timelineAmount}>
+                        {item.data.endTime ? formatCurrency(item.data.amount || 0) : 'Active'}
+                      </Text>
+                      <StatusPill
+                        status={item.data.status as 'paid' | 'unpaid' | 'requested'}
+                        size="sm"
+                      />
+                    </View>
                   </View>
-
-                  {/* Right side: status pill + amount (stacked) */}
-                  <View style={styles.sessionRight}>
-                    <StatusPill
-                      status={session.status as 'paid' | 'unpaid' | 'requested'}
-                      size="sm"
-                      style={styles.statusPillSpacing}
-                    />
-                    <Text style={styles.sessionAmount}>
-                      {session.endTime ? formatCurrency(session.amount || 0) : formatCurrency(0)}
-                    </Text>
+                ) : (
+                  // Payment Line
+                  <View style={styles.timelineLine}>
+                    <Text style={styles.timelineIcon}>💰</Text>
+                    <View style={styles.timelineContent}>
+                      <Text style={styles.timelineMainText}>
+                        Payment Sent
+                      </Text>
+                      <Text style={styles.timelineSubText}>
+                        {new Date(item.timestamp).toLocaleDateString('en-US', {
+                          month: '2-digit',
+                          day: '2-digit',
+                          year: 'numeric'
+                        })} {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''}
+                      </Text>
+                    </View>
+                    <View style={styles.timelineRight}>
+                      <Text style={styles.timelineAmount}>
+                        {formatCurrency(item.data.data.amount || 0)} ({item.data.data.method})
+                      </Text>
+                    </View>
                   </View>
-                </View>
-
-                {/* Divider between rows (except last) */}
-                {index < sessions.length - 1 && <View style={styles.sessionDivider} />}
+                )}
               </View>
             ))
           )}
@@ -318,14 +394,13 @@ const styles = StyleSheet.create({
   markAsPaidButton: {
     width: '100%',
   },
-  historySection: {
+  timelineSection: {
     backgroundColor: theme.colors.card,
     borderRadius: theme.borderRadius.card,
     padding: theme.spacing.lg,
-    marginTop: theme.spacing.md,
     ...theme.shadows.card,
   },
-  historyTitle: {
+  timelineTitle: {
     fontSize: theme.fontSize.headline,
     fontWeight: theme.fontWeight.semibold,
     color: theme.colors.text.primary,
@@ -333,11 +408,8 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.primary,
   },
   emptyState: {
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.borderRadius.card,
     padding: theme.spacing.xl,
     alignItems: 'center',
-    ...theme.shadows.card,
   },
   emptyStateText: {
     fontSize: theme.fontSize.body,
@@ -352,42 +424,44 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: theme.typography.fontFamily.primary,
   },
-  sessionRow: {
+  timelineItem: {
+    marginBottom: theme.spacing.md,
+  },
+  timelineLine: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
   },
-  sessionLeft: {
+  timelineIcon: {
+    fontSize: 20,
+    marginRight: theme.spacing.md,
+    width: 24,
+    textAlign: 'center',
+  },
+  timelineContent: {
     flex: 1,
+    marginRight: theme.spacing.md,
   },
-  sessionDate: {
+  timelineMainText: {
     fontSize: theme.fontSize.body,
     fontWeight: theme.fontWeight.medium,
     color: theme.colors.text.primary,
     fontFamily: theme.typography.fontFamily.primary,
     marginBottom: 2,
   },
-  sessionTimeRange: {
+  timelineSubText: {
     fontSize: theme.fontSize.footnote,
     color: theme.colors.text.secondary,
     fontFamily: theme.typography.fontFamily.primary,
   },
-  sessionRight: {
+  timelineRight: {
     alignItems: 'flex-end',
+    gap: theme.spacing.xs,
   },
-  statusPillSpacing: {
-    marginBottom: theme.spacing.xs,
-  },
-  sessionAmount: {
+  timelineAmount: {
     fontSize: theme.fontSize.body,
     fontWeight: theme.fontWeight.semibold,
     color: theme.colors.text.primary,
     fontFamily: theme.typography.fontFamily.primary,
-  },
-  sessionDivider: {
-    height: 1,
-    backgroundColor: '#E5E5E7',
-    marginHorizontal: 0,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Client, Session } from '../types';
+import { Client, Session, ActivityItem } from '../types';
 import { Button } from '../components/Button';
 import { StatusPill } from '../components/StatusPill';
 import { theme } from '../styles/theme';
@@ -21,7 +21,8 @@ import {
   startSession,
   endSession,
   getActiveSession,
-} from '../services/storage';
+  getActivities,
+} from '../services/storageService';
 
 interface ClientHistoryScreenProps {
   route: {
@@ -37,9 +38,9 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
   navigation,
 }) => {
   const { clientId } = route.params;
-  console.log('🚀 ClientHistoryScreen: Component initialized with clientId:', clientId);
   const [client, setClient] = useState<Client | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [unpaidHours, setUnpaidHours] = useState(0);
   const [requestedHours, setRequestedHours] = useState(0);
   const [unpaidBalance, setUnpaidBalance] = useState(0);
@@ -53,30 +54,23 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
   const [sessionTime, setSessionTime] = useState(0);
 
   const loadData = async () => {
-    console.log('🔍 ClientHistoryScreen: Starting to load data for clientId:', clientId);
     try {
-      console.log('📋 Getting client data...');
       const clientData = await getClientById(clientId);
-      console.log('📋 Client data received:', clientData);
-
       if (!clientData) {
-        console.error('❌ Client not found for ID:', clientId);
         Alert.alert('Error', 'Client not found');
         navigation.goBack();
         return;
       }
 
       setClient(clientData);
-      console.log('✅ Client state set:', clientData.name);
-
-      console.log('📊 Getting sessions data...');
       const sessionData = await getSessionsByClient(clientId);
-      console.log('📊 Sessions data received:', sessionData.length, 'sessions');
-      setSessions(sessionData);
+      const activitiesData = await getActivities();
+      const clientActivities = activitiesData.filter(a => a.clientId === clientId);
 
-      console.log('📈 Getting client summary...');
+      setSessions(sessionData);
+      setActivities(clientActivities);
+
       const summary = await getClientSummary(clientId);
-      console.log('📈 Summary received:', summary);
       setUnpaidHours(summary.unpaidHours);
       setRequestedHours(summary.requestedHours);
       setUnpaidBalance(summary.unpaidBalance);
@@ -86,17 +80,12 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       setTotalEarned(summary.totalEarned);
       setTotalHours(summary.totalHours);
 
-      console.log('🎯 Checking for active session...');
-      const activeSessionData = await getActiveSession(clientId);
-      console.log('🎯 Active session:', activeSessionData);
-      setActiveSession(activeSessionData);
-
-      console.log('✅ All data loaded successfully');
+      const currentActiveSession = await getActiveSession(clientId);
+      setActiveSession(currentActiveSession);
     } catch (error) {
-      console.error('❌ Error loading data:', error);
-      Alert.alert('Error', 'Failed to load data');
+      console.error('Error loading data:', error);
+      Alert.alert('Error', 'Failed to load client data');
     } finally {
-      console.log('🏁 Setting loading to false');
       setLoading(false);
     }
   };
@@ -107,255 +96,264 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
     }, [clientId])
   );
 
-  // Timer effect for active session - update every minute to reduce re-renders
+  // Session timer effect - update less frequently to reduce re-renders
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (activeSession) {
-      // Update immediately
-      const updateTimer = () => {
-        const now = new Date().getTime();
-        const start = new Date(activeSession.startTime).getTime();
-        const elapsed = Math.floor((now - start) / 1000); // seconds
+      // Update every 5 seconds instead of every second to reduce polling
+      interval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - activeSession.startTime.getTime()) / 1000);
         setSessionTime(elapsed);
-      };
+      }, 5000);
 
-      updateTimer(); // Initial update
-      interval = setInterval(updateTimer, 60000); // Update every minute instead of every second
-    } else {
-      setSessionTime(0);
+      // Set initial time immediately
+      const elapsed = Math.floor((Date.now() - activeSession.startTime.getTime()) / 1000);
+      setSessionTime(elapsed);
     }
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [activeSession]);
+
+  // Combine sessions and payment activities into unified timeline - memoized for performance
+  const timelineItems = useMemo(() => {
+    const items = [
+      // Map sessions to timeline items
+      ...sessions.map(session => ({
+        type: 'session' as const,
+        id: session.id,
+        timestamp: session.endTime || session.startTime,
+        data: session
+      })),
+      // Map payment activities to timeline items
+      ...activities
+        .filter(a => a.type === 'payment_completed')
+        .map(activity => ({
+          type: 'payment' as const,
+          id: activity.id,
+          timestamp: activity.data.paymentDate ? new Date(activity.data.paymentDate) : activity.timestamp,
+          data: activity
+        }))
+    ];
+
+    // Sort by timestamp (most recent first)
+    items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    return items;
+  }, [sessions, activities]);
+
+  const formatCurrency = (amount: number) => {
+    return `$${amount.toFixed(2)}`;
+  };
+
+  const formatHours = (totalHours: number) => {
+    const hours = Math.floor(totalHours);
+    const minutes = Math.round((totalHours % 1) * 60);
+    if (hours === 0) {
+      return `${minutes}min`;
+    }
+    return minutes > 0 ? `${hours}hr ${minutes}min` : `${hours}hr`;
+  };
+
+  const formatTime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const handleStartSession = async () => {
     try {
-      console.log('🟢 Starting new session for client:', clientId);
-      const newSession = await startSession(clientId);
-      setActiveSession(newSession);
-      console.log('✅ Session started:', newSession.id);
+      await startSession(clientId);
+      loadData();
     } catch (error) {
-      console.error('❌ Error starting session:', error);
       Alert.alert('Error', 'Failed to start session');
     }
   };
 
   const handleEndSession = async () => {
     if (!activeSession) return;
-
     try {
-      console.log('🔴 Ending session:', activeSession.id);
       await endSession(activeSession.id);
-      setActiveSession(null);
-      console.log('✅ Session ended successfully');
-      // Refresh all data after ending session
       loadData();
     } catch (error) {
-      console.error('❌ Error ending session:', error);
       Alert.alert('Error', 'Failed to end session');
     }
   };
 
   const handleRequestPayment = async () => {
     try {
-      const unpaidSessions = sessions.filter(session => session.status === 'unpaid');
-
+      const unpaidSessions = sessions.filter(s => s.status === 'unpaid');
       if (unpaidSessions.length === 0) {
-        Alert.alert('No Unpaid Sessions', 'There are no unpaid sessions for this client.');
+        Alert.alert('Error', 'No unpaid sessions found');
         return;
       }
-
       await requestPayment(clientId, unpaidSessions.map(s => s.id));
-      Alert.alert('Payment Requested', 'Payment request has been sent to the client.');
-      loadData(); // Refresh data
+      loadData();
+      Alert.alert('Success', 'Payment request sent');
     } catch (error) {
-      console.error('Error requesting payment:', error);
       Alert.alert('Error', 'Failed to request payment');
     }
   };
 
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    return `${hours}h ${minutes}m`;
-  };
-
-  const formatSessionTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    return `${hours}hr:${minutes.toString().padStart(2, '0')}min`;
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'numeric',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
-
-  const formatCurrency = (amount: number) => {
-    return `$${amount.toFixed(2)}`;
-  };
-
-  const formatHours = (hours: number) => {
-    const h = Math.floor(hours);
-    const m = Math.round((hours - h) * 60);
-    return `${h}hr ${m}min`;
-  };
-
-  console.log('🔄 ClientHistoryScreen: Render check - loading:', loading, 'client:', !!client);
-
-  if (loading || !client) {
-    console.log('⏳ ClientHistoryScreen: Showing loading state');
+  if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading Client History...</Text>
-          <Text style={[styles.loadingText, { marginTop: 10, fontSize: 12 }]}>
-            Client ID: {clientId}
-          </Text>
+          <Text style={styles.loadingText}>Loading...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
+  if (!client) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Client not found</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Custom Header */}
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('ClientProfile', { clientId })}>
-          <Text style={[styles.clientName, styles.clickableClientName]}>{client.name}</Text>
-        </TouchableOpacity>
+        <Text style={styles.clientName}>{client.name}</Text>
         <Text style={styles.subtitle}>Work History</Text>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Key Stats - Only what matters for action */}
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Stats */}
         <View style={styles.statsGrid}>
           <View style={[styles.statCard, theme.shadows.card]}>
-            <Text style={styles.statLabel}>Total Owed</Text>
-            <Text style={styles.statUnpaid}>
-              {formatCurrency(totalUnpaidBalance)}
+            <Text style={styles.statLabel}>Unpaid Hours</Text>
+            <Text style={[styles.statValue, (unpaidHours + requestedHours) > 0 && styles.statWarning]}>
+              {formatHours(unpaidHours + requestedHours)}
             </Text>
           </View>
-
           <View style={[styles.statCard, theme.shadows.card]}>
-            <Text style={styles.statLabel}>
-              {paymentStatus === 'unpaid' ? 'Unpaid Hours' :
-               paymentStatus === 'requested' ? 'Requested Hours' : 'Owed Hours'}
-            </Text>
-            <Text style={styles.statUnpaidHours}>
-              {paymentStatus === 'unpaid' ? formatHours(unpaidHours) :
-               paymentStatus === 'requested' ? formatHours(requestedHours) :
-               formatHours(unpaidHours + requestedHours)}
+            <Text style={styles.statLabel}>Unpaid Balance</Text>
+            <Text style={[styles.statValue, totalUnpaidBalance > 0 && styles.statWarning]}>
+              {formatCurrency(totalUnpaidBalance)}
             </Text>
           </View>
         </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actionButtonsRow}>
-          {/* Primary Action: Session Tracking */}
-          {activeSession ? (
+        {/* Active Session */}
+        {activeSession && (
+          <View style={[styles.activeSessionCard, theme.shadows.card]}>
+            <Text style={styles.activeSessionTitle}>⏱️ Active Session</Text>
+            <Text style={styles.activeSessionTime}>{formatTime(sessionTime)}</Text>
             <Button
-              title={`${formatSessionTime(sessionTime)} | I'm Done`}
+              title="End Session"
               onPress={handleEndSession}
               variant="danger"
-              size="lg"
-              style={styles.primaryActionButton}
+              size="sm"
+              style={styles.endSessionButton}
             />
-          ) : (
+          </View>
+        )}
+
+        {/* Action Buttons */}
+        <View style={styles.actionButtons}>
+          {!activeSession && (
             <Button
-              title="I'm Here"
+              title="Start Session"
               onPress={handleStartSession}
               variant="success"
               size="lg"
-              style={styles.primaryActionButton}
+              style={styles.actionButton}
             />
           )}
-
-          {/* Secondary Action: Payment Request */}
           {paymentStatus === 'unpaid' && unpaidBalance > 0 && (
             <Button
               title={`Request ${formatCurrency(unpaidBalance)}`}
               onPress={handleRequestPayment}
               variant="primary"
               size="md"
-              style={styles.secondaryActionButton}
-            />
-          )}
-          {paymentStatus === 'requested' && (
-            <Button
-              title="Payment Requested"
-              onPress={() => {}} // No action - just informational
-              variant="secondary"
-              size="md"
-              style={[styles.secondaryActionButton, styles.requestedButtonDisabled]}
-              disabled={true}
+              style={styles.actionButton}
             />
           )}
         </View>
 
-        {/* Sessions History */}
-        <View style={styles.historySection}>
-          <Text style={styles.historyTitle}>Recent Sessions</Text>
+        {/* Activity Timeline */}
+        <View style={styles.timelineSection}>
+          <Text style={styles.timelineTitle}>Activity Timeline</Text>
 
-          {sessions.length === 0 ? (
-            <View style={[styles.emptyState, theme.shadows.card]}>
-              <Text style={styles.emptyStateText}>No work sessions yet</Text>
+          {timelineItems.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>No activity yet</Text>
               <Text style={styles.emptyStateSubtext}>
-                Start your first session with this client
+                Work sessions and payments will appear here
               </Text>
             </View>
           ) : (
-            sessions
-              .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
-              .slice(0, 10)
-              .map((session, index) => (
-              <View key={session.id}>
-                <View style={styles.sessionRow}>
-                  {/* Left side: date + time (stacked) */}
-                  <View style={styles.sessionLeft}>
-                    <Text style={styles.sessionDate}>
-                      {formatDate(session.startTime)}
-                    </Text>
-                    <Text style={styles.sessionTimeRange}>
-                      {new Date(session.startTime).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })} - {session.endTime ? new Date(session.endTime).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      }) : 'In Progress'} ({session.endTime ? formatTime((new Date(session.endTime).getTime() - new Date(session.startTime).getTime()) / 1000) : 'Active'})
-                    </Text>
+            timelineItems.slice(0, 20).map((item, index) => (
+              <View key={item.id} style={styles.timelineItem}>
+                {item.type === 'session' ? (
+                  // Work Session Line
+                  <View style={styles.timelineLine}>
+                    <Text style={styles.timelineIcon}>🕒</Text>
+                    <View style={styles.timelineContent}>
+                      <Text style={styles.timelineMainText}>
+                        Work: {new Date(item.data.startTime).toLocaleDateString('en-US', {
+                          month: '2-digit',
+                          day: '2-digit',
+                          year: 'numeric'
+                        })}
+                      </Text>
+                      <Text style={styles.timelineSubText}>
+                        {item.data.endTime
+                          ? (() => {
+                              const durationMs = new Date(item.data.endTime).getTime() - new Date(item.data.startTime).getTime();
+                              const hours = Math.floor(durationMs / (1000 * 60 * 60));
+                              const minutes = Math.round((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+                              const startTime = new Date(item.data.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                              const endTime = new Date(item.data.endTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                              return `${hours}hr${minutes > 0 ? ` ${minutes}min` : ''} (${startTime}-${endTime})`;
+                            })()
+                          : 'Active Session - In Progress'
+                        }
+                      </Text>
+                    </View>
+                    <View style={styles.timelineRight}>
+                      <Text style={styles.timelineAmount}>
+                        {item.data.endTime ? formatCurrency(item.data.amount || 0) : 'Active'}
+                      </Text>
+                      <StatusPill
+                        status={item.data.status as 'paid' | 'unpaid' | 'requested'}
+                        size="sm"
+                      />
+                    </View>
                   </View>
-
-                  {/* Right side: status pill + amount (stacked) */}
-                  <View style={styles.sessionRight}>
-                    <StatusPill
-                      status={session.status as 'paid' | 'unpaid' | 'requested'}
-                      size="sm"
-                      style={styles.statusPillSpacing}
-                    />
-                    <Text style={styles.sessionAmount}>
-                      {session.endTime ? formatCurrency(session.amount || 0) : formatCurrency(0)}
-                    </Text>
+                ) : (
+                  // Payment Line
+                  <View style={styles.timelineLine}>
+                    <Text style={styles.timelineIcon}>💰</Text>
+                    <View style={styles.timelineContent}>
+                      <Text style={styles.timelineMainText}>
+                        Payment Received
+                      </Text>
+                      <Text style={styles.timelineSubText}>
+                        {new Date(item.timestamp).toLocaleDateString('en-US', {
+                          month: '2-digit',
+                          day: '2-digit',
+                          year: 'numeric'
+                        })} {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''}
+                      </Text>
+                    </View>
+                    <View style={styles.timelineRight}>
+                      <Text style={styles.timelineAmount}>
+                        {formatCurrency(item.data.data.amount || 0)} ({item.data.data.method})
+                      </Text>
+                    </View>
                   </View>
-                </View>
-
-                {/* Divider between rows (except last) */}
-                {index < sessions.length - 1 && <View style={styles.sessionDivider} />}
+                )}
               </View>
             ))
           )}
@@ -400,10 +398,6 @@ const styles = StyleSheet.create({
     color: theme.colors.text.primary,
     fontFamily: theme.typography.fontFamily.display,
   },
-  clickableClientName: {
-    color: theme.colors.primary,
-    textDecorationLine: 'underline',
-  },
   subtitle: {
     fontSize: theme.fontSize.footnote,
     color: theme.colors.text.secondary,
@@ -417,7 +411,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.xxl,
   },
-  // Dashboard Stats Grid (2x2)
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -429,7 +422,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.card,
     borderRadius: theme.borderRadius.card,
     padding: theme.spacing.lg,
-    minWidth: '47%', // Two cards per row with gap
+    minWidth: '30%',
   },
   statLabel: {
     fontSize: theme.fontSize.footnote,
@@ -437,54 +430,54 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
     fontFamily: theme.typography.fontFamily.primary,
   },
-  statEarnings: {
+  statValue: {
     fontSize: theme.fontSize.title,
     fontWeight: theme.fontWeight.bold,
-    color: theme.colors.success,
+    color: theme.colors.text.primary,
     fontFamily: theme.typography.fontFamily.primary,
   },
-  statHours: {
-    fontSize: theme.fontSize.title,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.primary,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  statUnpaid: {
-    fontSize: theme.fontSize.title,
-    fontWeight: theme.fontWeight.bold,
+  statWarning: {
     color: theme.colors.warning,
+  },
+  activeSessionCard: {
+    backgroundColor: '#ecfdf5',
+    borderRadius: theme.borderRadius.card,
+    padding: theme.spacing.lg,
+    marginBottom: theme.spacing.xl,
+    borderLeftWidth: 4,
+    borderLeftColor: '#10b981',
+  },
+  activeSessionTitle: {
+    fontSize: theme.fontSize.headline,
+    fontWeight: theme.fontWeight.semibold,
+    color: '#047857',
+    marginBottom: theme.spacing.sm,
     fontFamily: theme.typography.fontFamily.primary,
   },
-  statUnpaidHours: {
+  activeSessionTime: {
     fontSize: theme.fontSize.title,
     fontWeight: theme.fontWeight.bold,
-    color: theme.colors.warning,
-    fontFamily: theme.typography.fontFamily.primary,
+    color: '#059669',
+    marginBottom: theme.spacing.md,
+    fontFamily: theme.typography.fontFamily.mono,
   },
-  actionButtonsRow: {
-    flexDirection: 'row',
+  endSessionButton: {
+    alignSelf: 'flex-start',
+  },
+  actionButtons: {
     gap: theme.spacing.md,
     marginBottom: theme.spacing.xl,
-    alignItems: 'flex-start',
   },
-  primaryActionButton: {
-    flex: 2,
-    minHeight: 56,
+  actionButton: {
+    width: '100%',
   },
-  secondaryActionButton: {
-    flex: 1,
-  },
-  requestedButtonDisabled: {
-    opacity: 0.7,
-  },
-  historySection: {
+  timelineSection: {
     backgroundColor: theme.colors.card,
     borderRadius: theme.borderRadius.card,
     padding: theme.spacing.lg,
-    marginTop: theme.spacing.md,
     ...theme.shadows.card,
   },
-  historyTitle: {
+  timelineTitle: {
     fontSize: theme.fontSize.headline,
     fontWeight: theme.fontWeight.semibold,
     color: theme.colors.text.primary,
@@ -492,11 +485,8 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.primary,
   },
   emptyState: {
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.borderRadius.card,
     padding: theme.spacing.xl,
     alignItems: 'center',
-    ...theme.shadows.card,
   },
   emptyStateText: {
     fontSize: theme.fontSize.body,
@@ -511,43 +501,44 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: theme.typography.fontFamily.primary,
   },
-  // Session Row (horizontal layout)
-  sessionRow: {
+  timelineItem: {
+    marginBottom: theme.spacing.md,
+  },
+  timelineLine: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
   },
-  sessionLeft: {
+  timelineIcon: {
+    fontSize: 20,
+    marginRight: theme.spacing.md,
+    width: 24,
+    textAlign: 'center',
+  },
+  timelineContent: {
     flex: 1,
+    marginRight: theme.spacing.md,
   },
-  sessionDate: {
+  timelineMainText: {
     fontSize: theme.fontSize.body,
     fontWeight: theme.fontWeight.medium,
     color: theme.colors.text.primary,
     fontFamily: theme.typography.fontFamily.primary,
     marginBottom: 2,
   },
-  sessionTimeRange: {
+  timelineSubText: {
     fontSize: theme.fontSize.footnote,
     color: theme.colors.text.secondary,
     fontFamily: theme.typography.fontFamily.primary,
   },
-  sessionRight: {
+  timelineRight: {
     alignItems: 'flex-end',
+    gap: theme.spacing.xs,
   },
-  statusPillSpacing: {
-    marginBottom: theme.spacing.xs,
-  },
-  sessionAmount: {
+  timelineAmount: {
     fontSize: theme.fontSize.body,
     fontWeight: theme.fontWeight.semibold,
     color: theme.colors.text.primary,
     fontFamily: theme.typography.fontFamily.primary,
-  },
-  sessionDivider: {
-    height: 1,
-    backgroundColor: '#E5E5E7', // Light gray border
-    marginHorizontal: 0,
   },
 });

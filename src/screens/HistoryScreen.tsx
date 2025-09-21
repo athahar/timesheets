@@ -12,7 +12,7 @@ import { Session, Client } from '../types';
 import {
   getSessions,
   getClients,
-} from '../services/storage';
+} from '../services/storageService';
 
 export const HistoryScreen: React.FC = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -164,7 +164,12 @@ export const HistoryScreen: React.FC = () => {
           <View className="flex-1 bg-card rounded-card shadow-card p-6">
             <Text className="text-callout text-text-secondary mb-3">Total Hours</Text>
             <Text className="text-title font-bold text-primary">
-              {summary.totalHours.toFixed(1)}h
+              {(() => {
+                const hours = Math.floor(summary.totalHours);
+                const minutes = Math.round((summary.totalHours % 1) * 60);
+                if (hours === 0) return `${minutes}min`;
+                return minutes > 0 ? `${hours}hr ${minutes}min` : `${hours}hr`;
+              })()}
             </Text>
           </View>
         </View>

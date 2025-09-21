@@ -1,30 +1,31 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  FlatList,
   SafeAreaView,
-  RefreshControl,
+  ScrollView,
   Modal,
   TextInput,
   Alert,
   TouchableOpacity,
+  StyleSheet,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { ActivityItem, Client, PaymentMethod } from '../types';
+import { ActivityItem, Client, PaymentMethod, Session } from '../types';
 import { Button } from '../components/Button';
+import { theme } from '../styles/theme';
 import {
   getActivities,
   getClients,
   markPaid,
   getSessionsByClient,
-} from '../services/storage';
+} from '../services/storageService';
 
 export const ClientViewScreen: React.FC = () => {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<ActivityItem | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -45,14 +46,25 @@ export const ClientViewScreen: React.FC = () => {
         getClients(),
       ]);
 
+      console.log('🔍 DEBUG: Total activities loaded:', activitiesData.length);
+      console.log('🔍 DEBUG: Activity types:', activitiesData.map(a => a.type));
+      console.log('🔍 DEBUG: Payment activities:', activitiesData.filter(a => a.type === 'payment_completed'));
+
       setActivities(activitiesData);
       setClients(clientsData);
+
+      // Load all sessions from all clients for the timeline
+      const allSessions: Session[] = [];
+      for (const client of clientsData) {
+        const clientSessions = await getSessionsByClient(client.id);
+        allSessions.push(...clientSessions);
+      }
+      setSessions(allSessions);
     } catch (error) {
       console.error('Error loading data:', error);
       Alert.alert('Error', 'Failed to load activity feed');
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
@@ -62,10 +74,6 @@ export const ClientViewScreen: React.FC = () => {
     }, [])
   );
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    loadData();
-  };
 
   const handlePaymentRequest = (activity: ActivityItem) => {
     if (activity.type === 'payment_request') {
@@ -117,129 +125,139 @@ export const ClientViewScreen: React.FC = () => {
     return clients.find(client => client.id === id) || null;
   };
 
-  const renderActivityMessage = ({ item }: { item: ActivityItem }) => {
-    const client = getClientById(item.clientId);
-    const clientName = client?.name || 'Unknown Client';
-    const time = new Date(item.timestamp).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  // Combine sessions and payment activities into unified timeline - memoized for performance
+  const timelineItems = useMemo(() => {
+    const items = [
+      // Map sessions to timeline items
+      ...sessions.map(session => ({
+        type: 'session' as const,
+        id: session.id,
+        timestamp: session.endTime || session.startTime,
+        clientId: session.clientId,
+        data: session
+      })),
+      // Map payment activities to timeline items
+      ...activities
+        .filter(a => a.type === 'payment_completed')
+        .map(activity => ({
+          type: 'payment' as const,
+          id: activity.id,
+          timestamp: activity.data.paymentDate ? new Date(activity.data.paymentDate) : activity.timestamp,
+          clientId: activity.clientId,
+          data: activity
+        }))
+    ];
 
-    const getActivityContent = () => {
-      switch (item.type) {
-        case 'session_start':
-          return (
-            <View className="bg-primary/10 border-l-4 border-primary rounded-r-card p-4 mr-12">
-              <Text className="text-primary text-headline font-semibold mb-1">
-                🟢 {clientName} started working
-              </Text>
-              <Text className="text-primary/70 text-footnote">
-                {time}
-              </Text>
-            </View>
-          );
+    // Sort by timestamp (most recent first)
+    items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-        case 'session_end':
-          const { duration, amount } = item.data;
-          return (
-            <View className="bg-success/10 border-l-4 border-success rounded-r-card p-4 mr-12">
-              <Text className="text-success text-headline font-semibold mb-2">
-                ⏹️ {clientName} finished working
-              </Text>
-              <Text className="text-success text-callout font-medium">
-                {duration?.toFixed(1)} hours • ${amount?.toFixed(2)}
-              </Text>
-              <Text className="text-success/70 text-footnote mt-1">
-                {time}
-              </Text>
-            </View>
-          );
+    return items;
+  }, [sessions, activities]);
 
-        case 'payment_request':
-          const { amount: requestAmount } = item.data;
-          return (
-            <View className="bg-warning/10 border-l-4 border-warning rounded-r-card p-4 mr-12">
-              <Text className="text-warning text-headline font-semibold mb-2">
-                💰 Payment request from {clientName}
-              </Text>
-              <Text className="text-warning text-callout font-medium mb-3">
-                Amount: ${requestAmount?.toFixed(2)}
-              </Text>
-              <Button
-                title="Mark as Paid"
-                onPress={() => handlePaymentRequest(item)}
-                variant="success"
-                size="sm"
-                className="self-start"
-              />
-              <Text className="text-warning/70 text-footnote mt-2">
-                {time}
-              </Text>
-            </View>
-          );
-
-        case 'payment_completed':
-          const { amount: paidAmount, method } = item.data;
-          return (
-            <View className="bg-success/10 border-l-4 border-success rounded-r-card p-4 mr-12">
-              <Text className="text-success text-headline font-semibold mb-2">
-                ✅ Payment completed
-              </Text>
-              <Text className="text-success text-callout">
-                ${paidAmount?.toFixed(2)} via {method}
-              </Text>
-              <Text className="text-success/70 text-footnote mt-1">
-                {time}
-              </Text>
-            </View>
-          );
-
-        default:
-          return (
-            <View className="bg-gray-100 border-l-4 border-gray-400 rounded-r-card p-4 mr-12">
-              <Text className="text-text-primary text-callout">Unknown activity</Text>
-              <Text className="text-text-secondary text-footnote mt-1">{time}</Text>
-            </View>
-          );
-      }
-    };
-
-    return (
-      <View className="mb-4">
-        {getActivityContent()}
-      </View>
-    );
+  const formatCurrency = (amount: number) => {
+    return `$${amount.toFixed(2)}`;
   };
 
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View className="px-6 pt-6 pb-4">
-        <Text className="text-display font-bold text-text-primary mb-2">Activity</Text>
-        <Text className="text-callout text-text-secondary">
+      <View style={styles.header}>
+        <Text style={styles.title}>Activity Timeline</Text>
+        <Text style={styles.subtitle}>
           Updates from your service provider
         </Text>
       </View>
 
-      {/* Activity Feed */}
-      <FlatList
-        data={activities}
-        renderItem={renderActivityMessage}
-        keyExtractor={(item) => item.id}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-        contentContainerStyle={{ padding: 24, paddingTop: 0 }}
-        ListEmptyComponent={
-          <View className="flex-1 justify-center items-center py-20">
-            <Text className="text-body text-text-secondary mb-4">No activity yet</Text>
-            <Text className="text-callout text-text-secondary text-center">
-              Activity will appear here when your service provider starts working
-            </Text>
-          </View>
-        }
-        showsVerticalScrollIndicator={false}
-      />
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Activity Timeline */}
+        <View style={styles.timelineSection}>
+          {timelineItems.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>No activity yet</Text>
+              <Text style={styles.emptyStateSubtext}>
+                Activity will appear here when your service provider starts working
+              </Text>
+            </View>
+          ) : (
+            timelineItems.slice(0, 20).map((item, index) => (
+              <View key={item.id} style={styles.timelineItem}>
+                {item.type === 'session' ? (
+                  // Work Session Line
+                  <View style={styles.timelineLine}>
+                    <Text style={styles.timelineIcon}>🕒</Text>
+                    <View style={styles.timelineContent}>
+                      <Text style={styles.timelineMainText}>
+                        Work: {new Date(item.data.startTime).toLocaleDateString('en-US', {
+                          month: '2-digit',
+                          day: '2-digit',
+                          year: 'numeric'
+                        })}
+                      </Text>
+                      <Text style={styles.timelineSubText}>
+                        {item.data.endTime
+                          ? (() => {
+                              const durationMs = new Date(item.data.endTime).getTime() - new Date(item.data.startTime).getTime();
+                              const hours = Math.floor(durationMs / (1000 * 60 * 60));
+                              const minutes = Math.round((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+                              const startTime = new Date(item.data.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                              const endTime = new Date(item.data.endTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                              return `${hours}hr${minutes > 0 ? ` ${minutes}min` : ''} (${startTime}-${endTime})`;
+                            })()
+                          : 'Active Session - In Progress'
+                        }
+                      </Text>
+                      <Text style={styles.timelineClientText}>
+                        {getClientById(item.clientId)?.name || 'Unknown Client'}
+                      </Text>
+                    </View>
+                    <View style={styles.timelineRight}>
+                      <Text style={styles.timelineAmount}>
+                        {item.data.endTime ? formatCurrency(item.data.amount || 0) : 'Active'}
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  // Payment Line
+                  <View style={styles.timelineLine}>
+                    <Text style={styles.timelineIcon}>💰</Text>
+                    <View style={styles.timelineContent}>
+                      <Text style={styles.timelineMainText}>
+                        Payment Sent
+                      </Text>
+                      <Text style={styles.timelineSubText}>
+                        {new Date(item.timestamp).toLocaleDateString('en-US', {
+                          month: '2-digit',
+                          day: '2-digit',
+                          year: 'numeric'
+                        })} {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''}
+                      </Text>
+                      <Text style={styles.timelineClientText}>
+                        to {getClientById(item.clientId)?.name || 'Unknown Client'}
+                      </Text>
+                    </View>
+                    <View style={styles.timelineRight}>
+                      <Text style={styles.timelineAmount}>
+                        {formatCurrency(item.data.data.amount || 0)} ({item.data.data.method})
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+            ))
+          )}
+        </View>
+      </ScrollView>
 
       {/* Payment Modal */}
       <Modal
@@ -248,66 +266,63 @@ export const ClientViewScreen: React.FC = () => {
         presentationStyle="pageSheet"
         onRequestClose={() => setShowPaymentModal(false)}
       >
-        <SafeAreaView className="flex-1 bg-background">
-          <View className="flex-1 px-6 pt-6">
+        <SafeAreaView style={styles.container}>
+          <View style={styles.modalContainer}>
             {/* Modal Header */}
-            <View className="flex-row justify-between items-center mb-8">
-              <Text className="text-title font-bold text-text-primary">Mark Payment</Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Mark Payment</Text>
               <TouchableOpacity
                 onPress={() => setShowPaymentModal(false)}
-                className="px-4 py-2"
+                style={styles.cancelButton}
               >
-                <Text className="text-primary text-headline font-medium">Cancel</Text>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
             </View>
 
             {/* Form */}
-            <View className="space-y-6">
+            <View style={styles.formContainer}>
               {/* Amount */}
-              <View>
-                <Text className="text-callout font-medium text-text-primary mb-3">
+              <View style={styles.formField}>
+                <Text style={styles.formLabel}>
                   Payment Amount
                 </Text>
-                <View className="bg-card rounded-button border border-gray-200">
-                  <View className="flex-row items-center">
-                    <Text className="text-body text-text-secondary pl-4">$</Text>
+                <View style={styles.inputContainer}>
+                  <View style={styles.inputRow}>
+                    <Text style={styles.dollarSign}>$</Text>
                     <TextInput
                       value={paymentAmount}
                       onChangeText={setPaymentAmount}
                       placeholder="Enter amount paid"
                       placeholderTextColor="#86868B"
                       keyboardType="numeric"
-                      className="flex-1 px-2 py-4 text-body text-text-primary"
-                      style={{ fontFamily: '-apple-system' }}
+                      style={styles.textInput}
                     />
                   </View>
                 </View>
-                <Text className="text-footnote text-text-secondary mt-2">
+                <Text style={styles.formHelperText}>
                   You can enter a partial payment amount
                 </Text>
               </View>
 
               {/* Payment Method */}
-              <View>
-                <Text className="text-callout font-medium text-text-primary mb-3">
+              <View style={styles.formField}>
+                <Text style={styles.formLabel}>
                   Payment Method
                 </Text>
-                <View className="space-y-3">
+                <View style={styles.methodsContainer}>
                   {paymentMethods.map((method) => (
                     <TouchableOpacity
                       key={method.value}
                       onPress={() => setPaymentMethod(method.value)}
-                      className={`bg-card rounded-button border-2 p-4 ${
-                        paymentMethod === method.value
-                          ? 'border-primary bg-primary/5'
-                          : 'border-gray-200'
-                      }`}
+                      style={[
+                        styles.methodButton,
+                        paymentMethod === method.value && styles.methodButtonSelected
+                      ]}
                     >
-                      <Text className={`text-callout font-medium ${
-                        paymentMethod === method.value
-                          ? 'text-primary'
-                          : 'text-text-primary'
-                      }`}>
+                      <Text style={[
+                        styles.methodButtonText,
+                        paymentMethod === method.value && styles.methodButtonTextSelected
+                      ]}>
                         {method.label}
                       </Text>
                     </TouchableOpacity>
@@ -317,13 +332,13 @@ export const ClientViewScreen: React.FC = () => {
             </View>
 
             {/* Mark as Paid Button */}
-            <View className="mt-12">
+            <View style={styles.modalButtonContainer}>
               <Button
                 title="Mark as Paid"
                 onPress={handleMarkPaid}
                 variant="success"
                 size="lg"
-                className="w-full"
+                style={styles.modalButton}
               />
             </View>
           </View>
@@ -332,3 +347,212 @@ export const ClientViewScreen: React.FC = () => {
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: theme.fontSize.body,
+    color: theme.colors.text.secondary,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  header: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
+  },
+  title: {
+    fontSize: theme.fontSize.display,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.text.primary,
+    fontFamily: theme.typography.fontFamily.display,
+    marginBottom: theme.spacing.sm,
+  },
+  subtitle: {
+    fontSize: theme.fontSize.callout,
+    color: theme.colors.text.secondary,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.xxl,
+  },
+  timelineSection: {
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.borderRadius.card,
+    padding: theme.spacing.lg,
+    ...theme.shadows.card,
+  },
+  emptyState: {
+    padding: theme.spacing.xl,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: theme.fontSize.body,
+    fontWeight: theme.fontWeight.medium,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.sm,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  emptyStateSubtext: {
+    fontSize: theme.fontSize.footnote,
+    color: theme.colors.text.secondary,
+    textAlign: 'center',
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  timelineItem: {
+    marginBottom: theme.spacing.md,
+  },
+  timelineLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+  },
+  timelineIcon: {
+    fontSize: 20,
+    marginRight: theme.spacing.md,
+    width: 24,
+    textAlign: 'center',
+  },
+  timelineContent: {
+    flex: 1,
+    marginRight: theme.spacing.md,
+  },
+  timelineMainText: {
+    fontSize: theme.fontSize.body,
+    fontWeight: theme.fontWeight.medium,
+    color: theme.colors.text.primary,
+    fontFamily: theme.typography.fontFamily.primary,
+    marginBottom: 2,
+  },
+  timelineSubText: {
+    fontSize: theme.fontSize.footnote,
+    color: theme.colors.text.secondary,
+    fontFamily: theme.typography.fontFamily.primary,
+    marginBottom: 2,
+  },
+  timelineClientText: {
+    fontSize: theme.fontSize.footnote,
+    color: theme.colors.text.secondary,
+    fontFamily: theme.typography.fontFamily.primary,
+    fontStyle: 'italic',
+  },
+  timelineRight: {
+    alignItems: 'flex-end',
+    gap: theme.spacing.xs,
+  },
+  timelineAmount: {
+    fontSize: theme.fontSize.body,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text.primary,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.xxl,
+  },
+  modalTitle: {
+    fontSize: theme.fontSize.title,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.text.primary,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  cancelButton: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  cancelButtonText: {
+    fontSize: theme.fontSize.headline,
+    fontWeight: theme.fontWeight.medium,
+    color: theme.colors.primary,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  formContainer: {
+    gap: theme.spacing.lg,
+  },
+  formField: {
+    gap: theme.spacing.sm,
+  },
+  formLabel: {
+    fontSize: theme.fontSize.callout,
+    fontWeight: theme.fontWeight.medium,
+    color: theme.colors.text.primary,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  inputContainer: {
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.borderRadius.button,
+    borderWidth: 1,
+    borderColor: '#e5e5e7',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dollarSign: {
+    fontSize: theme.fontSize.body,
+    color: theme.colors.text.secondary,
+    paddingLeft: theme.spacing.md,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  textInput: {
+    flex: 1,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.md,
+    fontSize: theme.fontSize.body,
+    color: theme.colors.text.primary,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  formHelperText: {
+    fontSize: theme.fontSize.footnote,
+    color: theme.colors.text.secondary,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  methodsContainer: {
+    gap: theme.spacing.sm,
+  },
+  methodButton: {
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.borderRadius.button,
+    borderWidth: 2,
+    borderColor: '#e5e5e7',
+    padding: theme.spacing.md,
+  },
+  methodButtonSelected: {
+    borderColor: theme.colors.primary,
+    backgroundColor: `${theme.colors.primary}08`,
+  },
+  methodButtonText: {
+    fontSize: theme.fontSize.callout,
+    fontWeight: theme.fontWeight.medium,
+    color: theme.colors.text.primary,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  methodButtonTextSelected: {
+    color: theme.colors.primary,
+  },
+  modalButtonContainer: {
+    marginTop: theme.spacing.xxl,
+  },
+  modalButton: {
+    width: '100%',
+  },
+});

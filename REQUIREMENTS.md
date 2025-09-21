@@ -55,19 +55,24 @@ A two-sided time tracking + payment request app prototype for service providers 
   - When work is completed, history automatically updates
   - Balance calculations update with new session earnings
 
-#### 2.3 History View (Design 03)
-**Screen**: History → Molly
+#### 2.3 Client History View (Design 03)
+**Screen**: Lucy → Adda Activity Timeline
 - **Summary Cards**:
-  - **Total Earned**: Lifetime earnings from this client (e.g., $375)
-  - **Total Hours**: Lifetime hours worked (e.g., 12.5h)
-- **Session History**:
-  - **Individual Session Cards**: Show date, time range, duration, amount, payment status
-  - **Payment Status**: Visual indicators for "Unpaid" (orange) vs "Paid" (green)
-  - **Display**: Last 10 entries with "More" button to view additional history
-- **Payment Summary Section**:
-  - **Paid Sessions**: Count and total amount (e.g., "1 sessions • $240")
-  - **Unpaid Sessions**: Count and total amount (e.g., "1 sessions • $135")
-  - **Grand Total**: Combined lifetime earnings
+  - **Unpaid Hours**: Total unpaid and requested hours (e.g., "4hr 30min")
+  - **Unpaid Balance**: Total amount owed (e.g., "$135.00")
+- **Activity Timeline**:
+  - **Unified Timeline**: Clean, minimalistic design mixing work sessions and payments chronologically
+  - **Work Sessions**: 🕒 icon with format:
+    - Main line: "Work: MM/DD/YYYY"
+    - Sub line: "4hr 30min (9:00am-1:30pm)"
+    - Right side: Amount and status pill
+  - **Payment Activities**: 💰 icon with format:
+    - Main line: "Payment Received"
+    - Sub line: "MM/DD/YYYY X sessions"
+    - Right side: "$135.00 (zelle)"
+  - **Layout**: Icon → Content → Amount/Status alignment
+  - **Sorting**: Most recent activities first
+  - **Display**: Last 20 entries with performance optimization
 
 ### 3. Client Flow (Molly's Perspective)
 
@@ -86,11 +91,23 @@ A two-sided time tracking + payment request app prototype for service providers 
   - **History Icon**: View detailed work session history
 - **Payment Requests**: Shows any pending payment requests from Lucy
 
-#### 3.3 Client History View
-**Screen**: Molly → Lucy Work History
-- **Content**: Same detailed view as Lucy sees, but from client perspective
-- **Purpose**: Molly can review all work sessions, verify hours, and confirm payments
-- **Payment Status**: Shows which sessions are paid/unpaid/requested
+#### 3.3 Service Provider Activity View
+**Screen**: Adda → Lucy Activity Timeline
+- **Summary Cards**:
+  - **Unpaid Amount**: Total amount owed to service provider (e.g., "$30.00")
+  - **Unpaid Hours**: Total unpaid hours (e.g., "30min")
+- **Activity Timeline**:
+  - **Unified Timeline**: Same clean design as service provider view, but from client perspective
+  - **Work Sessions**: 🕒 icon with format:
+    - Main line: "Work: MM/DD/YYYY"
+    - Sub line: "4hr 30min (9:00am-1:30pm)"
+    - Right side: Amount and status pill
+  - **Payment Activities**: 💰 icon with format:
+    - Main line: "Payment Sent" (client perspective)
+    - Sub line: "MM/DD/YYYY X sessions"
+    - Right side: "$135.00 (zelle)"
+  - **Mark as Paid Button**: When unpaid balance exists
+- **Purpose**: Client can review all work sessions, verify hours, and mark payments as completed
 
 ### 4. Work Session Management
 
@@ -163,15 +180,16 @@ A two-sided time tracking + payment request app prototype for service providers 
 - "Request Payment" button (when unpaid > 0)
 
 ### 3. Client View Screen (Client)
-**Purpose**: Chat-style activity feed
+**Purpose**: Unified activity timeline with payment management
 **Features**:
-- Real-time feed showing:
-  - "Lucy started at 9:00am"
-  - "Lucy finished. Today's due is $135 (4.5h)"
-  - Payment requests
-- Mark payments as "Paid" with:
+- **Activity Timeline**: Clean, line-based design showing:
+  - **Work Sessions**: 🕒 "Work: MM/DD/YYYY" with "4hr 30min (9:00am-1:30pm)"
+  - **Payments**: 💰 "Payment Sent" with "MM/DD/YYYY X sessions" and amount
+- **Payment Management**: Mark payments as "Paid" with:
   - Editable amount (for partial payments)
   - Payment method: Cash, Zelle, PayPal, Bank Transfer, Other
+- **Status Indicators**: Color-coded pills for unpaid/requested/paid status
+- **Chronological Order**: Most recent activities displayed first
 
 ### 4. History Screen
 **Purpose**: View past sessions and payments
@@ -183,6 +201,28 @@ A two-sided time tracking + payment request app prototype for service providers 
   - Total earned
   - Total hours worked
   - Paid vs unpaid breakdown
+
+## Design Principles
+
+### Unified Timeline Design
+- **Consistency**: Both service provider and client views use the same clean, minimalistic timeline design
+- **Icons**: 🕒 for work sessions, 💰 for payment activities
+- **Layout**: Icon → Content → Amount/Status (right-aligned)
+- **Time Format**: Always "Xhr Ymin" (e.g., "4hr 30min") instead of decimal hours
+- **Date Format**: MM/DD/YYYY for all dates
+- **Performance**: Optimized with useMemo for large datasets
+
+### Information Hierarchy
+- **Service Provider Focus**: Unpaid hours and unpaid balance (not total lifetime stats)
+- **Client Focus**: Amount owed and unpaid hours for transparency
+- **Perspective Labels**: "Payment Received" (service provider) vs "Payment Sent" (client)
+- **Status Indicators**: Color-coded pills for quick status recognition
+
+### User Experience
+- **Single Timeline**: Mixed work sessions and payments in chronological order
+- **Clean Design**: No card backgrounds, simple line-based layout
+- **Touch Targets**: Appropriate sizing for mobile interaction
+- **Loading States**: Proper loading indicators and error handling
 
 ## Data Models
 
@@ -508,3 +548,23 @@ Include demo data:
      - Monthly/yearly earning statistics  
      - Earning potential estimations
      - Comprehensive analytics
+
+
+
+  - Email: athahar+lucy@gmail.com
+  - Password: lucy123456
+
+  athhar+test@gmail.com
+  123456@
+
+📋 Client Login Credentials:
+ Password (same for all): demo123$
+Emails:
+  - Kel K: ath.sub.007+kel@gmail.com 
+  - Molly Johnson: ath.sub.007+molly@gmail.com 
+  - Mash n: athmash247@gmail.com 
+  - Sarah Davis: ath.sub.007+sarah@gmail.com
+  - Sam Li: ath.sub.007+sam@gmail.com 
+  - Adda Smith: ath.sub.007+adda@gmail.com 
+
+🚀 To test client accounts:
