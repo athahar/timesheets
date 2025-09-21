@@ -67,7 +67,7 @@ export const Button: React.FC<ButtonProps> = ({
     // Size styles
     switch (size) {
       case 'sm':
-        baseStyle.push({ fontSize: theme.fontSize.subhead, fontWeight: theme.fontWeight.medium });
+        baseStyle.push({ fontSize: theme.fontSize.callout, fontWeight: theme.fontWeight.medium });
         break;
       case 'md':
         baseStyle.push({ fontSize: theme.fontSize.body, fontWeight: theme.fontWeight.semibold });
@@ -107,30 +107,30 @@ const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: theme.borderRadius.button, // pill-shaped (rounded-full)
-    paddingHorizontal: theme.spacing.xl,
+    borderRadius: theme.borderRadius.medium, // 8px for buttons
+    paddingHorizontal: theme.spacing.lg,      // 24px
   },
   buttonSm: {
-    paddingVertical: 12,
-    minHeight: 44,
-    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.xs,        // 8px
+    minHeight: 44,                           // Apple's minimum touch target
+    paddingHorizontal: theme.spacing.md,     // 16px
   },
   buttonMd: {
-    paddingVertical: 16,
-    minHeight: 52,
-    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.sm,        // 12px
+    minHeight: 48,
+    paddingHorizontal: theme.spacing.lg,      // 24px
   },
   buttonLg: {
-    paddingVertical: theme.spacing.md,
-    minHeight: 56,
-    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.md,        // 16px
+    minHeight: 52,
+    paddingHorizontal: theme.spacing.xl,      // 32px
   },
   buttonPrimary: {
     backgroundColor: theme.colors.primary,
   },
   buttonSecondary: {
     backgroundColor: 'transparent',
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: theme.colors.success,
   },
   buttonSuccess: {
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.danger,
   },
   buttonDisabled: {
-    backgroundColor: '#D1D1D6',
+    backgroundColor: theme.colors.text.tertiary,
     opacity: 0.6,
   },
   text: {

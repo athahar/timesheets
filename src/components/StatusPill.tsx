@@ -13,44 +13,60 @@ export const StatusPill: React.FC<StatusPillProps> = ({
   size = 'md',
   style,
 }) => {
-
-  // Simplified version to avoid theme issues
-  const getSimpleConfig = () => {
+  const getStatusConfig = () => {
     switch (status) {
       case 'paid':
-        return { backgroundColor: '#E5F9EB', textColor: '#34C759', text: 'Paid' };
+        return {
+          backgroundColor: theme.colors.status.paid.background,
+          borderColor: theme.colors.status.paid.border,
+          textColor: theme.colors.status.paid.text,
+          text: 'Paid'
+        };
       case 'unpaid':
-        return { backgroundColor: '#FEF3E2', textColor: '#FF9500', text: 'Unpaid' };
+        return {
+          backgroundColor: theme.colors.status.unpaid.background,
+          borderColor: theme.colors.status.unpaid.border,
+          textColor: theme.colors.status.unpaid.text,
+          text: 'Unpaid'
+        };
       case 'requested':
-        return { backgroundColor: '#EBF5FF', textColor: '#007AFF', text: 'Requested' };
+        return {
+          backgroundColor: theme.colors.status.requested.background,
+          borderColor: theme.colors.status.requested.border,
+          textColor: theme.colors.status.requested.text,
+          text: 'Requested'
+        };
       default:
-        return { backgroundColor: '#f0f0f0', textColor: '#666', text: 'Unknown' };
+        return {
+          backgroundColor: theme.colors.text.tertiary + '1A', // 10% opacity
+          borderColor: theme.colors.text.tertiary + '33',     // 20% opacity
+          textColor: theme.colors.text.tertiary,
+          text: 'Unknown'
+        };
     }
   };
 
-  const config = getSimpleConfig();
+  const config = getStatusConfig();
 
   return (
     <View
       style={[
+        styles.pill,
+        size === 'sm' ? styles.pillSm : styles.pillMd,
         {
           backgroundColor: config.backgroundColor,
-          borderRadius: 999,
-          paddingHorizontal: size === 'sm' ? 8 : 16,
-          paddingVertical: size === 'sm' ? 4 : 8,
-          alignItems: 'center',
-          justifyContent: 'center',
-          alignSelf: 'flex-start',
+          borderWidth: 1,
+          borderColor: config.borderColor,
         },
         style,
       ]}
     >
       <Text
-        style={{
-          color: config.textColor,
-          fontSize: size === 'sm' ? 12 : 14,
-          fontWeight: '600',
-        }}
+        style={[
+          styles.text,
+          size === 'sm' ? styles.textSm : styles.textMd,
+          { color: config.textColor }
+        ]}
       >
         {config.text}
       </Text>
@@ -60,27 +76,27 @@ export const StatusPill: React.FC<StatusPillProps> = ({
 
 const styles = StyleSheet.create({
   pill: {
-    borderRadius: theme.borderRadius.button, // rounded-full
+    borderRadius: theme.borderRadius.small, // 6px for status pills
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'flex-start',
   },
   pillSm: {
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 4,
+    paddingHorizontal: theme.spacing.xs,  // 8px
+    paddingVertical: theme.spacing.xxs,   // 4px
   },
   pillMd: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,  // 12px
+    paddingVertical: theme.spacing.xxs,   // 4px
   },
   text: {
     fontFamily: theme.typography.fontFamily.primary,
-    fontWeight: theme.fontWeight.semibold,
+    fontWeight: theme.fontWeight.medium,  // 500 weight for interactive elements
   },
   textSm: {
-    fontSize: theme.fontSize.small,
+    fontSize: theme.fontSize.footnote,    // 13px
   },
   textMd: {
-    fontSize: theme.fontSize.footnote,
+    fontSize: theme.fontSize.footnote,    // 13px for status labels
   },
 });

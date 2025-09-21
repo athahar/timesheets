@@ -223,7 +223,9 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.clientName}>{client.name}</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('ClientProfile', { clientId: client.id })}>
+          <Text style={styles.clientName}>{client.name}</Text>
+        </TouchableOpacity>
         <Text style={styles.subtitle}>Work History</Text>
       </View>
 
@@ -395,7 +397,7 @@ const styles = StyleSheet.create({
   clientName: {
     fontSize: theme.fontSize.title,
     fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
+    color: theme.colors.primary,
     fontFamily: theme.typography.fontFamily.display,
   },
   subtitle: {

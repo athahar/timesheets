@@ -13,7 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Client } from '../types';
 import { Button } from '../components/Button';
 import { theme } from '../styles/theme';
-import { getClientById, updateClient } from '../services/storage';
+import { getClientById, updateClient } from '../services/storageService';
 
 interface ClientProfileScreenProps {
   route: {
@@ -33,6 +33,7 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editedName, setEditedName] = useState('');
+  const [editedEmail, setEditedEmail] = useState('');
   const [editedRate, setEditedRate] = useState('');
 
   const loadData = async () => {
@@ -45,6 +46,7 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
       }
       setClient(clientData);
       setEditedName(clientData.name);
+      setEditedEmail(clientData.email || '');
       setEditedRate(clientData.hourlyRate.toString());
     } catch (error) {
       console.error('Error loading client:', error);
@@ -60,8 +62,19 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
     }, [clientId])
   );
 
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleSave = async () => {
     if (!client) return;
+
+    // Validate email if provided
+    if (editedEmail.trim() && !isValidEmail(editedEmail.trim())) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address');
+      return;
+    }
 
     const rate = parseFloat(editedRate);
     if (isNaN(rate) || rate <= 0) {
@@ -70,8 +83,13 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
     }
 
     try {
-      await updateClient(clientId, editedName.trim(), rate);
-      const updatedClient = { ...client, name: editedName.trim(), hourlyRate: rate };
+      await updateClient(clientId, editedName.trim(), rate, editedEmail.trim() || undefined);
+      const updatedClient = {
+        ...client,
+        name: editedName.trim(),
+        email: editedEmail.trim() || undefined,
+        hourlyRate: rate
+      };
       setClient(updatedClient);
       setEditing(false);
       Alert.alert('Success', 'Client profile updated successfully');
@@ -84,6 +102,7 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
   const handleCancel = () => {
     if (!client) return;
     setEditedName(client.name);
+    setEditedEmail(client.email || '');
     setEditedRate(client.hourlyRate.toString());
     setEditing(false);
   };
@@ -136,6 +155,20 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
               </View>
 
               <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Email (Optional)</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={editedEmail}
+                  onChangeText={setEditedEmail}
+                  placeholder="client@example.com"
+                  placeholderTextColor={theme.colors.text.secondary}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>Hourly Rate</Text>
                 <View style={styles.rateInputContainer}>
                   <Text style={styles.currencySymbol}>$</Text>
@@ -175,6 +208,9 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
               <View style={styles.profileInfo}>
                 <Text style={styles.clientName}>{client.name}</Text>
                 <Text style={styles.clientRole}>Client</Text>
+                {client.email && (
+                  <Text style={styles.clientEmail}>{client.email}</Text>
+                )}
               </View>
 
               <View style={styles.rateSection}>
@@ -274,6 +310,12 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
     fontFamily: theme.typography.fontFamily.primary,
   },
+  clientEmail: {
+    fontSize: theme.fontSize.footnote,
+    color: theme.colors.primary,
+    fontFamily: theme.typography.fontFamily.primary,
+    marginTop: theme.spacing.xs,
+  },
   rateSection: {
     alignItems: 'center',
     marginBottom: theme.spacing.xl,
@@ -316,7 +358,7 @@ const styles = StyleSheet.create({
   textInput: {
     borderWidth: 1,
     borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.input,
+    borderRadius: theme.borderRadius.medium,
     padding: theme.spacing.md,
     fontSize: theme.fontSize.body,
     fontFamily: theme.typography.fontFamily.primary,
@@ -328,7 +370,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.input,
+    borderRadius: theme.borderRadius.medium,
     backgroundColor: theme.colors.background,
     paddingHorizontal: theme.spacing.md,
   },

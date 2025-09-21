@@ -202,9 +202,86 @@ A two-sided time tracking + payment request app prototype for service providers 
   - Total hours worked
   - Paid vs unpaid breakdown
 
-## Design Principles
+## Design System
 
-### Unified Timeline Design
+### Visual Design Philosophy
+The app follows Apple's design principles with clean, modern aesthetics that prioritize clarity and functionality. The design system emphasizes subtle visual hierarchy, appropriate use of color, and consistent spacing throughout the interface.
+
+### Color Palette
+**Primary Colors:**
+- **Primary Blue**: `#007AFF` - Main brand color for primary actions and highlights
+- **Background**: `#F8F9FA` - Clean, neutral background that doesn't compete with content
+- **Card Background**: `#FFFFFF` - Pure white for content cards and modals
+- **Borders/Separators**: `#E5E7EB` - Subtle borders that define sections without being distracting
+
+**Text Colors:**
+- **Primary Text**: `#1F2937` - High contrast for headers and important content
+- **Secondary Text**: `#6B7280` - Reduced contrast for supporting information and metadata
+- **Tertiary Text**: `#9CA3AF` - Subtle text for less important details
+
+**Status Colors:**
+- **Success/Paid**: `#10B981` - Green for completed payments and positive states
+- **Warning/Unpaid**: `#F59E0B` - Amber for pending payments and attention items
+- **Error/Critical**: `#EF4444` - Red for errors and critical actions
+- **Info/Requested**: `#3B82F6` - Blue for informational states and requested payments
+
+**Status Color Applications:**
+- **Background**: Use color at 10% opacity for status pills and highlighted areas
+- **Border**: Use color at 20% opacity for subtle borders around status elements
+- **Text**: Use full color strength for text within status areas
+
+### Typography
+**Font Stack:**
+- **Primary**: `Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui`
+- **Display**: `SF Pro Display, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui`
+
+**Font Sizes & Hierarchy:**
+- **Display**: `28px` - Page titles and major headings
+- **Title**: `22px` - Section headers and important content
+- **Headline**: `17px` - Card titles and secondary headers
+- **Body**: `16px` - Main content and form labels
+- **Callout**: `15px` - Secondary content and descriptions
+- **Footnote**: `13px` - Metadata, status labels, and supporting text
+
+**Font Weights:**
+- **Bold**: `700` - High emphasis titles and important information
+- **Semibold**: `600` - Section headers and primary content
+- **Medium**: `500` - Interactive elements and secondary emphasis
+- **Regular**: `400` - Body text and standard content
+
+### Spacing System (8pt Grid)
+- **XXS**: `4px` - Tight spacing between related elements
+- **XS**: `8px` - Close elements within components
+- **SM**: `12px` - Standard component internal spacing
+- **MD**: `16px` - Default spacing between elements
+- **LG**: `24px` - Section spacing and larger gaps
+- **XL**: `32px` - Major section separation
+- **XXL**: `48px` - Large content blocks and page spacing
+
+### Shadows & Depth
+**Card Shadow:**
+```css
+box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+```
+- Subtle elevation for cards and modals
+- Creates hierarchy without being distracting
+
+**Button Shadow (Interactive):**
+```css
+box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+```
+- Minimal shadow for interactive elements
+- Enhances tactile feedback
+
+### Border Radius
+- **Small**: `6px` - Status pills and small interactive elements
+- **Medium**: `8px` - Buttons and form inputs
+- **Card**: `12px` - Content cards and containers
+- **Large**: `16px` - Modals and major UI elements
+
+### Design Principles
+
+#### Unified Timeline Design
 - **Consistency**: Both service provider and client views use the same clean, minimalistic timeline design
 - **Icons**: 🕒 for work sessions, 💰 for payment activities
 - **Layout**: Icon → Content → Amount/Status (right-aligned)
@@ -212,17 +289,19 @@ A two-sided time tracking + payment request app prototype for service providers 
 - **Date Format**: MM/DD/YYYY for all dates
 - **Performance**: Optimized with useMemo for large datasets
 
-### Information Hierarchy
+#### Information Hierarchy
 - **Service Provider Focus**: Unpaid hours and unpaid balance (not total lifetime stats)
 - **Client Focus**: Amount owed and unpaid hours for transparency
 - **Perspective Labels**: "Payment Received" (service provider) vs "Payment Sent" (client)
 - **Status Indicators**: Color-coded pills for quick status recognition
 
-### User Experience
+#### User Experience
 - **Single Timeline**: Mixed work sessions and payments in chronological order
 - **Clean Design**: No card backgrounds, simple line-based layout
-- **Touch Targets**: Appropriate sizing for mobile interaction
+- **Touch Targets**: Appropriate sizing for mobile interaction (minimum 44px)
 - **Loading States**: Proper loading indicators and error handling
+- **Visual Affordances**: Clear indication of interactive elements
+- **Consistent Spacing**: 8pt grid system throughout the interface
 
 ## Data Models
 

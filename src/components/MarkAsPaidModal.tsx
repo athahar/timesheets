@@ -11,7 +11,7 @@ import {
 import { Session, PaymentMethod } from '../types';
 import { Button } from './Button';
 import { theme } from '../styles/theme';
-import { markPaid } from '../services/storage';
+import { markPaid } from '../services/storageService';
 
 interface MarkAsPaidModalProps {
   visible: boolean;
@@ -96,21 +96,21 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
         sessionsCount: payableSessions.length
       });
 
+      console.log('💰 MarkAsPaidModal: Calling markPaid...');
       await markPaid(clientId, sessionIds, amount, paymentMethod);
+      console.log('✅ MarkAsPaidModal: Payment successful, closing modal');
 
-      Alert.alert(
-        'Payment Recorded',
-        `Payment of $${amount.toFixed(2)} to ${providerName} has been recorded.`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              onPaymentCompleted();
-              onClose();
-            },
-          },
-        ]
-      );
+      // Close modal immediately after successful payment
+      onPaymentCompleted();
+      onClose();
+
+      // Show success alert after modal is closed
+      setTimeout(() => {
+        Alert.alert(
+          'Payment Recorded',
+          `Payment of $${amount.toFixed(2)} to ${providerName} has been recorded.`
+        );
+      }, 100);
     } catch (error) {
       console.error('❌ Error marking as paid:', error);
       Alert.alert('Error', 'Failed to record payment. Please try again.');
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   amountInput: {
     borderWidth: 1,
     borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.input,
+    borderRadius: theme.borderRadius.medium,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     fontSize: theme.fontSize.body,
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
   dateInput: {
     borderWidth: 1,
     borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.input,
+    borderRadius: theme.borderRadius.medium,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     fontSize: theme.fontSize.body,
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   methodButton: {
     borderWidth: 1,
     borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.button,
+    borderRadius: theme.borderRadius.small,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     backgroundColor: theme.colors.background,

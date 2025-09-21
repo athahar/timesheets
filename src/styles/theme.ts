@@ -1,92 +1,109 @@
 export const theme = {
   colors: {
+    // Primary Colors
     primary: '#007AFF',
-    success: '#34C759',
-    warning: '#FF9500',
-    danger: '#FF3B30',
-    background: '#F9FAFB', // Soft neutral off-white
-    backgroundAlt: '#F3F4F6', // Light gray alternative
+    background: '#F8F9FA',
     card: '#FFFFFF',
+    border: '#E5E7EB',
+
+    // Status Colors (full strength)
+    success: '#10B981',
+    warning: '#F59E0B',
+    danger: '#EF4444',
+    info: '#3B82F6',
+
+    // Text Colors
     text: {
-      primary: '#1C1C1E', // Neutral/Dark Text
-      secondary: '#8E8E93', // Subtle Gray Text
+      primary: '#1F2937',
+      secondary: '#6B7280',
+      tertiary: '#9CA3AF',
     },
+
+    // Status Color Applications (10% background, 20% border, full text)
     status: {
       paid: {
-        background: '#E5F9EB',
-        text: '#34C759',
+        background: 'rgba(16, 185, 129, 0.1)', // success at 10%
+        border: 'rgba(16, 185, 129, 0.2)',     // success at 20%
+        text: '#10B981',                       // full success
       },
       unpaid: {
-        background: '#FEF3E2',
-        text: '#FF9500',
+        background: 'rgba(245, 158, 11, 0.1)', // warning at 10%
+        border: 'rgba(245, 158, 11, 0.2)',     // warning at 20%
+        text: '#F59E0B',                       // full warning
       },
       requested: {
-        background: '#EBF5FF',
-        text: '#007AFF',
+        background: 'rgba(59, 130, 246, 0.1)', // info at 10%
+        border: 'rgba(59, 130, 246, 0.2)',     // info at 20%
+        text: '#3B82F6',                       // full info
+      },
+      error: {
+        background: 'rgba(239, 68, 68, 0.1)',  // danger at 10%
+        border: 'rgba(239, 68, 68, 0.2)',      // danger at 20%
+        text: '#EF4444',                       // full danger
       },
     },
   },
+
+  // Spacing System (8pt Grid)
   spacing: {
-    xs: 4,
-    sm: 8,
-    md: 16,
-    lg: 24,
-    xl: 32,
-    xxl: 40,
+    xxs: 4,   // 4px
+    xs: 8,    // 8px
+    sm: 12,   // 12px
+    md: 16,   // 16px
+    lg: 24,   // 24px
+    xl: 32,   // 32px
+    xxl: 48,  // 48px
   },
+
+  // Border Radius
   borderRadius: {
-    card: 20, // rounded-2xl
-    button: 999, // rounded-full (pill-shaped)
-    small: 12,
+    small: 6,   // Status pills and small interactive elements
+    medium: 8,  // Buttons and form inputs
+    card: 12,   // Content cards and containers
+    large: 16,  // Modals and major UI elements
   },
+
+  // Shadows & Depth
   shadows: {
+    // Card Shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)
     card: {
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.06, // More subtle
-      shadowRadius: 8,
-      elevation: 4,
-    },
-    cardStrong: {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.08,
-      shadowRadius: 12,
-      elevation: 8,
-    },
-    button: {
-      shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05, // Very subtle
+      shadowOpacity: 0.1,
       shadowRadius: 3,
       elevation: 2,
     },
+    // Button Shadow: 0 1px 2px rgba(0, 0, 0, 0.05)
+    button: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
+    },
   },
+
+  // Typography
   fontSize: {
-    // Large headings: 20-24px, semi-bold
-    display: 28,
-    title: 24,
-    headline: 20,
-    // Body: 16px
-    body: 16,
-    callout: 16,
-    subhead: 15,
-    // Labels: 13px, subtle gray
-    footnote: 13,
-    caption: 12,
-    small: 11,
+    display: 28,    // Page titles and major headings
+    title: 22,      // Section headers and important content
+    headline: 17,   // Card titles and secondary headers
+    body: 16,       // Main content and form labels
+    callout: 15,    // Secondary content and descriptions
+    footnote: 13,   // Metadata, status labels, and supporting text
   },
+
   fontWeight: {
-    regular: '400',
-    medium: '500',
-    semibold: '600',
-    bold: '700',
+    regular: '400',   // Body text and standard content
+    medium: '500',    // Interactive elements and secondary emphasis
+    semibold: '600',  // Section headers and primary content
+    bold: '700',      // High emphasis titles and important information
   },
+
   typography: {
-    // San Francisco (SF Pro) or Inter fallback
     fontFamily: {
-      primary: 'SF Pro Text, Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif',
-      display: 'SF Pro Display, Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif',
+      primary: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+      display: 'SF Pro Display, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
     },
   },
 };
