@@ -1,20 +1,28 @@
+import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { AppNavigator } from './src/navigation/AppNavigator';
+import { initializeWithSeedData } from './src/services/storage';
 
 export default function App() {
+  useEffect(() => {
+    // Initialize with seed data on app start
+    const initializeSeedData = async () => {
+      try {
+        console.log('🚀 App: Starting seed data initialization...');
+        await initializeWithSeedData();
+        console.log('🎉 App: Seed data initialization completed');
+      } catch (error) {
+        console.error('❌ App: Error initializing seed data:', error);
+      }
+    };
+
+    initializeSeedData();
+  }, []);
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
+    <>
+      <AppNavigator />
       <StatusBar style="auto" />
-    </View>
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
