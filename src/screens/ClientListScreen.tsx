@@ -17,7 +17,7 @@ import {
   getClients,
   addClient,
   getClientSummary,
-} from '../services/storage';
+} from '../services/storageService';
 
 interface ClientListScreenProps {
   navigation: any;
@@ -49,7 +49,10 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
           };
         })
       );
-      setClients(clientsWithSummary);
+
+      // Sort alphabetically to ensure stable ordering
+      const sortedClients = clientsWithSummary.sort((a, b) => a.name.localeCompare(b.name));
+      setClients(sortedClients);
     } catch (error) {
       console.error('Error loading clients:', error);
       Alert.alert('Error', 'Failed to load clients');
@@ -95,7 +98,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   };
 
   const handleClientPress = (client: Client) => {
-    navigation.navigate('SessionTracking', { clientId: client.id });
+    navigation.navigate('ClientProfile', { clientId: client.id });
   };
 
   const renderClientCard = ({ item }: { item: ClientWithSummary }) => (

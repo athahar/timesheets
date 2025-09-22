@@ -2,8 +2,13 @@
 // Simplified service that calls Supabase directly
 
 import { supabase, getCurrentUser } from './supabase';
-import { Client, Session, Payment, ActivityItem } from '../types';
+import { Client, Session, Payment, ActivityItem, Invite } from '../types';
 import { generateUUID } from '../utils/uuid';
+import {
+  generateInviteCode,
+  generateExpirationDate,
+  isInviteExpired
+} from '../utils/inviteCodeGenerator';
 
 export class DirectSupabaseService {
 
@@ -60,7 +65,7 @@ export class DirectSupabaseService {
   async getClients(): Promise<Client[]> {
     const { data, error } = await supabase
       .from('trackpay_users')
-      .select('id, name, email, hourly_rate')
+      .select('id, name, email, hourly_rate, claimed_status')
       .eq('role', 'client')
       .order('name');
 
@@ -73,53 +78,74 @@ export class DirectSupabaseService {
       id: client.id,
       name: client.name,
       email: client.email || '',
-      hourlyRate: client.hourly_rate || 0
+      hourlyRate: client.hourly_rate || 0,
+      claimedStatus: client.claimed_status || 'claimed' // Default to claimed for existing clients
     }));
   }
 
-  async addClient(name: string, hourlyRate: number, email?: string): Promise<Client> {
+  async addClient(name: string, hourlyRate: number, email?: string): Promise<Client & { inviteCode?: string }> {
     const clientId = generateUUID();
+    const providerId = await this.getCurrentProviderId();
 
-    const { data, error } = await supabase
+    // Create unclaimed client
+    const { data: clientData, error: clientError } = await supabase
       .from('trackpay_users')
       .insert([{
         id: clientId,
         name,
         email,
         role: 'client',
-        hourly_rate: hourlyRate
+        hourly_rate: hourlyRate,
+        claimed_status: 'unclaimed' // New: Mark as unclaimed placeholder
       }])
       .select()
       .single();
 
-    if (error) {
-      console.error('❌ Error creating client:', error);
-      throw error;
+    if (clientError) {
+      console.error('❌ Error creating client:', clientError);
+      throw clientError;
     }
 
-    console.log('✅ Client created in Supabase:', clientId);
+    console.log('✅ Unclaimed client created in Supabase:', clientId);
 
     // Create relationship with current provider
     try {
-      const providerId = await this.getCurrentProviderId();
-
-      await supabase
+      const { error: relationshipError } = await supabase
         .from('trackpay_relationships')
         .insert([{
           provider_id: providerId,
           client_id: clientId
         }]);
 
+      if (relationshipError) {
+        // If relationship fails, we should clean up the client
+        await supabase.from('trackpay_users').delete().eq('id', clientId);
+        throw relationshipError;
+      }
+
       console.log('✅ Client-provider relationship created');
     } catch (error) {
-      console.warn('⚠️ Could not create provider relationship:', error);
+      console.error('❌ Error creating relationship:', error);
+      throw new Error('Failed to establish client-provider relationship');
+    }
+
+    // Create invite for this specific client
+    let inviteCode: string | undefined;
+    try {
+      const invite = await this.createInviteForClient(clientId, providerId);
+      inviteCode = invite.inviteCode;
+      console.log('✅ Invite created for client:', inviteCode);
+    } catch (error) {
+      console.error('⚠️ Warning: Could not create invite for client:', error);
+      // Don't fail the whole operation if invite creation fails
     }
 
     return {
       id: clientId,
       name,
       email: email || '',
-      hourlyRate
+      hourlyRate,
+      inviteCode // Include invite code in response
     };
   }
 
@@ -519,6 +545,294 @@ export class DirectSupabaseService {
       timestamp: new Date(activity.created_at),
       data: activity.data
     }));
+  }
+
+  // Invite operations
+  // Create invite for a specific client (used internally by addClient)
+  async createInviteForClient(clientId: string, providerId: string): Promise<Invite> {
+    const inviteId = generateUUID();
+
+    // Generate unique invite code with collision handling
+    let inviteCode = generateInviteCode();
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    while (attempts < maxAttempts) {
+      try {
+        const { data: existingInvite } = await supabase
+          .from('trackpay_invites')
+          .select('id')
+          .eq('invite_code', inviteCode)
+          .single();
+
+        if (!existingInvite) {
+          break; // Code is unique
+        }
+
+        inviteCode = generateInviteCode(); // Generate new code
+        attempts++;
+      } catch (error: any) {
+        if (error.code === 'PGRST116') {
+          break; // No existing invite found, code is unique
+        }
+        throw error;
+      }
+    }
+
+    if (attempts >= maxAttempts) {
+      throw new Error('Unable to generate unique invite code');
+    }
+
+    const expiresAt = generateExpirationDate(7); // 7 days
+
+    // Get client details for the invite
+    const { data: clientData } = await supabase
+      .from('trackpay_users')
+      .select('name, hourly_rate')
+      .eq('id', clientId)
+      .single();
+
+    const { data, error } = await supabase
+      .from('trackpay_invites')
+      .insert([{
+        id: inviteId,
+        provider_id: providerId,
+        client_id: clientId, // Link to specific client
+        invite_code: inviteCode,
+        status: 'pending',
+        expires_at: expiresAt.toISOString()
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error creating invite:', error);
+      throw error;
+    }
+
+    console.log('✅ Invite created for client:', inviteCode);
+
+    return {
+      id: data.id,
+      providerId: data.provider_id,
+      inviteCode: data.invite_code,
+      clientName: clientData?.name || 'Unknown',
+      hourlyRate: clientData?.hourly_rate || 0,
+      status: data.status,
+      createdAt: new Date(data.created_at),
+      expiresAt: new Date(data.expires_at),
+      claimedBy: data.claimed_by,
+      claimedAt: data.claimed_at ? new Date(data.claimed_at) : undefined
+    };
+  }
+
+  // Legacy method - kept for backwards compatibility but deprecated
+  async createInvite(clientName: string, hourlyRate: number): Promise<Invite> {
+    // Create a new unclaimed client and invite together
+    const client = await this.addClient(clientName, hourlyRate);
+    if (!client.inviteCode) {
+      throw new Error('Failed to create invite for new client');
+    }
+
+    // Fetch and return the invite details
+    const invite = await this.getInviteByCode(client.inviteCode);
+    if (!invite) {
+      throw new Error('Invite was created but could not be retrieved');
+    }
+
+    return invite;
+  }
+
+  async getInvites(): Promise<Invite[]> {
+    const providerId = await this.getCurrentProviderId();
+
+    const { data, error } = await supabase
+      .from('trackpay_invites')
+      .select(`
+        *,
+        client:trackpay_users!client_id(id, name, hourly_rate)
+      `)
+      .eq('provider_id', providerId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ Error fetching invites:', error);
+      throw error;
+    }
+
+    return (data || []).map(invite => ({
+      id: invite.id,
+      providerId: invite.provider_id,
+      clientId: invite.client_id, // Add this field that was missing
+      inviteCode: invite.invite_code,
+      clientName: invite.client?.name || 'Unknown',
+      hourlyRate: invite.client?.hourly_rate || 0,
+      status: invite.status,
+      createdAt: new Date(invite.created_at),
+      expiresAt: new Date(invite.expires_at),
+      claimedBy: invite.claimed_by,
+      claimedAt: invite.claimed_at ? new Date(invite.claimed_at) : undefined
+    }));
+  }
+
+  async getInviteByCode(inviteCode: string): Promise<Invite | null> {
+    const { data, error } = await supabase
+      .from('trackpay_invites')
+      .select(`
+        *,
+        client:trackpay_users!client_id(id, name, hourly_rate, role),
+        provider:trackpay_users!provider_id(id, name, role)
+      `)
+      .eq('invite_code', inviteCode)
+      .eq('status', 'pending')
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null; // No invite found
+      }
+      console.error('❌ Error fetching invite by code:', error);
+      throw error;
+    }
+
+    // Check if expired
+    if (isInviteExpired(new Date(data.expires_at))) {
+      await this.expireInvite(data.id);
+      return null;
+    }
+
+    // Determine who created the invite and who is being invited
+    const inviterRole = data.provider?.role || 'provider';
+    const inviterName = data.provider?.name || 'Unknown';
+    const inviteeRole = data.client?.role || 'client';
+
+    return {
+      id: data.id,
+      providerId: data.provider_id,
+      clientId: data.client_id,
+      inviteCode: data.invite_code,
+      clientName: inviterName, // Name of person who created the invite
+      hourlyRate: data.client?.hourly_rate || 0,
+      status: data.status,
+      createdAt: new Date(data.created_at),
+      expiresAt: new Date(data.expires_at),
+      claimedBy: data.claimed_by,
+      claimedAt: data.claimed_at ? new Date(data.claimed_at) : undefined,
+      // Add metadata for dynamic UI
+      inviterRole: inviterRole,
+      inviteeName: data.client?.name || 'Unknown',
+      inviteeRole: inviteeRole,
+    };
+  }
+
+  async validateInviteCode(inviteCode: string): Promise<{ valid: boolean; message?: string; invite?: Invite }> {
+    try {
+      const invite = await this.getInviteByCode(inviteCode);
+
+      if (!invite) {
+        return { valid: false, message: 'Invite code not found or has expired' };
+      }
+
+      return { valid: true, invite };
+    } catch (error) {
+      console.error('❌ Error validating invite code:', error);
+      return { valid: false, message: 'Error validating invite code' };
+    }
+  }
+
+  async claimInvite(inviteCode: string, authUserId: string, userEmail?: string, displayName?: string): Promise<{ clientId: string; providerId: string }> {
+    const invite = await this.getInviteByCode(inviteCode);
+    if (!invite) {
+      throw new Error('Invite not found or expired');
+    }
+
+    // Get the client ID from the invite
+    const { data: inviteData } = await supabase
+      .from('trackpay_invites')
+      .select('client_id')
+      .eq('id', invite.id)
+      .single();
+
+    if (!inviteData?.client_id) {
+      throw new Error('Invalid invite - no associated client');
+    }
+
+    const clientId = inviteData.client_id;
+
+    // Update the client record to claimed with user details
+    const updateData: any = {
+      auth_user_id: authUserId,
+      claimed_status: 'claimed'
+    };
+
+    // Add email and display_name if provided (from registration)
+    if (userEmail) {
+      updateData.email = userEmail;
+    }
+    if (displayName) {
+      updateData.display_name = displayName;
+    }
+
+    const { error: updateError } = await supabase
+      .from('trackpay_users')
+      .update(updateData)
+      .eq('id', clientId);
+
+    if (updateError) {
+      console.error('❌ Error updating client record:', updateError);
+      throw updateError;
+    }
+
+    // Mark invite as claimed
+    const { error } = await supabase
+      .from('trackpay_invites')
+      .update({
+        status: 'claimed',
+        claimed_by: clientId,
+        claimed_at: new Date().toISOString()
+      })
+      .eq('id', invite.id);
+
+    if (error) {
+      console.error('❌ Error claiming invite:', error);
+      throw error;
+    }
+
+    console.log('✅ Invite claimed - client record updated');
+
+    return {
+      clientId,
+      providerId: invite.providerId
+    };
+  }
+
+  async expireInvite(inviteId: string): Promise<void> {
+    const { error } = await supabase
+      .from('trackpay_invites')
+      .update({ status: 'expired' })
+      .eq('id', inviteId);
+
+    if (error) {
+      console.error('❌ Error expiring invite:', error);
+      throw error;
+    }
+
+    console.log('✅ Invite expired');
+  }
+
+  async expireOldInvites(): Promise<void> {
+    const { error } = await supabase
+      .from('trackpay_invites')
+      .update({ status: 'expired' })
+      .eq('status', 'pending')
+      .lt('expires_at', new Date().toISOString());
+
+    if (error) {
+      console.error('❌ Error expiring old invites:', error);
+      throw error;
+    }
+
+    console.log('✅ Old invites expired');
   }
 
   // Utility operations

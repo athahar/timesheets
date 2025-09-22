@@ -18,7 +18,7 @@ import {
   getClientSummary,
   requestPayment,
   getSessionsByClient,
-} from '../services/storage';
+} from '../services/storageService';
 
 interface SessionTrackingScreenProps {
   route: {

@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "timesheets-app",
-    "slug": "timesheets-app",
-    "version": "1.0.0",
+    "name": "TrackPay",
+    "slug": "trackpay",
+    "version": "0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -12,19 +12,37 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.trackpay.track",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "TrackPay uses camera for profile photos and document scanning",
+        "NSPhotoLibraryUsageDescription": "TrackPay accesses photo library for profile photos"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "package": "com.trackpay.track",
+      "versionCode": 1,
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "scheme": "trackpay",
+    "platforms": ["ios", "android", "web"],
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
     }
   }
 }

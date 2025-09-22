@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { ActivityItem, Client } from '../types';
 
 interface ActivityFeedItemProps {
@@ -8,8 +8,21 @@ interface ActivityFeedItemProps {
 }
 
 export const ActivityFeedItem: React.FC<ActivityFeedItemProps> = ({ activity, client }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   const formatTime = (date: Date) => {
     return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   const formatDate = (date: Date) => {
@@ -25,6 +38,7 @@ export const ActivityFeedItem: React.FC<ActivityFeedItemProps> = ({ activity, cl
   const renderContent = () => {
     const time = formatTime(activity.timestamp);
     const clientName = client?.name || 'Unknown Client';
+
 
     switch (activity.type) {
       case 'session_start':
@@ -75,19 +89,65 @@ export const ActivityFeedItem: React.FC<ActivityFeedItemProps> = ({ activity, cl
         );
 
       case 'payment_completed':
-        const { amount: paidAmount, method } = activity.data;
+        const {
+          amount: paidAmount,
+          method,
+          paymentDate,
+          sessionIds,
+          sessionCount,
+          description
+        } = activity.data;
+
         return (
-          <View className="bg-emerald-50 border-l-4 border-emerald-400 p-3 rounded-r-lg">
-            <Text className="text-emerald-800 font-medium">
-              Payment completed
-            </Text>
-            <Text className="text-emerald-700">
-              ${paidAmount?.toFixed(2)} via {method}
-            </Text>
-            <Text className="text-emerald-600 text-sm mt-1">
-              {time}
-            </Text>
-          </View>
+          <TouchableOpacity
+            onPress={() => setIsExpanded(!isExpanded)}
+            className="bg-emerald-50 border-l-4 border-emerald-400 p-3 rounded-r-lg"
+          >
+            <View className="flex-row justify-between items-start">
+              <View className="flex-1">
+                <Text className="text-emerald-800 font-medium">
+                  Payment completed
+                </Text>
+                <Text className="text-emerald-700 font-semibold">
+                  ${paidAmount?.toFixed(2)} via {method}
+                </Text>
+                <Text className="text-emerald-600 text-sm mt-1">
+                  {paymentDate ? formatDateTime(paymentDate) : time}
+                </Text>
+                {sessionCount && (
+                  <Text className="text-emerald-600 text-sm">
+                    {sessionCount} session{sessionCount > 1 ? 's' : ''} included
+                  </Text>
+                )}
+              </View>
+              <Text className="text-emerald-600 text-sm ml-2">
+                {isExpanded ? '▼' : '▶'}
+              </Text>
+            </View>
+
+            {isExpanded && sessionIds && sessionIds.length > 0 && (
+              <View className="mt-3 pt-3 border-t border-emerald-200">
+                <Text className="text-emerald-700 font-medium mb-2">
+                  Sessions included in this payment:
+                </Text>
+                {sessionIds.map((sessionId: string, index: number) => (
+                  <View key={sessionId} className="bg-emerald-100 p-2 rounded mb-1">
+                    <Text className="text-emerald-800 text-sm font-mono">
+                      Session #{index + 1}: {sessionId.substring(0, 8)}...
+                    </Text>
+                    <Text className="text-emerald-600 text-xs mt-1">
+                      Tap to view session details
+                    </Text>
+                  </View>
+                ))}
+                {description && (
+                  <Text className="text-emerald-600 text-sm mt-2 italic">
+                    {description}
+                  </Text>
+                )}
+              </View>
+            )}
+          </TouchableOpacity>
         );
 
       default:

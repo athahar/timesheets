@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import { theme } from '../styles/theme';
 import { Button } from './Button';
-import { addClient } from '../services/storage';
+import { addClient } from '../services/storageService';
+import { useAuth } from '../contexts/AuthContext';
+import { directSupabase } from '../services/storageService';
 
 interface AddClientModalProps {
   visible: boolean;
@@ -25,13 +27,21 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
   onClose,
   onClientAdded,
 }) => {
+  const { userProfile } = useAuth();
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [hourlyRate, setHourlyRate] = useState('');
   const [loading, setLoading] = useState(false);
 
   const validateForm = () => {
     if (!name.trim()) {
       Alert.alert('Validation Error', 'Please enter a client name');
+      return false;
+    }
+
+    // Email validation (optional but if provided, must be valid)
+    if (email.trim() && !isValidEmail(email.trim())) {
+      Alert.alert('Validation Error', 'Please enter a valid email address');
       return false;
     }
 
@@ -44,23 +54,43 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
     return true;
   };
 
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleSave = async () => {
     if (!validateForm()) return;
+
+    if (!userProfile) {
+      Alert.alert('Error', 'User profile not found. Please try again.');
+      return;
+    }
 
     setLoading(true);
     try {
       const rate = parseFloat(hourlyRate);
-      await addClient(name.trim(), rate);
+      const trimmedEmail = email.trim();
+      const trimmedName = name.trim();
+
+      // Create the client with invite code using directSupabase
+      const newClient = await directSupabase.addClient(
+        trimmedName,
+        rate,
+        trimmedEmail || undefined
+      );
+      console.log('✅ Client created with invite:', newClient);
 
       // Reset form
       setName('');
+      setEmail('');
       setHourlyRate('');
 
       // Close modal and refresh parent
       onClose();
       onClientAdded();
 
-      Alert.alert('Success', `${name.trim()} has been added as a client`);
+      Alert.alert('Success', `${trimmedName} has been added as a client${newClient.inviteCode ? ` with invite code: ${newClient.inviteCode}` : ''}`);
     } catch (error) {
       console.error('Error adding client:', error);
       Alert.alert('Error', 'Failed to add client. Please try again.');
@@ -71,6 +101,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
 
   const handleCancel = () => {
     setName('');
+    setEmail('');
     setHourlyRate('');
     onClose();
   };
@@ -105,6 +136,21 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
               placeholderTextColor={theme.colors.text.secondary}
               autoFocus
               maxLength={50}
+            />
+          </View>
+
+          <View style={styles.formSection}>
+            <Text style={styles.label}>Email (Optional)</Text>
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="client@example.com"
+              placeholderTextColor={theme.colors.text.secondary}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={100}
             />
           </View>
 

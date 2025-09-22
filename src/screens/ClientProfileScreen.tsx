@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   TextInput,
+  Clipboard,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Client } from '../types';
 import { Button } from '../components/Button';
 import { theme } from '../styles/theme';
-import { getClientById, updateClient } from '../services/storageService';
+import { getClientById, updateClient, directSupabase } from '../services/storageService';
+import { generateInviteLink } from '../utils/inviteCodeGenerator';
 
 interface ClientProfileScreenProps {
   route: {
@@ -35,6 +37,7 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
   const [editedName, setEditedName] = useState('');
   const [editedEmail, setEditedEmail] = useState('');
   const [editedRate, setEditedRate] = useState('');
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
@@ -48,6 +51,21 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
       setEditedName(clientData.name);
       setEditedEmail(clientData.email || '');
       setEditedRate(clientData.hourlyRate.toString());
+
+      // Load invite code for unclaimed clients
+      if (clientData.claimedStatus === 'unclaimed') {
+        try {
+          const invites = await directSupabase.getInvites();
+          const clientInvite = invites.find(invite =>
+            invite.clientId === clientId && invite.status === 'pending'
+          );
+          if (clientInvite) {
+            setInviteCode(clientInvite.inviteCode);
+          }
+        } catch (error) {
+          console.error('Error loading invite code:', error);
+        }
+      }
     } catch (error) {
       console.error('Error loading client:', error);
       Alert.alert('Error', 'Failed to load client data');
@@ -217,6 +235,44 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
                 <Text style={styles.rateLabel}>Hourly Rate</Text>
                 <Text style={styles.rateValue}>${client.hourlyRate.toFixed(2)}/hr</Text>
               </View>
+
+              {/* Invite Section for Unclaimed Clients */}
+              {client.claimedStatus === 'unclaimed' && inviteCode && (
+                <View style={styles.inviteSection}>
+                  <Text style={styles.inviteSectionTitle}>Invite Code</Text>
+                  <Text style={styles.inviteDescription}>
+                    {client.name} hasn't claimed their account yet. Share this invite code with them:
+                  </Text>
+
+                  <View style={styles.inviteCodeContainer}>
+                    <Text style={styles.inviteCodeText}>{inviteCode}</Text>
+                  </View>
+
+                  <View style={styles.inviteActions}>
+                    <Button
+                      title="Copy Code"
+                      onPress={() => {
+                        Clipboard.setString(inviteCode);
+                        Alert.alert('Copied!', 'Invite code copied to clipboard');
+                      }}
+                      variant="secondary"
+                      size="sm"
+                      style={styles.inviteActionButton}
+                    />
+                    <Button
+                      title="Copy Link"
+                      onPress={() => {
+                        const link = generateInviteLink(inviteCode, false);
+                        Clipboard.setString(link);
+                        Alert.alert('Copied!', 'Invite link copied to clipboard');
+                      }}
+                      variant="primary"
+                      size="sm"
+                      style={styles.inviteActionButton}
+                    />
+                  </View>
+                </View>
+              )}
 
               <View style={styles.infoSection}>
                 <Text style={styles.infoText}>
@@ -399,6 +455,52 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.xl,
   },
   actionButton: {
+    flex: 1,
+  },
+  inviteSection: {
+    backgroundColor: theme.colors.warning + '10',
+    borderRadius: theme.borderRadius.card,
+    padding: theme.spacing.lg,
+    marginBottom: theme.spacing.xl,
+    borderWidth: 1,
+    borderColor: theme.colors.warning + '30',
+  },
+  inviteSectionTitle: {
+    fontSize: theme.fontSize.headline,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text.primary,
+    fontFamily: theme.typography.fontFamily.primary,
+    marginBottom: theme.spacing.sm,
+  },
+  inviteDescription: {
+    fontSize: theme.fontSize.body,
+    color: theme.colors.text.secondary,
+    fontFamily: theme.typography.fontFamily.primary,
+    lineHeight: 22,
+    marginBottom: theme.spacing.lg,
+  },
+  inviteCodeContainer: {
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.borderRadius.medium,
+    padding: theme.spacing.lg,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: theme.colors.primary,
+    borderStyle: 'dashed',
+    marginBottom: theme.spacing.lg,
+  },
+  inviteCodeText: {
+    fontSize: theme.fontSize.title,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.primary,
+    letterSpacing: 2,
+    fontFamily: 'Courier New',
+  },
+  inviteActions: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+  },
+  inviteActionButton: {
     flex: 1,
   },
 });

@@ -32,6 +32,11 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
+
+# TrackPay specific
+database/backup/
+*.sql.backup
 
 # typescript
 *.tsbuildinfo

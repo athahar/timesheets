@@ -7,13 +7,17 @@ import {
   RefreshControl,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { theme } from '../styles/theme';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../services/supabase';
 import {
   getCurrentUser,
   getServiceProvidersForClient,
-} from '../services/storage';
+  getClientSummary,
+} from '../services/storageService';
 
 interface ServiceProviderListScreenProps {
   navigation: any;
@@ -33,19 +37,130 @@ interface ServiceProvider {
 }
 
 export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps> = ({ navigation }) => {
+  console.log('🚀 ServiceProviderListScreen: Component mounting...');
+  const { userProfile, signOut } = useAuth();
+  console.log('👤 ServiceProviderListScreen: userProfile:', userProfile?.name, userProfile?.role);
+
   const [serviceProviders, setServiceProviders] = useState<ServiceProvider[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [currentUser, setCurrentUser] = useState<string>('');
 
   const loadServiceProviders = async () => {
+    console.log('🔄 ServiceProviderList: Starting to load providers...');
+    console.log('🔄 ServiceProviderList: userProfile:', userProfile);
     try {
-      const user = await getCurrentUser();
-      setCurrentUser(user || 'Client');
+      let providersData: ServiceProvider[] = [];
+      let user = '';
 
-      // Get service providers for this client
-      const providers = await getServiceProvidersForClient(user || '');
-      setServiceProviders(providers);
+      if (userProfile) {
+        // Authenticated user - load providers based on relationships
+        user = userProfile.name;
+        console.log('📊 Auth user - loading relationship-based providers for:', user);
+
+        try {
+          // Get provider IDs that have relationships with this client
+          const { data: relationships, error: relError } = await supabase
+            .from('trackpay_relationships')
+            .select('provider_id')
+            .eq('client_id', userProfile.id);
+
+          if (relError) {
+            console.error('❌ Error loading relationships:', relError);
+            providersData = [];
+          } else if (relationships && relationships.length > 0) {
+            console.log('📊 Found', relationships.length, 'relationships');
+
+            // Get provider details for each relationship
+            const providerIds = relationships.map(rel => rel.provider_id);
+            const { data: relatedProviders, error: providerError } = await supabase
+              .from('trackpay_users')
+              .select('*')
+              .in('id', providerIds)
+              .eq('role', 'provider');
+
+            if (providerError) {
+              console.error('❌ Error loading related providers:', providerError);
+              providersData = [];
+            } else {
+              // Convert Supabase format to ServiceProvider format and load real session data
+              console.log('💰 ServiceProviderList: Loading provider summaries for', relatedProviders.length, 'providers...');
+
+              const providersWithSummary = await Promise.allSettled(
+                (relatedProviders || []).map(async (provider) => {
+                  try {
+                    // Load session summary for this provider-client relationship
+                    const summary = await Promise.race([
+                      getClientSummary(userProfile.id), // Get summary from client's perspective
+                      new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('Summary timeout')), 2000)
+                      )
+                    ]);
+
+                    return {
+                      id: provider.id,
+                      name: provider.name,
+                      unpaidHours: summary.unpaidHours,
+                      requestedHours: summary.requestedHours,
+                      unpaidBalance: summary.unpaidBalance,
+                      requestedBalance: summary.requestedBalance,
+                      totalUnpaidBalance: summary.totalUnpaidBalance,
+                      hasUnpaidSessions: summary.hasUnpaidSessions,
+                      hasRequestedSessions: summary.hasRequestedSessions,
+                      paymentStatus: summary.paymentStatus,
+                    };
+                  } catch (error) {
+                    console.warn('⚠️ Failed to load summary for provider:', provider.name, error.message);
+                    // Return provider with default summary
+                    return {
+                      id: provider.id,
+                      name: provider.name,
+                      unpaidHours: 0,
+                      requestedHours: 0,
+                      unpaidBalance: 0,
+                      requestedBalance: 0,
+                      totalUnpaidBalance: 0,
+                      hasUnpaidSessions: false,
+                      hasRequestedSessions: false,
+                      paymentStatus: 'paid' as const,
+                    };
+                  }
+                })
+              );
+
+              // Filter successful results
+              providersData = providersWithSummary
+                .filter((result): result is PromiseFulfilledResult<ServiceProvider> =>
+                  result.status === 'fulfilled'
+                )
+                .map(result => result.value);
+
+              console.log('✅ Loaded', providersData.length, 'related providers with session data');
+            }
+          } else {
+            console.log('📊 No relationships found - empty provider list');
+            providersData = [];
+          }
+        } catch (dbError) {
+          console.error('❌ Database error:', dbError);
+          providersData = [];
+        }
+      } else {
+        // Fallback for non-auth users (development mode)
+        const [user, providers] = await Promise.all([
+          getCurrentUser(),
+          getServiceProvidersForClient('')
+        ]);
+        providersData = providers;
+        console.log('📊 Non-auth user - loading from localStorage:', providersData.length, 'providers');
+      }
+
+      setServiceProviders(providersData);
+      const userName = userProfile?.name || user || 'Client';
+      setCurrentUser(userName);
+
+      console.log('📊 ServiceProviderListScreen: Loaded', providersData.length, 'providers');
+      console.log('✅ ServiceProviderList: Loading complete!');
     } catch (error) {
       console.error('Error loading service providers:', error);
     } finally {
@@ -56,8 +171,18 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
 
   useFocusEffect(
     useCallback(() => {
-      loadServiceProviders();
-    }, [])
+      console.log('🎯 ServiceProviderListScreen: useFocusEffect triggered');
+      console.log('🔧 ServiceProviderListScreen: userProfile available:', !!userProfile);
+
+      // Only load providers if we have a userProfile
+      if (userProfile) {
+        console.log('🔧 ServiceProviderListScreen: About to call loadServiceProviders...');
+        loadServiceProviders();
+      } else {
+        console.log('⏳ ServiceProviderListScreen: Waiting for userProfile...');
+        setLoading(false); // Stop loading state if no profile yet
+      }
+    }, [userProfile])
   );
 
   const handleRefresh = () => {
@@ -70,8 +195,17 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
     navigation.navigate('ServiceProviderSummary', { providerId: provider.id, providerName: provider.name });
   };
 
-  const handleLogout = () => {
-    navigation.navigate('AccountSelection');
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Error', 'Failed to logout. Please try again.');
+    }
   };
 
   const formatHours = (hours: number) => {

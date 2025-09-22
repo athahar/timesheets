@@ -13,15 +13,20 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Client } from '../types';
 import { Button } from '../components/Button';
 import { AddClientModal } from '../components/AddClientModal';
+import { InviteModal } from '../components/InviteModal';
 import { theme } from '../styles/theme';
+import { useAuth } from '../contexts/AuthContext';
+import { directSupabase } from '../services/storageService';
+import { supabase } from '../services/supabase';
 import {
   getClients,
   getClientSummary,
   getCurrentUser,
-  clearAllDataAndReinitialize,
+  setCurrentUser,
+  setUserRole,
   requestPayment,
   getSessionsByClient,
-} from '../services/storage';
+} from '../services/storageService';
 
 interface ClientListScreenProps {
   navigation: any;
@@ -36,42 +41,155 @@ interface ClientWithSummary extends Client {
   hasUnpaidSessions: boolean;
   hasRequestedSessions: boolean;
   paymentStatus: 'unpaid' | 'requested' | 'paid';
+  claimedStatus?: 'claimed' | 'unclaimed'; // Inherited from Client but made explicit
 }
 
 export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }) => {
+  console.log('🚀 SimpleClientListScreen: Component mounting...');
+  const { userProfile, signOut } = useAuth();
+  console.log('👤 SimpleClientListScreen: userProfile:', userProfile?.name, userProfile?.role);
   const [clients, setClients] = useState<ClientWithSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<string>('');
   const [showPaymentConfirm, setShowPaymentConfirm] = useState<string | null>(null);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [selectedClientForInvite, setSelectedClientForInvite] = useState<ClientWithSummary | null>(null);
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
 
   const loadClients = async () => {
+    console.log('🔄 ClientList: loadClients function called!');
+    console.log('🔄 ClientList: Starting to load clients...');
+    console.log('🔄 ClientList: userProfile:', userProfile);
     try {
-      const [clientsData, user] = await Promise.all([
-        getClients(),
-        getCurrentUser()
-      ]);
+      // For authenticated users, only load their own clients
+      // For now, show empty list until we implement user-specific storage
+      let clientsData: Client[] = [];
+      let user = '';
 
-      const clientsWithSummary = await Promise.all(
+      if (userProfile) {
+        // Authenticated user - load clients based on relationships
+        user = userProfile.name;
+        console.log('📊 Auth user - loading relationship-based clients for:', user);
+
+        try {
+          // Get client IDs that have relationships with this provider
+          const { data: relationships, error: relError } = await supabase
+            .from('trackpay_relationships')
+            .select('client_id')
+            .eq('provider_id', userProfile.id);
+
+          if (relError) {
+            console.error('❌ Error loading relationships:', relError);
+            clientsData = [];
+          } else if (relationships && relationships.length > 0) {
+            console.log('📊 Found', relationships.length, 'relationships');
+
+            // Get client details for each relationship
+            const clientIds = relationships.map(rel => rel.client_id);
+            const { data: relatedClients, error: clientError } = await supabase
+              .from('trackpay_users')
+              .select('*')
+              .in('id', clientIds)
+              .eq('role', 'client');
+
+            if (clientError) {
+              console.error('❌ Error loading related clients:', clientError);
+              clientsData = [];
+            } else {
+              // Convert Supabase format to Client format
+              clientsData = (relatedClients || []).map(client => ({
+                id: client.id,
+                name: client.name,
+                email: client.email,
+                hourlyRate: client.hourly_rate || 0,
+                claimedStatus: client.claimed_status || 'claimed' // Default to claimed for existing clients
+              }));
+              console.log('✅ Loaded', clientsData.length, 'related clients');
+            }
+          } else {
+            console.log('📊 No relationships found - empty client list');
+            clientsData = [];
+          }
+        } catch (dbError) {
+          console.error('❌ Database error:', dbError);
+          clientsData = [];
+        }
+      } else {
+        // Fallback for non-auth users (development mode)
+        const [allClientsData, currentUser] = await Promise.all([
+          getClients(),
+          getCurrentUser()
+        ]);
+        clientsData = allClientsData;
+        user = currentUser;
+        console.log('📊 Non-auth user - loading from localStorage:', clientsData.length, 'clients');
+      }
+
+      console.log('💰 ClientList: Loading client summaries for', clientsData.length, 'clients...');
+
+      // Load summaries with timeout to prevent hanging
+      const clientsWithSummary = await Promise.allSettled(
         clientsData.map(async (client) => {
-          const summary = await getClientSummary(client.id);
-          return {
-            ...client,
-            unpaidHours: summary.unpaidHours,
-            requestedHours: summary.requestedHours,
-            unpaidBalance: summary.unpaidBalance,
-            requestedBalance: summary.requestedBalance,
-            totalUnpaidBalance: summary.totalUnpaidBalance,
-            hasUnpaidSessions: summary.hasUnpaidSessions,
-            hasRequestedSessions: summary.hasRequestedSessions,
-            paymentStatus: summary.paymentStatus,
-          };
+          try {
+            const summary = await Promise.race([
+              getClientSummary(client.id),
+              new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Summary timeout')), 2000)
+              )
+            ]);
+            return {
+              ...client,
+              unpaidHours: summary.unpaidHours,
+              requestedHours: summary.requestedHours,
+              unpaidBalance: summary.unpaidBalance,
+              requestedBalance: summary.requestedBalance,
+              totalUnpaidBalance: summary.totalUnpaidBalance,
+              hasUnpaidSessions: summary.hasUnpaidSessions,
+              hasRequestedSessions: summary.hasRequestedSessions,
+              paymentStatus: summary.paymentStatus,
+            };
+          } catch (error) {
+            console.warn('⚠️ Failed to load summary for client:', client.name, error.message);
+            // Return client with default summary
+            return {
+              ...client,
+              unpaidHours: 0,
+              requestedHours: 0,
+              unpaidBalance: 0,
+              requestedBalance: 0,
+              totalUnpaidBalance: 0,
+              hasUnpaidSessions: false,
+              hasRequestedSessions: false,
+              paymentStatus: 'paid' as const,
+            };
+          }
         })
       );
-      setClients(clientsWithSummary);
-      setCurrentUser(user || 'Lucy');
-      console.log('📊 SimpleClientListScreen: Loaded clients:', clientsWithSummary.map(c => ({ id: c.id, name: c.name })));
+
+      // Filter successful results
+      const successfulClients = clientsWithSummary
+        .filter((result): result is PromiseFulfilledResult<ClientWithSummary> =>
+          result.status === 'fulfilled'
+        )
+        .map(result => result.value);
+
+      // Sort alphabetically to ensure stable ordering
+      const sortedClients = successfulClients.sort((a, b) => a.name.localeCompare(b.name));
+      setClients(sortedClients);
+      const userName = userProfile?.name || user || 'Provider';
+      setCurrentUser(userName);
+
+      // Set user role and current user in storage for backward compatibility
+      if (userProfile) {
+        await setCurrentUser(userName);
+        await setUserRole(userProfile.role);
+      }
+
+      console.log('📊 SimpleClientListScreen: Loaded', sortedClients.length, 'clients:', sortedClients.map(c => ({ id: c.id, name: c.name })));
+      console.log('👤 Current user set to:', userName, 'with role:', userProfile?.role);
+      console.log('✅ ClientList: Loading complete!');
     } catch (error) {
       console.error('Error loading clients:', error);
     } finally {
@@ -82,8 +200,18 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
 
   useFocusEffect(
     useCallback(() => {
-      loadClients();
-    }, [])
+      console.log('🎯 SimpleClientListScreen: useFocusEffect triggered');
+      console.log('🔧 SimpleClientListScreen: userProfile available:', !!userProfile);
+
+      // Only load clients if we have a userProfile
+      if (userProfile) {
+        console.log('🔧 SimpleClientListScreen: About to call loadClients...');
+        loadClients();
+      } else {
+        console.log('⏳ SimpleClientListScreen: Waiting for userProfile...');
+        setLoading(false); // Stop loading state if no profile yet
+      }
+    }, [userProfile])
   );
 
   const handleRefresh = () => {
@@ -106,18 +234,40 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
     loadClients();
   };
 
-  const handleLogout = () => {
-    navigation.navigate('AccountSelection');
-  };
-
-  const handleResetData = async () => {
+  const handleShowInvite = async (client: ClientWithSummary) => {
     try {
-      await clearAllDataAndReinitialize();
-      loadClients(); // Refresh the list
+      // Load the invite code for this client
+      const invites = await directSupabase.getInvites();
+      const clientInvite = invites.find(invite =>
+        invite.clientId === client.id && invite.status === 'pending'
+      );
+
+      if (clientInvite) {
+        setSelectedClientForInvite(client);
+        setInviteCode(clientInvite.inviteCode);
+        setShowInviteModal(true);
+      } else {
+        Alert.alert('Error', 'No invite code found for this client');
+      }
     } catch (error) {
-      console.error('Error resetting data:', error);
+      console.error('Error loading invite:', error);
+      Alert.alert('Error', 'Failed to load invite code');
     }
   };
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Error', 'Failed to logout. Please try again.');
+    }
+  };
+
 
   const handleRequestPayment = async (client: ClientWithSummary) => {
     try {
@@ -154,7 +304,21 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
       <View style={styles.clientHeader}>
         {/* Left Side: Client Info */}
         <View style={styles.clientInfo}>
-          <Text style={styles.clientName}>{item.name}</Text>
+          <View style={styles.clientNameRow}>
+            <Text style={styles.clientName}>{item.name}</Text>
+            {item.claimedStatus === 'unclaimed' && (
+              <TouchableOpacity
+                style={styles.inviteButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleShowInvite(item);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.inviteButtonText}>Invite</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           <Text style={styles.clientRate}>${item.hourlyRate}/hour</Text>
         </View>
 
@@ -217,14 +381,9 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
       {/* User Header */}
       <View style={styles.userHeader}>
         <Text style={styles.userName}>{currentUser}</Text>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity onPress={handleResetData} style={styles.resetButton}>
-            <Text style={styles.resetText}>Reset Data</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-            <Text style={styles.logoutText}>Logout</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Scrollable Content */}
@@ -283,6 +442,20 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
         onClientAdded={handleClientAdded}
       />
 
+      {/* Invite Modal */}
+      {selectedClientForInvite && inviteCode && (
+        <InviteModal
+          visible={showInviteModal}
+          onClose={() => {
+            setShowInviteModal(false);
+            setSelectedClientForInvite(null);
+            setInviteCode(null);
+          }}
+          clientName={selectedClientForInvite.name}
+          inviteCode={inviteCode}
+        />
+      )}
+
       {/* Payment Confirmation Dialog */}
       {showPaymentConfirm && (
         <View style={styles.modalOverlay}>
@@ -340,19 +513,6 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.headline,
     fontWeight: theme.fontWeight.semibold,
     color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  headerButtons: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-  },
-  resetButton: {
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
-  },
-  resetText: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.warning,
     fontFamily: theme.typography.fontFamily.primary,
   },
   logoutButton: {
@@ -419,12 +579,40 @@ const styles = StyleSheet.create({
   clientInfo: {
     flex: 1,
   },
+  clientNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.xs,
+    gap: theme.spacing.sm,
+  },
   clientName: {
     fontSize: theme.fontSize.headline,
     fontWeight: theme.fontWeight.semibold,
     color: theme.colors.text.primary,
-    marginBottom: theme.spacing.xs,
     fontFamily: theme.typography.fontFamily.primary,
+  },
+  statusBadge: {
+    backgroundColor: theme.colors.warning + '20',
+    borderRadius: theme.borderRadius.small,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 2,
+  },
+  statusBadgeText: {
+    fontSize: theme.fontSize.caption,
+    fontWeight: theme.fontWeight.medium,
+    color: theme.colors.warning,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  inviteButton: {
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+  },
+  inviteButtonText: {
+    fontSize: theme.fontSize.caption,
+    fontWeight: theme.fontWeight.medium,
+    color: theme.colors.primary,
+    fontFamily: theme.typography.fontFamily.primary,
+    textDecorationLine: 'underline',
   },
   clientRate: {
     fontSize: theme.fontSize.footnote,
