@@ -11,11 +11,10 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Client, Session } from '../types';
 import { Button } from '../components/Button';
 import {
-  getClientById,
-  getActiveSession,
+  getClients,
+  getSessions,
   startSession,
   endSession,
-  getClientSummary,
   requestPayment,
   getSessionsByClient,
 } from '../services/storageService';
@@ -43,21 +42,39 @@ export const SessionTrackingScreen: React.FC<SessionTrackingScreenProps> = ({
 
   const loadData = async () => {
     try {
-      const clientData = await getClientById(clientId);
+      // Performance optimization: Fetch all data in parallel instead of sequentially
+      const [allClients, allSessions] = await Promise.all([
+        getClients(),
+        getSessions()
+      ]);
+
+      // Find client from cached data
+      const clientData = allClients.find(c => c.id === clientId);
       if (!clientData) {
         Alert.alert('Error', 'Client not found');
         navigation.goBack();
         return;
       }
-
       setClient(clientData);
 
-      const activeSessionData = await getActiveSession(clientId);
+      // Find active session from cached data
+      const activeSessionData = allSessions.find(
+        session => session.clientId === clientId && session.status === 'active'
+      );
       setActiveSession(activeSessionData);
 
-      const summary = await getClientSummary(clientId);
-      setUnpaidHours(summary.unpaidHours);
-      setUnpaidBalance(summary.unpaidBalance);
+      // Calculate summary from cached session data
+      const clientSessions = allSessions.filter(s => s.clientId === clientId);
+      const unpaidSessions = clientSessions.filter(s => s.status === 'unpaid');
+      const requestedSessions = clientSessions.filter(s => s.status === 'requested');
+
+      const unpaidHours = unpaidSessions.reduce((sum, s) => sum + (s.duration || 0), 0);
+      const requestedHours = requestedSessions.reduce((sum, s) => sum + (s.duration || 0), 0);
+      const unpaidBalance = unpaidSessions.reduce((sum, s) => sum + (s.amount || 0), 0);
+      const requestedBalance = requestedSessions.reduce((sum, s) => sum + (s.amount || 0), 0);
+
+      setUnpaidHours(unpaidHours + requestedHours);
+      setUnpaidBalance(unpaidBalance + requestedBalance);
 
       if (activeSessionData) {
         const elapsed = (Date.now() - new Date(activeSessionData.startTime).getTime()) / 1000;

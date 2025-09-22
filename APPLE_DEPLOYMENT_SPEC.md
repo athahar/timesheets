@@ -167,6 +167,50 @@ eas init --id your-project-id
 ### 4.2 Configure Build
 - [ ] **Update Dependencies**: Ensure all packages are up to date
 - [ ] **Test Local Build**: `npx expo run:ios` locally first
+
+### 4.3 Production Build & Deploy (TESTED WORKFLOW)
+
+#### ✅ **Proven Deployment Steps:**
+
+**Step 1: Build for Production**
+```bash
+eas build -p ios --profile production
+```
+- Uses App Store distribution (no device registration required)
+- Builds with production environment variables
+- Creates IPA file in EAS dashboard
+- Build time: ~10-15 minutes
+
+**Step 2: Submit to TestFlight**
+```bash
+eas submit --platform ios
+```
+- Automatically uploads IPA to App Store Connect
+- Submits to TestFlight for internal testing
+- Available for download on registered devices via TestFlight app
+- Processing time: ~5-10 minutes
+
+#### 🚫 **Avoid These Approaches:**
+- `eas build --platform ios --profile preview` - Requires 1-hour device registration delay
+- Manual IPA upload via Xcode - Unnecessary with EAS submit
+- Internal distribution profiles - Use production profile for TestFlight
+
+#### 📱 **TestFlight Testing:**
+1. Build completes and appears in EAS dashboard
+2. `eas submit` uploads to App Store Connect
+3. TestFlight processes the build (5-10 minutes)
+4. Download TestFlight app on iPhone
+5. Install and test TrackPay from TestFlight
+6. Gather feedback and iterate if needed
+
+#### 🔄 **Iteration Cycle:**
+For each new version:
+1. Make code changes and commit
+2. Increment build number in app.json
+3. `eas build -p ios --profile production`
+4. `eas submit --platform ios`
+5. Test on TestFlight
+6. Repeat until ready for App Store
 - [ ] **Environment Setup**: Configure production environment variables
 
 ### 4.3 Create Production Build
