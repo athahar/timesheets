@@ -79,7 +79,9 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
         rate,
         trimmedEmail || undefined
       );
-      console.log('✅ Client created with invite:', newClient);
+      if (__DEV__) {
+        console.log('✅ Client created with invite:', newClient);
+      }
 
       // Reset form
       setName('');

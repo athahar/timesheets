@@ -342,7 +342,9 @@ if (process.env.EXPO_PUBLIC_ENV === 'development' && typeof window !== 'undefine
   (window as any).supabase = supabase;
   (window as any).testConnection = testConnection;
   (window as any).getCurrentUser = getCurrentUser;
-  console.log('🔧 Development mode: Supabase client exposed globally for debugging');
+  if (__DEV__) {
+    console.log('🔧 Development mode: Supabase client exposed globally for debugging');
+  }
 }
 
 // Utility functions for error handling

@@ -113,7 +113,67 @@ A feature is only complete when:
 - **State Management**: React hooks for component state
 - **Navigation**: React Navigation with tabs and stack
 
-### Testing Checklist
+### END-TO-END TESTING CHECKLIST (MANDATORY)
+
+When Claude says "please test it" - this means COMPLETE end-to-end testing, not just "app compiles". NO SHORTCUTS OR EXCUSES.
+
+#### PROVIDER (Service Provider) Testing:
+- [ ] **Register as Provider**: Create account, verify profile created in database
+- [ ] **Login as Provider**: Login successfully, land on correct screen (ClientList)
+- [ ] **Add Client**: Create new client, verify client record in database
+- [ ] **Start Session**: Begin tracking time for client, verify session record created
+- [ ] **Stop Session**: End session, verify session updated with end time and amount
+- [ ] **View Session History**: See past sessions with correct data and amounts
+- [ ] **Request Payment**: Mark session as "requested", verify status change
+- [ ] **Activity Feed**: Check that all actions appear in timeline
+- [ ] **Client Profile**: View and edit client details, hourly rates
+
+#### CLIENT Testing:
+- [ ] **Claim Invite**: Use invite code from provider, create account
+- [ ] **Login as Client**: Login successfully, land on correct screen
+- [ ] **View Service Providers**: See Lucy and other providers
+- [ ] **View Work Sessions**: See sessions provider tracked for them
+- [ ] **View Activity Timeline**: See work history and payment timeline
+- [ ] **Mark Payment Sent**: Mark payments as paid, verify status updates
+- [ ] **Payment History**: View past payments and outstanding amounts
+
+#### CROSS-USER TESTING:
+- [ ] **Provider creates session** → **Client sees it immediately**
+- [ ] **Client marks payment** → **Provider sees payment update**
+- [ ] **Real-time updates**: Actions by one user visible to other user
+- [ ] **Data consistency**: Same session shows same data for both users
+
+#### DATABASE VERIFICATION (REQUIRED):
+- [ ] **Before/After States**: Check database before and after each action
+- [ ] **Record Counts**: Verify expected number of records (no duplicates)
+- [ ] **Relationships**: Verify foreign keys and data linking works
+- [ ] **Data Integrity**: All fields populated correctly with expected values
+
+#### TECHNICAL VERIFICATION:
+- [ ] **No Console Errors**: Browser console shows only expected development logs
+- [ ] **No White Screens**: App never shows blank/white screens
+- [ ] **Proper Navigation**: All screen transitions work smoothly
+- [ ] **Data Persistence**: Refresh browser, data still there
+- [ ] **Error Handling**: Invalid actions show proper error messages
+
+#### VISUAL VERIFICATION:
+- [ ] **UI Matches Design**: Screenshots match intended design
+- [ ] **Responsive Layout**: Works on different screen sizes
+- [ ] **Loading States**: Proper loading indicators during async operations
+- [ ] **Touch Targets**: All buttons and inputs are accessible
+- [ ] **Typography**: Text is readable and properly styled
+
+### TESTING FAILURE CRITERIA:
+❌ **INCOMPLETE** if ANY of these happen:
+- "App compiles" without testing user flows
+- Testing only "happy path" without edge cases
+- Not verifying database state changes
+- Not testing as both Provider AND Client
+- Assuming features work without actually clicking through them
+- Not checking browser console for errors
+- Not verifying cross-user functionality
+
+### OLD BASIC CHECKLIST (INSUFFICIENT):
 - [ ] Session tracking works (start/stop/timer)
 - [ ] Payment flow works (request/mark paid)
 - [ ] Client management works (add/view clients)
@@ -271,5 +331,135 @@ If the app is broken or styles aren't working:
 6. Test with minimal example first
 7. **NEW:** Check Supabase connection status in console
 8. **NEW:** Verify `.env` file has correct credentials
+
+## 🚀 iOS Production Build Requirements (App Store/TestFlight)
+
+### CRITICAL PRE-BUILD CHECKLIST - MUST BE COMPLETED BEFORE EAS BUILD
+
+#### **1. Console Statement Audit** 🚨 CRITICAL
+- [ ] **NO unguarded console.log statements** - These cause white screens/crashes in production iOS
+- [ ] All console.log/warn/info/debug wrapped with `if (__DEV__) { ... }`
+- [ ] console.error statements can remain (for crash reporting)
+- **Command to check:** `grep -r "console\." src/ --include="*.tsx" --include="*.ts" | grep -v "__DEV__" | grep -v "console.error"`
+- **Must return 0 results** or app will crash on iOS
+
+#### **2. Error Boundary Implementation** 🛡️ CRITICAL
+- [ ] ErrorBoundary component created in `src/components/ErrorBoundary.tsx`
+- [ ] App.tsx wrapped with `<ErrorBoundary>` to prevent crashes
+- [ ] Graceful error handling for runtime errors
+- [ ] User-friendly error messages instead of white screen
+
+#### **3. Environment Variables Configuration** 🔐 CRITICAL
+- [ ] **Environment variables added to eas.json** (not just .env file)
+- [ ] Production Supabase credentials configured in both preview and production profiles
+- [ ] No hardcoded localhost URLs or development-only endpoints
+- [ ] `EXPO_PUBLIC_ENV` set to "production" in eas.json
+
+#### **4. App Configuration Validation**
+- [ ] app.json bundle ID matches Apple Developer account
+- [ ] Version and build numbers incremented for new builds
+- [ ] App icon configured (1024x1024px PNG)
+- [ ] Splash screen configured
+- [ ] `ITSAppUsesNonExemptEncryption: false` in iOS config
+- [ ] Proper iOS permissions in infoPlist
+
+#### **5. Dependencies & SDK Compatibility**
+- [ ] All peer dependencies installed (`react-native-gesture-handler`, `react-native-worklets`)
+- [ ] Package versions aligned with Expo SDK
+- [ ] `npx expo-doctor` shows 0 issues
+- [ ] No deprecated or incompatible packages
+
+#### **6. Asset Optimization**
+- [ ] App icon optimized (≤1MB, 1024x1024px)
+- [ ] No oversized images that could cause memory issues
+- [ ] All assets properly referenced in app.json
+
+#### **7. Production Code Safety**
+- [ ] No test data or development-only code paths
+- [ ] AsyncStorage operations properly error-handled
+- [ ] Network requests have proper timeout and error handling
+- [ ] No undefined variables or null pointer exceptions
+
+### EAS BUILD CONFIGURATION
+
+#### **Required Files:**
+
+**eas.json** (with environment variables):
+```json
+{
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "ios": { "resourceClass": "m1-medium" },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "your-supabase-url",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "your-anon-key",
+        "EXPO_PUBLIC_APP_NAME": "TrackPay",
+        "EXPO_PUBLIC_ENV": "production"
+      }
+    },
+    "production": {
+      "ios": { "resourceClass": "m1-medium" },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "your-supabase-url",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "your-anon-key",
+        "EXPO_PUBLIC_APP_NAME": "TrackPay",
+        "EXPO_PUBLIC_ENV": "production"
+      }
+    }
+  }
+}
+```
+
+### PRODUCTION BUILD COMMANDS
+
+```bash
+# 1. Pre-flight checks
+npx expo-doctor
+grep -r "console\." src/ --include="*.tsx" --include="*.ts" | grep -v "__DEV__" | grep -v "console.error"
+
+# 2. Build for TestFlight
+eas build --platform ios --profile preview
+
+# 3. Submit to TestFlight
+eas submit --platform ios
+```
+
+### COMMON FAILURE POINTS (WHAT KILLED YOUR PREVIOUS BUILD)
+
+1. **White Screen Issue = Unguarded Console Statements**
+   - iOS production builds crash on console.log
+   - Wrap ALL console statements with `__DEV__` checks
+
+2. **Environment Variables Missing**
+   - .env file is NOT bundled in production builds
+   - Must add to eas.json env section
+
+3. **Dependency Mismatches**
+   - Run `npx expo install --check` before building
+   - Ensure all peer dependencies installed
+
+4. **Missing Error Boundaries**
+   - Any uncaught error = white screen
+   - Wrap app in ErrorBoundary component
+
+### POST-BUILD TESTING
+
+After TestFlight upload:
+- [ ] App launches without white screen
+- [ ] Environment variables accessible
+- [ ] Database connections work
+- [ ] No console errors in production
+- [ ] Navigation flows work correctly
+- [ ] All features functional
+
+### EMERGENCY DEBUGGING
+
+If production build fails:
+1. Check console output during build
+2. Verify eas.json environment variables
+3. Ensure no unguarded console statements
+4. Test locally with production-like settings
+5. Check asset file sizes and formats
 
 Remember: **Ship working, beautiful features. Test everything. Be honest about current state.**

@@ -46,7 +46,9 @@ export class ConflictResolver {
     conflict: ConflictData<T>,
     strategy: ConflictResolutionStrategy = 'last-modified-wins'
   ): ConflictResolution<T> {
-    console.log(`🔍 ConflictResolver: Resolving ${conflict.conflictType} conflict for ${conflict.id} using ${strategy}`);
+    if (__DEV__) {
+      console.log(`🔍 ConflictResolver: Resolving ${conflict.conflictType} conflict for ${conflict.id} using ${strategy}`);
+    }
 
     switch (strategy) {
       case 'local-wins':
@@ -60,7 +62,9 @@ export class ConflictResolver {
       case 'manual':
         return this.resolveManual(conflict);
       default:
-        console.warn(`⚠️ ConflictResolver: Unknown strategy ${strategy}, defaulting to last-modified-wins`);
+        if (__DEV__) {
+          console.warn(`⚠️ ConflictResolver: Unknown strategy ${strategy}, defaulting to last-modified-wins`);
+        }
         return this.resolveLastModifiedWins(conflict);
     }
   }
@@ -287,7 +291,9 @@ export class ConflictResolver {
     conflicts: ConflictData<T>[],
     strategy: ConflictResolutionStrategy = 'last-modified-wins'
   ): Promise<ConflictResolution<T>[]> {
-    console.log(`🔍 ConflictResolver: Resolving ${conflicts.length} conflicts using ${strategy}`);
+    if (__DEV__) {
+      console.log(`🔍 ConflictResolver: Resolving ${conflicts.length} conflicts using ${strategy}`);
+    }
 
     const resolutions = conflicts.map(conflict =>
       this.resolveConflict(conflict, strategy)

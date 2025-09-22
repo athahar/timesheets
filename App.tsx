@@ -4,6 +4,7 @@ import { Alert } from 'react-native';
 import { RootNavigator } from './src/navigation/AppNavigator';
 import { initializeWithSeedData, debugInfo } from './src/services/storageService';
 import { directSupabase } from './src/services/directSupabase';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 
 // Environment variable validation
 const validateEnvironment = () => {
@@ -16,7 +17,9 @@ const validateEnvironment = () => {
 
   if (missing.length > 0) {
     const message = `Missing required environment variables:\n${missing.join('\n')}\n\nPlease check your .env file and ensure all Supabase credentials are configured.`;
-    console.error('❌ Environment validation failed:', message);
+    if (__DEV__) {
+      console.error('❌ Environment validation failed:', message);
+    }
 
     // Show alert in development
     if (__DEV__) {
@@ -30,7 +33,9 @@ const validateEnvironment = () => {
     return false;
   }
 
-  console.log('✅ Environment variables validated successfully');
+  if (__DEV__) {
+    console.log('✅ Environment variables validated successfully');
+  }
   return true;
 };
 
@@ -38,18 +43,26 @@ export default function App() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        console.log('🚀 TrackPay: Starting app initialization...');
+        if (__DEV__) {
+          console.log('🚀 TrackPay: Starting app initialization...');
+        }
 
         // Validate environment variables first
         const envValid = validateEnvironment();
         if (!envValid) {
-          console.warn('⚠️ TrackPay: Running with incomplete configuration');
+          if (__DEV__) {
+            console.warn('⚠️ TrackPay: Running with incomplete configuration');
+          }
         }
 
         // Initialize with hybrid storage (includes seed data)
-        console.log('🌱 TrackPay: Starting direct Supabase initialization...');
+        if (__DEV__) {
+          console.log('🌱 TrackPay: Starting direct Supabase initialization...');
+        }
         await initializeWithSeedData();
-        console.log('🎉 TrackPay: Direct Supabase initialization completed successfully');
+        if (__DEV__) {
+          console.log('🎉 TrackPay: Direct Supabase initialization completed successfully');
+        }
 
         // Expose debugging functions globally in development
         if (__DEV__ && typeof window !== 'undefined') {
@@ -62,7 +75,9 @@ export default function App() {
         }
 
       } catch (error) {
-        console.error('❌ TrackPay: Error during app initialization:', error);
+        if (__DEV__) {
+          console.error('❌ TrackPay: Error during app initialization:', error);
+        }
 
         if (__DEV__) {
           Alert.alert(
@@ -78,9 +93,9 @@ export default function App() {
   }, []);
 
   return (
-    <>
+    <ErrorBoundary>
       <RootNavigator />
       <StatusBar style="auto" />
-    </>
+    </ErrorBoundary>
   );
 }

@@ -44,48 +44,70 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
 
   const loadData = async () => {
     try {
-      console.log('🔍 ServiceProviderSummaryScreen: Loading data for providerId:', providerId);
+      if (__DEV__) {
+        console.log('🔍 ServiceProviderSummaryScreen: Loading data for providerId:', providerId);
+      }
 
       const user = await getCurrentUser();
-      console.log('👤 Current user:', user);
+      if (__DEV__) {
+        console.log('👤 Current user:', user);
+      }
       setCurrentUser(user || 'Client');
 
       // Get sessions for this client with the provider
-      console.log('📊 Fetching sessions for user:', user, 'with provider:', providerId);
+      if (__DEV__) {
+        console.log('📊 Fetching sessions for user:', user, 'with provider:', providerId);
+      }
       const userSessions = await getClientSessionsForProvider(user || '', providerId);
-      console.log('📊 Sessions received:', userSessions.length, 'sessions');
-      console.log('📊 Session details:', userSessions.map(s => ({
-        id: s.id.substring(0, 8) + '...',
-        clientId: s.clientId?.substring(0, 8) + '...',
-        providerId: s.providerId?.substring(0, 8) + '...',
-        status: s.status,
-        amount: s.amount
-      })));
+      if (__DEV__) {
+        console.log('📊 Sessions received:', userSessions.length, 'sessions');
+      }
+      if (__DEV__) {
+        console.log('📊 Session details:', userSessions.map(s => ({
+          id: s.id.substring(0, 8) + '...',
+          clientId: s.clientId?.substring(0, 8) + '...',
+          providerId: s.providerId?.substring(0, 8) + '...',
+          status: s.status,
+          amount: s.amount
+        })));
+      }
 
       // Get activities for this client - need to use the client record ID, not auth user ID
       const activitiesData = await getActivities();
-      console.log('🔍 All activities:', activitiesData.length);
+      if (__DEV__) {
+        console.log('🔍 All activities:', activitiesData.length);
+      }
 
       // Get the client record ID from the first session (since we know sessions are filtered correctly)
       const clientRecordId = userSessions.length > 0 ? userSessions[0].clientId : null;
-      console.log('🔍 Looking for activities with clientId:', clientRecordId);
+      if (__DEV__) {
+        console.log('🔍 Looking for activities with clientId:', clientRecordId);
+      }
 
       const clientActivities = activitiesData.filter(a => {
-        console.log('🔍 Activity:', a.id, 'clientId:', a.clientId, 'type:', a.type);
+        if (__DEV__) {
+          console.log('🔍 Activity:', a.id, 'clientId:', a.clientId, 'type:', a.type);
+        }
         return a.clientId === clientRecordId;
       });
-      console.log('🔍 Filtered client activities:', clientActivities.length);
+      if (__DEV__) {
+        console.log('🔍 Filtered client activities:', clientActivities.length);
+      }
       setActivities(clientActivities);
 
       // Calculate unpaid amounts
       const unpaidSessions = userSessions.filter(session =>
         session.status === 'unpaid' || session.status === 'requested'
       );
-      console.log('💰 Unpaid sessions:', unpaidSessions.length);
+      if (__DEV__) {
+        console.log('💰 Unpaid sessions:', unpaidSessions.length);
+      }
 
       const unpaidHoursTotal = unpaidSessions.reduce((total, session) => total + (session.duration || 0), 0);
       const unpaidBalanceTotal = unpaidSessions.reduce((total, session) => total + (session.amount || 0), 0);
-      console.log('💰 Totals - Hours:', unpaidHoursTotal, 'Balance:', unpaidBalanceTotal);
+      if (__DEV__) {
+        console.log('💰 Totals - Hours:', unpaidHoursTotal, 'Balance:', unpaidBalanceTotal);
+      }
 
       setSessions(userSessions);
       setUnpaidHours(unpaidHoursTotal);

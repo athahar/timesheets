@@ -141,11 +141,15 @@ export const getServiceProvidersForClient = (clientName: string) => {
 };
 
 export const getClientSessionsForProvider = async (clientUserId: string, providerId: string) => {
-  console.log('🔍 getClientSessionsForProvider called with:', { clientUserId, providerId });
+  if (__DEV__) {
+    console.log('🔍 getClientSessionsForProvider called with:', { clientUserId, providerId });
+  }
 
   // Get the current user's trackpay_users ID
   const currentUser = await getCurrentUser();
-  console.log('👤 getCurrentUser result:', currentUser);
+  if (__DEV__) {
+    console.log('👤 getCurrentUser result:', currentUser);
+  }
   if (!currentUser) {
     console.log('❌ No current user found');
     return [];
@@ -159,18 +163,30 @@ export const getClientSessionsForProvider = async (clientUserId: string, provide
     .eq('role', 'client')
     .single();
 
-  console.log('📋 Client record lookup:', { clientRecord, clientError });
+  if (__DEV__) {
+
+    console.log('📋 Client record lookup:', { clientRecord, clientError });
+
+  }
   if (!clientRecord) {
     console.log('❌ No client record found for user:', currentUser.id);
     return [];
   }
 
   // Get sessions where this client worked with this provider
-  console.log('📊 Fetching all sessions...');
+  if (__DEV__) {
+    console.log('📊 Fetching all sessions...');
+  }
   const sessions = await directSupabase.getSessions();
-  console.log('📊 Total sessions fetched:', sessions.length);
+  if (__DEV__) {
+    console.log('📊 Total sessions fetched:', sessions.length);
+  }
 
-  console.log('🔎 Filtering sessions for clientId:', clientRecord.id, 'providerId:', providerId);
+  if (__DEV__) {
+
+    console.log('🔎 Filtering sessions for clientId:', clientRecord.id, 'providerId:', providerId);
+
+  }
   const filteredSessions = sessions.filter(session => {
     const matches = session.clientId === clientRecord.id && session.providerId === providerId;
     console.log('🔎 Session check:', {
@@ -184,7 +200,11 @@ export const getClientSessionsForProvider = async (clientUserId: string, provide
     return matches;
   });
 
-  console.log('✅ Filtered sessions result:', filteredSessions.length, 'sessions');
+  if (__DEV__) {
+
+    console.log('✅ Filtered sessions result:', filteredSessions.length, 'sessions');
+
+  }
   return filteredSessions;
 };
 
@@ -271,7 +291,9 @@ export const healthCheck = async () => {
 // Development helpers
 export const debugInfo = async () => {
   const health = await healthCheck();
-  console.log('🔍 TrackPay Direct Supabase Debug Info:', health);
+  if (__DEV__) {
+    console.log('🔍 TrackPay Direct Supabase Debug Info:', health);
+  }
   return health;
 };
 

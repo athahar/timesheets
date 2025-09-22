@@ -142,3 +142,27 @@ Check that all dependencies are installed:
 ```bash
 npx expo install react-dom react-native-web
 ```
+
+
+
+
+use accounts
+
+provider:
+  - Email: athahar+lucy@gmail.com
+  - Password: lucy123456
+
+provider:
+
+  athhar+test@gmail.com
+  123456@
+
+📋 Client Login Credentials:
+ Password (same for all): demo123$
+Emails:
+  - Kel K: ath.sub.007+kel@gmail.com 
+  - Molly Johnson: ath.sub.007+molly@gmail.com 
+  - Mash n: athmash247@gmail.com 
+  - Sarah Davis: ath.sub.007+sarah@gmail.com
+  - Sam Li: ath.sub.007+sam@gmail.com 
+  - Adda Smith: ath.sub.007+adda@gmail.com 

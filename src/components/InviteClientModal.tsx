@@ -77,7 +77,11 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
         trimmedEmail || undefined
       );
 
-      console.log('✅ Client and invite created:', newClient);
+      if (__DEV__) {
+
+        console.log('✅ Client and invite created:', newClient);
+
+      }
 
       if (newClient.inviteCode) {
         setInviteCode(newClient.inviteCode);

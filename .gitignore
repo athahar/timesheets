@@ -35,7 +35,6 @@ yarn-error.*
 .env
 
 # TrackPay specific
-database/backup/
 *.sql.backup
 
 # typescript

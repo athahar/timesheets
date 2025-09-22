@@ -271,7 +271,9 @@ export class StorageAdapter {
       const backup = JSON.parse(backupString);
       if (backup.version === '1.0' && backup.data) {
         await this.importLegacyData(backup.data);
-        console.log('✅ StorageAdapter: Backup restored successfully');
+        if (__DEV__) {
+          console.log('✅ StorageAdapter: Backup restored successfully');
+        }
       } else {
         throw new Error('Invalid backup format');
       }

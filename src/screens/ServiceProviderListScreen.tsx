@@ -37,9 +37,13 @@ interface ServiceProvider {
 }
 
 export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps> = ({ navigation }) => {
-  console.log('🚀 ServiceProviderListScreen: Component mounting...');
+  if (__DEV__) {
+    console.log('🚀 ServiceProviderListScreen: Component mounting...');
+  }
   const { userProfile, signOut } = useAuth();
-  console.log('👤 ServiceProviderListScreen: userProfile:', userProfile?.name, userProfile?.role);
+  if (__DEV__) {
+    console.log('👤 ServiceProviderListScreen: userProfile:', userProfile?.name, userProfile?.role);
+  }
 
   const [serviceProviders, setServiceProviders] = useState<ServiceProvider[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,8 +51,12 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
   const [currentUser, setCurrentUser] = useState<string>('');
 
   const loadServiceProviders = async () => {
-    console.log('🔄 ServiceProviderList: Starting to load providers...');
-    console.log('🔄 ServiceProviderList: userProfile:', userProfile);
+    if (__DEV__) {
+      console.log('🔄 ServiceProviderList: Starting to load providers...');
+    }
+    if (__DEV__) {
+      console.log('🔄 ServiceProviderList: userProfile:', userProfile);
+    }
     try {
       let providersData: ServiceProvider[] = [];
       let user = '';
@@ -56,7 +64,9 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
       if (userProfile) {
         // Authenticated user - load providers based on relationships
         user = userProfile.name;
-        console.log('📊 Auth user - loading relationship-based providers for:', user);
+        if (__DEV__) {
+          console.log('📊 Auth user - loading relationship-based providers for:', user);
+        }
 
         try {
           // Get provider IDs that have relationships with this client
@@ -84,7 +94,9 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
               providersData = [];
             } else {
               // Convert Supabase format to ServiceProvider format and load real session data
-              console.log('💰 ServiceProviderList: Loading provider summaries for', relatedProviders.length, 'providers...');
+              if (__DEV__) {
+                console.log('💰 ServiceProviderList: Loading provider summaries for', relatedProviders.length, 'providers...');
+              }
 
               const providersWithSummary = await Promise.allSettled(
                 (relatedProviders || []).map(async (provider) => {
@@ -110,7 +122,9 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
                       paymentStatus: summary.paymentStatus,
                     };
                   } catch (error) {
-                    console.warn('⚠️ Failed to load summary for provider:', provider.name, error.message);
+                    if (__DEV__) {
+                      console.warn('⚠️ Failed to load summary for provider:', provider.name, error.message);
+                    }
                     // Return provider with default summary
                     return {
                       id: provider.id,
@@ -135,10 +149,16 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
                 )
                 .map(result => result.value);
 
-              console.log('✅ Loaded', providersData.length, 'related providers with session data');
+              if (__DEV__) {
+
+                console.log('✅ Loaded', providersData.length, 'related providers with session data');
+
+              }
             }
           } else {
-            console.log('📊 No relationships found - empty provider list');
+            if (__DEV__) {
+              console.log('📊 No relationships found - empty provider list');
+            }
             providersData = [];
           }
         } catch (dbError) {
@@ -152,15 +172,23 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
           getServiceProvidersForClient('')
         ]);
         providersData = providers;
-        console.log('📊 Non-auth user - loading from localStorage:', providersData.length, 'providers');
+        if (__DEV__) {
+          console.log('📊 Non-auth user - loading from localStorage:', providersData.length, 'providers');
+        }
       }
 
       setServiceProviders(providersData);
       const userName = userProfile?.name || user || 'Client';
       setCurrentUser(userName);
 
-      console.log('📊 ServiceProviderListScreen: Loaded', providersData.length, 'providers');
-      console.log('✅ ServiceProviderList: Loading complete!');
+      if (__DEV__) {
+
+        console.log('📊 ServiceProviderListScreen: Loaded', providersData.length, 'providers');
+
+      }
+      if (__DEV__) {
+        console.log('✅ ServiceProviderList: Loading complete!');
+      }
     } catch (error) {
       console.error('Error loading service providers:', error);
     } finally {
@@ -171,15 +199,21 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
 
   useFocusEffect(
     useCallback(() => {
-      console.log('🎯 ServiceProviderListScreen: useFocusEffect triggered');
-      console.log('🔧 ServiceProviderListScreen: userProfile available:', !!userProfile);
+      if (__DEV__) {
+        console.log('🎯 ServiceProviderListScreen: useFocusEffect triggered');
+      }
+      if (__DEV__) {
+        console.log('🔧 ServiceProviderListScreen: userProfile available:', !!userProfile);
+      }
 
       // Only load providers if we have a userProfile
       if (userProfile) {
         console.log('🔧 ServiceProviderListScreen: About to call loadServiceProviders...');
         loadServiceProviders();
       } else {
-        console.log('⏳ ServiceProviderListScreen: Waiting for userProfile...');
+        if (__DEV__) {
+          console.log('⏳ ServiceProviderListScreen: Waiting for userProfile...');
+        }
         setLoading(false); // Stop loading state if no profile yet
       }
     }, [userProfile])
@@ -191,7 +225,9 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
   };
 
   const handleProviderPress = (provider: ServiceProvider) => {
-    console.log('🎯 ServiceProviderListScreen: Provider pressed:', provider.name);
+    if (__DEV__) {
+      console.log('🎯 ServiceProviderListScreen: Provider pressed:', provider.name);
+    }
     navigation.navigate('ServiceProviderSummary', { providerId: provider.id, providerName: provider.name });
   };
 

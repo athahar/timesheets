@@ -46,9 +46,15 @@ export const ClientViewScreen: React.FC = () => {
         getClients(),
       ]);
 
-      console.log('🔍 DEBUG: Total activities loaded:', activitiesData.length);
-      console.log('🔍 DEBUG: Activity types:', activitiesData.map(a => a.type));
-      console.log('🔍 DEBUG: Payment activities:', activitiesData.filter(a => a.type === 'payment_completed'));
+      if (__DEV__) {
+
+        console.log('🔍 DEBUG: Total activities loaded:', activitiesData.length);
+
+      }
+      if (__DEV__) {
+        console.log('🔍 DEBUG: Activity types:', activitiesData.map(a => a.type));
+        console.log('🔍 DEBUG: Payment activities:', activitiesData.filter(a => a.type === 'payment_completed'));
+      }
 
       setActivities(activitiesData);
       setClients(clientsData);

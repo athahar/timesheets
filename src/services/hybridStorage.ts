@@ -241,7 +241,9 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
     }
 
     // Create temporary user for offline mode
-    console.log('📴 Offline - user created locally only');
+    if (__DEV__) {
+      console.log('📴 Offline - user created locally only');
+    }
     const tempUser: DatabaseUser = {
       ...user,
       id: `temp_${Date.now()}`,
@@ -280,7 +282,9 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
     }
 
     // Update in cache for offline mode
-    console.log('📴 Offline - user updated locally only');
+    if (__DEV__) {
+      console.log('📴 Offline - user updated locally only');
+    }
     const cached = await this.getFromAsyncStorage<DatabaseUser>(HYBRID_KEYS.USER_CACHE);
     const index = cached.findIndex(u => u.id === id);
     if (index !== -1) {
@@ -312,7 +316,9 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
     }
 
     // Remove from cache for offline mode
-    console.log('📴 Offline - user deleted locally only');
+    if (__DEV__) {
+      console.log('📴 Offline - user deleted locally only');
+    }
     const cached = await this.getFromAsyncStorage<DatabaseUser>(HYBRID_KEYS.USER_CACHE);
     const filtered = cached.filter(u => u.id !== id);
     await this.setToAsyncStorage(HYBRID_KEYS.USER_CACHE, filtered);
@@ -521,7 +527,9 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
 
   // Client operations
   async addClient(name: string, hourlyRate: number, email?: string): Promise<Client> {
-    console.log('📊 HybridStorage: addClient called with name:', name, 'rate:', hourlyRate, 'email:', email);
+    if (__DEV__) {
+      console.log('📊 HybridStorage: addClient called with name:', name, 'rate:', hourlyRate, 'email:', email);
+    }
 
     const isOnline = await this.isOnline();
 
@@ -549,7 +557,9 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
         console.log('✅ HybridStorage: Client created in Supabase with ID:', user.data.id);
       }
     } else {
-      console.log('📴 Offline - client created locally only');
+      if (__DEV__) {
+        console.log('📴 Offline - client created locally only');
+      }
     }
 
     // Always save to AsyncStorage (legacy cache)
@@ -557,12 +567,18 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
     clients.push(newClient);
     await this.setToAsyncStorage(LEGACY_KEYS.CLIENTS, clients);
 
-    console.log('✅ HybridStorage: Created client with unique ID:', newClient.id, 'for', newClient.name);
+    if (__DEV__) {
+
+      console.log('✅ HybridStorage: Created client with unique ID:', newClient.id, 'for', newClient.name);
+
+    }
     return newClient;
   }
 
   async getClients(): Promise<Client[]> {
-    console.log('📊 HybridStorage: getClients called');
+    if (__DEV__) {
+      console.log('📊 HybridStorage: getClients called');
+    }
 
     const isOnline = await this.isOnline();
 
@@ -582,7 +598,9 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
 
         // Cache in AsyncStorage
         await this.setToAsyncStorage(LEGACY_KEYS.CLIENTS, clients);
-        console.log('📊 HybridStorage: Loaded clients from Supabase:', clients.length, 'clients');
+        if (__DEV__) {
+          console.log('📊 HybridStorage: Loaded clients from Supabase:', clients.length, 'clients');
+        }
         return clients;
       }
     }
@@ -590,21 +608,29 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
     // Fallback to AsyncStorage
     const clients = await this.getFromAsyncStorage<Client>(LEGACY_KEYS.CLIENTS);
     const sortedClients = clients.sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically
-    console.log('📊 HybridStorage: Loaded clients from AsyncStorage:', sortedClients.length, 'clients');
+    if (__DEV__) {
+      console.log('📊 HybridStorage: Loaded clients from AsyncStorage:', sortedClients.length, 'clients');
+    }
     return sortedClients;
   }
 
   async getClientById(id: string): Promise<Client | null> {
-    console.log('🔍 HybridStorage: getClientById called with ID:', id);
+    if (__DEV__) {
+      console.log('🔍 HybridStorage: getClientById called with ID:', id);
+    }
     const clients = await this.getClients();
     console.log('📋 HybridStorage: Available clients:', clients.map(c => ({ id: c.id, name: c.name })));
     const foundClient = clients.find(client => client.id === id) || null;
-    console.log('🎯 HybridStorage: Found client:', foundClient ? foundClient.name : 'NOT FOUND');
+    if (__DEV__) {
+      console.log('🎯 HybridStorage: Found client:', foundClient ? foundClient.name : 'NOT FOUND');
+    }
     return foundClient;
   }
 
   async updateClient(id: string, name: string, hourlyRate: number, email?: string): Promise<void> {
-    console.log('✏️ HybridStorage: updateClient called with ID:', id, 'name:', name, 'rate:', hourlyRate, 'email:', email);
+    if (__DEV__) {
+      console.log('✏️ HybridStorage: updateClient called with ID:', id, 'name:', name, 'rate:', hourlyRate, 'email:', email);
+    }
 
     const isOnline = await this.isOnline();
 
@@ -616,7 +642,9 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
       }
       await this.updateUser(id, updateData);
     } else {
-      console.log('📴 Offline - client updated locally only');
+      if (__DEV__) {
+        console.log('📴 Offline - client updated locally only');
+      }
     }
 
     // Always update in AsyncStorage
@@ -640,7 +668,9 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
     clients[clientIndex] = updatedClient;
 
     await this.setToAsyncStorage(LEGACY_KEYS.CLIENTS, clients);
-    console.log('✅ HybridStorage: Client updated successfully');
+    if (__DEV__) {
+      console.log('✅ HybridStorage: Client updated successfully');
+    }
   }
 
   // Session operations
@@ -677,16 +707,24 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
         const { error } = await supabase.from('trackpay_sessions').insert([dbSession]);
         if (error) {
           console.error('❌ Failed to save session to Supabase:', error);
-          console.log('📱 Session saved locally only - will need manual sync when online');
+          if (__DEV__) {
+            console.log('📱 Session saved locally only - will need manual sync when online');
+          }
         } else {
-          console.log('✅ Session saved to Supabase:', newSession.id);
+          if (__DEV__) {
+            console.log('✅ Session saved to Supabase:', newSession.id);
+          }
         }
       } catch (error) {
         console.error('❌ Session save error:', error);
-        console.log('📱 Session saved locally only');
+        if (__DEV__) {
+          console.log('📱 Session saved locally only');
+        }
       }
     } else {
-      console.log('📴 Offline - session saved locally only');
+      if (__DEV__) {
+        console.log('📴 Offline - session saved locally only');
+      }
     }
 
     // Add activity
@@ -741,16 +779,24 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
 
         if (error) {
           console.error('❌ Failed to update session in Supabase:', error);
-          console.log('📱 Session updated locally only - will need manual sync when online');
+          if (__DEV__) {
+            console.log('📱 Session updated locally only - will need manual sync when online');
+          }
         } else {
-          console.log('✅ Session updated in Supabase:', sessions[sessionIndex].id);
+          if (__DEV__) {
+            console.log('✅ Session updated in Supabase:', sessions[sessionIndex].id);
+          }
         }
       } catch (error) {
         console.error('❌ Session update error:', error);
-        console.log('📱 Session updated locally only');
+        if (__DEV__) {
+          console.log('📱 Session updated locally only');
+        }
       }
     } else {
-      console.log('📴 Offline - session updated locally only');
+      if (__DEV__) {
+        console.log('📴 Offline - session updated locally only');
+      }
     }
 
     // Add activity
@@ -807,12 +853,16 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
             console.error(`❌ Failed to update session ${sessionId} status to requested in Supabase:`, error);
           }
         }
-        console.log('✅ Session statuses updated to requested in Supabase');
+        if (__DEV__) {
+          console.log('✅ Session statuses updated to requested in Supabase');
+        }
       } catch (error) {
         console.error('❌ Session status update error:', error);
       }
     } else {
-      console.log('📴 Offline - session statuses updated to requested locally only');
+      if (__DEV__) {
+        console.log('📴 Offline - session statuses updated to requested locally only');
+      }
     }
 
     await this.addActivity({
@@ -861,13 +911,17 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
         if (paymentError) {
           console.error('❌ Failed to save payment to Supabase:', paymentError);
         } else {
-          console.log('✅ Payment saved to Supabase:', payment.id);
+          if (__DEV__) {
+            console.log('✅ Payment saved to Supabase:', payment.id);
+          }
         }
       } catch (error) {
         console.error('❌ Payment save error:', error);
       }
     } else {
-      console.log('📴 Offline - payment saved locally only');
+      if (__DEV__) {
+        console.log('📴 Offline - payment saved locally only');
+      }
     }
 
     // Update session statuses
@@ -890,12 +944,16 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
             console.error(`❌ Failed to update session ${sessionId} status in Supabase:`, error);
           }
         }
-        console.log('✅ Session statuses updated in Supabase');
+        if (__DEV__) {
+          console.log('✅ Session statuses updated in Supabase');
+        }
       } catch (error) {
         console.error('❌ Session status update error:', error);
       }
     } else {
-      console.log('📴 Offline - session statuses updated locally only');
+      if (__DEV__) {
+        console.log('📴 Offline - session statuses updated locally only');
+      }
     }
 
     // Add activity
@@ -944,13 +1002,17 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
         if (error) {
           console.error('❌ Failed to save activity to Supabase:', error);
         } else {
-          console.log('✅ Activity saved to Supabase:', newActivity.id);
+          if (__DEV__) {
+            console.log('✅ Activity saved to Supabase:', newActivity.id);
+          }
         }
       } catch (error) {
         console.error('❌ Activity save error:', error);
       }
     } else {
-      console.log('📴 Offline - activity saved locally only');
+      if (__DEV__) {
+        console.log('📴 Offline - activity saved locally only');
+      }
     }
   }
 
@@ -1068,16 +1130,24 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
 
   // Seed data initialization (matching existing storage.ts)
   async initializeWithSeedData(): Promise<void> {
-    console.log('🌱 HybridStorage: Initializing seed data...');
+    if (__DEV__) {
+      console.log('🌱 HybridStorage: Initializing seed data...');
+    }
     const clients = await this.getClients();
-    console.log('🌱 HybridStorage: Current clients count:', clients.length);
+    if (__DEV__) {
+      console.log('🌱 HybridStorage: Current clients count:', clients.length);
+    }
 
     if (clients.length > 0) {
       console.log('🌱 HybridStorage: Seed data already exists, skipping initialization');
       return;
     }
 
-    console.log('🌱 HybridStorage: No existing data, creating seed data...');
+    if (__DEV__) {
+
+      console.log('🌱 HybridStorage: No existing data, creating seed data...');
+
+    }
 
     // Add sample clients with delay to prevent ID collision
     const client1 = await this.addClient('Molly Johnson', 45);
@@ -1178,12 +1248,20 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
 
     await this.setToAsyncStorage(LEGACY_KEYS.ACTIVITIES, activities);
 
-    console.log('✅ HybridStorage: Seed data initialization completed successfully!');
-    console.log('✅ HybridStorage: Created clients:', [client1.name, client2.name, client3.name, client4.name]);
+    if (__DEV__) {
+
+      console.log('✅ HybridStorage: Seed data initialization completed successfully!');
+
+    }
+    if (__DEV__) {
+      console.log('✅ HybridStorage: Created clients:', [client1.name, client2.name, client3.name, client4.name]);
+    }
   }
 
   async clearAllDataAndReinitialize(): Promise<void> {
-    console.log('🧹 HybridStorage: Clearing all data and reinitializing...');
+    if (__DEV__) {
+      console.log('🧹 HybridStorage: Clearing all data and reinitializing...');
+    }
 
     // Clear AsyncStorage
     await AsyncStorage.multiRemove([
@@ -1196,9 +1274,15 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
     // Reset ID counter
     HybridStorageService.idCounter = 0;
 
-    console.log('🧹 HybridStorage: All data cleared, reinitializing...');
+    if (__DEV__) {
+
+      console.log('🧹 HybridStorage: All data cleared, reinitializing...');
+
+    }
     await this.initializeWithSeedData();
-    console.log('✅ HybridStorage: Data cleared and reinitialized successfully!');
+    if (__DEV__) {
+      console.log('✅ HybridStorage: Data cleared and reinitialized successfully!');
+    }
   }
 
   // Session conversion methods
@@ -1262,7 +1346,9 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
       }
 
       // Final fallback: Use Lucy's provider ID for backward compatibility
-      console.warn('⚠️ Could not determine current provider ID, using fallback');
+      if (__DEV__) {
+        console.warn('⚠️ Could not determine current provider ID, using fallback');
+      }
       return '550e8400-e29b-41d4-a716-446655440000'; // Lucy Provider UUID
     } catch (error) {
       console.error('❌ Error getting current provider ID:', error);
@@ -1308,20 +1394,28 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
   }
 
   async clearSyncQueue(): Promise<void> {
-    console.log('🧹 HybridStorage: Comprehensive sync queue cleanup starting...');
+    if (__DEV__) {
+      console.log('🧹 HybridStorage: Comprehensive sync queue cleanup starting...');
+    }
 
     try {
       // First, inspect and clean invalid operations
       await syncQueue.inspectAndCleanQueue();
-      console.log('✅ Inspected and cleaned invalid operations');
+      if (__DEV__) {
+        console.log('✅ Inspected and cleaned invalid operations');
+      }
 
       // Clear the main SyncQueue
       await syncQueue.clearQueue();
-      console.log('✅ Cleared main SyncQueue');
+      if (__DEV__) {
+        console.log('✅ Cleared main SyncQueue');
+      }
 
       // Clear the HybridStorage offline queue
       await this.setToAsyncStorage(HYBRID_KEYS.OFFLINE_QUEUE, []);
-      console.log('✅ Cleared offline queue');
+      if (__DEV__) {
+        console.log('✅ Cleared offline queue');
+      }
 
       // Clear all possible sync-related storage keys (including legacy ones)
       const allSyncKeys = [
@@ -1344,16 +1438,24 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
       for (const key of allSyncKeys) {
         try {
           await AsyncStorage.removeItem(key);
-          console.log(`✅ Cleared storage key: ${key}`);
+          if (__DEV__) {
+            console.log(`✅ Cleared storage key: ${key}`);
+          }
         } catch (error) {
-          console.warn(`⚠️ Could not clear key ${key}:`, error);
+          if (__DEV__) {
+            console.warn(`⚠️ Could not clear key ${key}:`, error);
+          }
         }
       }
 
       // Reset local queue state
       this.offlineQueue = [];
 
-      console.log('✅ HybridStorage: Comprehensive sync queue cleanup completed');
+      if (__DEV__) {
+
+        console.log('✅ HybridStorage: Comprehensive sync queue cleanup completed');
+
+      }
 
     } catch (error) {
       console.error('❌ HybridStorage: Sync queue cleanup failed:', error);

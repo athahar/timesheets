@@ -68,7 +68,11 @@ export class SyncQueue {
     this.queue.push(queueOp);
     await this.saveQueue();
 
-    console.log(`📤 SyncQueue: Added ${operation.type} ${operation.entity} operation:`, id);
+    if (__DEV__) {
+
+      console.log(`📤 SyncQueue: Added ${operation.type} ${operation.entity} operation:`, id);
+
+    }
     this.notifyStatusListeners();
 
     // Try to process immediately if online
@@ -119,7 +123,11 @@ export class SyncQueue {
     this.isProcessing = true;
     this.notifyStatusListeners();
 
-    console.log(`🔄 SyncQueue: Processing ${this.queue.length} operations`);
+    if (__DEV__) {
+
+      console.log(`🔄 SyncQueue: Processing ${this.queue.length} operations`);
+
+    }
 
     const pendingOps = this.queue.filter(op => op.status === 'pending');
 
@@ -135,7 +143,11 @@ export class SyncQueue {
     await this.updateSyncStatus();
     this.notifyStatusListeners();
 
-    console.log('✅ SyncQueue: Processing completed');
+    if (__DEV__) {
+
+      console.log('✅ SyncQueue: Processing completed');
+
+    }
   }
 
   private async processOperation(operation: QueueOperation): Promise<void> {
@@ -143,7 +155,9 @@ export class SyncQueue {
     await this.saveQueue();
 
     try {
-      console.log(`🔄 SyncQueue: Processing ${operation.type} ${operation.entity}:`, operation.id);
+      if (__DEV__) {
+        console.log(`🔄 SyncQueue: Processing ${operation.type} ${operation.entity}:`, operation.id);
+      }
 
       switch (operation.entity) {
         case 'client':
@@ -163,7 +177,9 @@ export class SyncQueue {
       }
 
       operation.status = 'completed';
-      console.log(`✅ SyncQueue: Completed ${operation.type} ${operation.entity}:`, operation.id);
+      if (__DEV__) {
+        console.log(`✅ SyncQueue: Completed ${operation.type} ${operation.entity}:`, operation.id);
+      }
 
       // Remove completed operations after a delay
       setTimeout(() => {
@@ -179,7 +195,9 @@ export class SyncQueue {
         console.error(`❌ SyncQueue: Operation failed permanently:`, operation.id, error);
       } else {
         operation.status = 'pending';
-        console.warn(`⚠️ SyncQueue: Operation failed, retry ${operation.retryCount}/${operation.maxRetries}:`, operation.id, error);
+        if (__DEV__) {
+          console.warn(`⚠️ SyncQueue: Operation failed, retry ${operation.retryCount}/${operation.maxRetries}:`, operation.id, error);
+        }
       }
     }
 
@@ -361,7 +379,9 @@ export class SyncQueue {
       const stored = await AsyncStorage.getItem(this.QUEUE_STORAGE_KEY);
       if (stored) {
         this.queue = JSON.parse(stored);
-        console.log(`📥 SyncQueue: Loaded ${this.queue.length} operations from storage`);
+        if (__DEV__) {
+          console.log(`📥 SyncQueue: Loaded ${this.queue.length} operations from storage`);
+        }
       }
     } catch (error) {
       console.error('❌ SyncQueue: Failed to load queue:', error);
@@ -423,20 +443,28 @@ export class SyncQueue {
 
   // Manual operations
   async forcSync(): Promise<void> {
-    console.log('🔄 SyncQueue: Force sync requested');
+    if (__DEV__) {
+      console.log('🔄 SyncQueue: Force sync requested');
+    }
     await this.processQueue();
   }
 
   async clearQueue(): Promise<void> {
-    console.log('🧹 SyncQueue: Clearing queue');
+    if (__DEV__) {
+      console.log('🧹 SyncQueue: Clearing queue');
+    }
     this.queue = [];
     await this.saveQueue();
     this.notifyStatusListeners();
   }
 
   async inspectAndCleanQueue(): Promise<void> {
-    console.log('🔍 SyncQueue: Inspecting queue for invalid operations...');
-    console.log(`📊 Current queue size: ${this.queue.length} operations`);
+    if (__DEV__) {
+      console.log('🔍 SyncQueue: Inspecting queue for invalid operations...');
+    }
+    if (__DEV__) {
+      console.log(`📊 Current queue size: ${this.queue.length} operations`);
+    }
 
     if (this.queue.length === 0) {
       console.log('✅ Queue is empty, nothing to clean');
@@ -468,16 +496,24 @@ export class SyncQueue {
         return true;
       });
 
-      console.log(`✅ Filtered queue: ${originalLength} → ${this.queue.length} operations`);
+      if (__DEV__) {
+
+        console.log(`✅ Filtered queue: ${originalLength} → ${this.queue.length} operations`);
+
+      }
       await this.saveQueue();
       this.notifyStatusListeners();
     } else {
-      console.log('✅ No invalid operations found in queue');
+      if (__DEV__) {
+        console.log('✅ No invalid operations found in queue');
+      }
     }
   }
 
   async retryFailedOperations(): Promise<void> {
-    console.log('🔄 SyncQueue: Retrying failed operations');
+    if (__DEV__) {
+      console.log('🔄 SyncQueue: Retrying failed operations');
+    }
     const failedOps = this.queue.filter(op => op.status === 'failed');
 
     for (const op of failedOps) {

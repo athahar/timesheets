@@ -14,11 +14,23 @@
       "distribution": "internal",
       "ios": {
         "resourceClass": "m1-medium"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://qpoqeqasefatyrjeronp.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwb3FlcWFzZWZhdHlyamVyb25wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc0MzY2MDQsImV4cCI6MjA2MzAxMjYwNH0.DElaq79mhYOf_1kheOkrS9hTBeJ8HQwGRT3qmokJ5S8",
+        "EXPO_PUBLIC_APP_NAME": "TrackPay",
+        "EXPO_PUBLIC_ENV": "production"
       }
     },
     "production": {
       "ios": {
         "resourceClass": "m1-medium"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://qpoqeqasefatyrjeronp.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwb3FlcWFzZWZhdHlyamVyb25wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc0MzY2MDQsImV4cCI6MjA2MzAxMjYwNH0.DElaq79mhYOf_1kheOkrS9hTBeJ8HQwGRT3qmokJ5S8",
+        "EXPO_PUBLIC_APP_NAME": "TrackPay",
+        "EXPO_PUBLIC_ENV": "production"
       }
     }
   },

@@ -4,7 +4,7 @@
     "slug": "trackpay",
     "version": "0.1",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/app-icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -18,10 +18,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.trackpay.track",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "infoPlist": {
         "NSCameraUsageDescription": "TrackPay uses camera for profile photos and document scanning",
-        "NSPhotoLibraryUsageDescription": "TrackPay accesses photo library for profile photos"
+        "NSPhotoLibraryUsageDescription": "TrackPay accesses photo library for profile photos",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -38,11 +39,16 @@
       "favicon": "./assets/favicon.png"
     },
     "scheme": "trackpay",
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "extra": {
       "eas": {
-        "projectId": ""
+        "projectId": "966ed057-887f-46e7-887c-ebb1ed71bcef"
       }
-    }
+    },
+    "owner": "athahar"
   }
 }

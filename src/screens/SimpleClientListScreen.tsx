@@ -45,9 +45,13 @@ interface ClientWithSummary extends Client {
 }
 
 export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }) => {
-  console.log('🚀 SimpleClientListScreen: Component mounting...');
+  if (__DEV__) {
+    console.log('🚀 SimpleClientListScreen: Component mounting...');
+  }
   const { userProfile, signOut } = useAuth();
-  console.log('👤 SimpleClientListScreen: userProfile:', userProfile?.name, userProfile?.role);
+  if (__DEV__) {
+    console.log('👤 SimpleClientListScreen: userProfile:', userProfile?.name, userProfile?.role);
+  }
   const [clients, setClients] = useState<ClientWithSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,9 +63,15 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
   const [inviteCode, setInviteCode] = useState<string | null>(null);
 
   const loadClients = async () => {
-    console.log('🔄 ClientList: loadClients function called!');
-    console.log('🔄 ClientList: Starting to load clients...');
-    console.log('🔄 ClientList: userProfile:', userProfile);
+    if (__DEV__) {
+      console.log('🔄 ClientList: loadClients function called!');
+    }
+    if (__DEV__) {
+      console.log('🔄 ClientList: Starting to load clients...');
+    }
+    if (__DEV__) {
+      console.log('🔄 ClientList: userProfile:', userProfile);
+    }
     try {
       // For authenticated users, only load their own clients
       // For now, show empty list until we implement user-specific storage
@@ -71,7 +81,9 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
       if (userProfile) {
         // Authenticated user - load clients based on relationships
         user = userProfile.name;
-        console.log('📊 Auth user - loading relationship-based clients for:', user);
+        if (__DEV__) {
+          console.log('📊 Auth user - loading relationship-based clients for:', user);
+        }
 
         try {
           // Get client IDs that have relationships with this provider
@@ -106,10 +118,14 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
                 hourlyRate: client.hourly_rate || 0,
                 claimedStatus: client.claimed_status || 'claimed' // Default to claimed for existing clients
               }));
-              console.log('✅ Loaded', clientsData.length, 'related clients');
+              if (__DEV__) {
+                console.log('✅ Loaded', clientsData.length, 'related clients');
+              }
             }
           } else {
-            console.log('📊 No relationships found - empty client list');
+            if (__DEV__) {
+              console.log('📊 No relationships found - empty client list');
+            }
             clientsData = [];
           }
         } catch (dbError) {
@@ -124,10 +140,16 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
         ]);
         clientsData = allClientsData;
         user = currentUser;
-        console.log('📊 Non-auth user - loading from localStorage:', clientsData.length, 'clients');
+        if (__DEV__) {
+          console.log('📊 Non-auth user - loading from localStorage:', clientsData.length, 'clients');
+        }
       }
 
-      console.log('💰 ClientList: Loading client summaries for', clientsData.length, 'clients...');
+      if (__DEV__) {
+
+        console.log('💰 ClientList: Loading client summaries for', clientsData.length, 'clients...');
+
+      }
 
       // Load summaries with timeout to prevent hanging
       const clientsWithSummary = await Promise.allSettled(
@@ -151,7 +173,9 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
               paymentStatus: summary.paymentStatus,
             };
           } catch (error) {
-            console.warn('⚠️ Failed to load summary for client:', client.name, error.message);
+            if (__DEV__) {
+              console.warn('⚠️ Failed to load summary for client:', client.name, error.message);
+            }
             // Return client with default summary
             return {
               ...client,
@@ -188,8 +212,12 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
       }
 
       console.log('📊 SimpleClientListScreen: Loaded', sortedClients.length, 'clients:', sortedClients.map(c => ({ id: c.id, name: c.name })));
-      console.log('👤 Current user set to:', userName, 'with role:', userProfile?.role);
-      console.log('✅ ClientList: Loading complete!');
+      if (__DEV__) {
+        console.log('👤 Current user set to:', userName, 'with role:', userProfile?.role);
+      }
+      if (__DEV__) {
+        console.log('✅ ClientList: Loading complete!');
+      }
     } catch (error) {
       console.error('Error loading clients:', error);
     } finally {
@@ -200,15 +228,21 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
 
   useFocusEffect(
     useCallback(() => {
-      console.log('🎯 SimpleClientListScreen: useFocusEffect triggered');
-      console.log('🔧 SimpleClientListScreen: userProfile available:', !!userProfile);
+      if (__DEV__) {
+        console.log('🎯 SimpleClientListScreen: useFocusEffect triggered');
+      }
+      if (__DEV__) {
+        console.log('🔧 SimpleClientListScreen: userProfile available:', !!userProfile);
+      }
 
       // Only load clients if we have a userProfile
       if (userProfile) {
         console.log('🔧 SimpleClientListScreen: About to call loadClients...');
         loadClients();
       } else {
-        console.log('⏳ SimpleClientListScreen: Waiting for userProfile...');
+        if (__DEV__) {
+          console.log('⏳ SimpleClientListScreen: Waiting for userProfile...');
+        }
         setLoading(false); // Stop loading state if no profile yet
       }
     }, [userProfile])
@@ -220,8 +254,12 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
   };
 
   const handleClientPress = (client: Client) => {
-    console.log('🎯 SimpleClientListScreen: Client pressed:', client.name, 'ID:', client.id);
-    console.log('🧭 Navigating to ClientHistory with clientId:', client.id);
+    if (__DEV__) {
+      console.log('🎯 SimpleClientListScreen: Client pressed:', client.name, 'ID:', client.id);
+    }
+    if (__DEV__) {
+      console.log('🧭 Navigating to ClientHistory with clientId:', client.id);
+    }
     navigation.navigate('ClientHistory', { clientId: client.id });
   };
 
