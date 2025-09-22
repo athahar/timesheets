@@ -16,7 +16,7 @@ import { Button } from '../components/Button';
 import {
   getClients,
   addClient,
-  getSessions,
+  getClientSummary,
 } from '../services/storageService';
 
 interface ClientListScreenProps {
@@ -38,29 +38,17 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
 
   const loadClients = async () => {
     try {
-      // Performance optimization: Fetch all data once instead of N+1 queries
-      const [clientsData, allSessions] = await Promise.all([
-        getClients(),
-        getSessions()
-      ]);
-
-      // Calculate summaries from cached session data
-      const clientsWithSummary = clientsData.map((client) => {
-        const clientSessions = allSessions.filter(s => s.clientId === client.id);
-        const unpaidSessions = clientSessions.filter(s => s.status === 'unpaid');
-        const requestedSessions = clientSessions.filter(s => s.status === 'requested');
-
-        const unpaidHours = unpaidSessions.reduce((sum, s) => sum + (s.duration || 0), 0);
-        const requestedHours = requestedSessions.reduce((sum, s) => sum + (s.duration || 0), 0);
-        const unpaidBalance = unpaidSessions.reduce((sum, s) => sum + (s.amount || 0), 0);
-        const requestedBalance = requestedSessions.reduce((sum, s) => sum + (s.amount || 0), 0);
-
-        return {
-          ...client,
-          unpaidHours: unpaidHours + requestedHours,
-          unpaidBalance: unpaidBalance + requestedBalance,
-        };
-      });
+      const clientsData = await getClients();
+      const clientsWithSummary = await Promise.all(
+        clientsData.map(async (client) => {
+          const summary = await getClientSummary(client.id);
+          return {
+            ...client,
+            unpaidHours: summary.unpaidHours,
+            unpaidBalance: summary.unpaidBalance,
+          };
+        })
+      );
 
       // Sort alphabetically to ensure stable ordering
       const sortedClients = clientsWithSummary.sort((a, b) => a.name.localeCompare(b.name));

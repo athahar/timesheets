@@ -926,8 +926,39 @@ export class DirectSupabaseService {
   }
 
   async getSessionsByClient(clientId: string): Promise<Session[]> {
-    const sessions = await this.getSessions();
-    return sessions.filter(session => session.clientId === clientId);
+    // Performance optimization: Query database directly instead of fetching all sessions
+    const { data, error } = await supabase
+      .from('trackpay_sessions')
+      .select(`
+        id,
+        client_id,
+        provider_id,
+        start_time,
+        end_time,
+        duration_minutes,
+        hourly_rate,
+        amount_due,
+        status
+      `)
+      .eq('client_id', clientId)
+      .order('start_time', { ascending: false });
+
+    if (error) {
+      console.error('❌ Error fetching sessions for client:', error);
+      throw error;
+    }
+
+    return (data || []).map(session => ({
+      id: session.id,
+      clientId: session.client_id,
+      providerId: session.provider_id,
+      startTime: new Date(session.start_time),
+      endTime: session.end_time ? new Date(session.end_time) : undefined,
+      duration: session.duration_minutes ? session.duration_minutes / 60 : undefined,
+      hourlyRate: session.hourly_rate,
+      amount: session.amount_due,
+      status: session.status as Session['status']
+    }));
   }
 
   async getServiceProviders(): Promise<any[]> {
