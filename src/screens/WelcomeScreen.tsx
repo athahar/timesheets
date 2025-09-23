@@ -137,15 +137,15 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingTop: 32,
     paddingBottom: 16,
-    justifyContent: 'space-between',
+    justifyContent: 'center',
   },
 
   // Header Section
   header: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 32,
   },
   wordmark: {
     fontSize: 28,
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
 
   // USP Section
   uspSection: {
-    marginBottom: 20,
+    marginBottom: 32,
   },
   uspRow: {
     flexDirection: 'row',
@@ -216,18 +216,15 @@ const styles = StyleSheet.create({
 
   // CTA Section
   ctaSection: {
-    paddingTop: 16,
+    paddingTop: 0,
   },
   primaryCta: {
-    height: 48,
     marginBottom: 12,
   },
   secondaryCta: {
-    height: 48,
     marginBottom: 16,
   },
   linkCta: {
     alignSelf: 'center',
-    minHeight: 44,
   },
 });
