@@ -17,6 +17,16 @@ import { theme } from '../styles/theme';
 import { getClientById, updateClient, directSupabase } from '../services/storageService';
 import { generateInviteLink } from '../utils/inviteCodeGenerator';
 
+// Helper function to format names in proper sentence case
+const formatName = (name: string): string => {
+  if (!name) return '';
+  return name
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
 interface ClientProfileScreenProps {
   route: {
     params: {
@@ -224,7 +234,7 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
             <>
               {/* View Mode */}
               <View style={styles.profileInfo}>
-                <Text style={styles.clientName}>{client.name}</Text>
+                <Text style={styles.clientName}>{formatName(client.name)}</Text>
                 <Text style={styles.clientRole}>Client</Text>
                 {client.email && (
                   <Text style={styles.clientEmail}>{client.email}</Text>
@@ -241,7 +251,7 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
                 <View style={styles.inviteSection}>
                   <Text style={styles.inviteSectionTitle}>Invite Code</Text>
                   <Text style={styles.inviteDescription}>
-                    {client.name} hasn't claimed their account yet. Share this invite code with them:
+                    {formatName(client.name)} hasn't claimed their account yet. Share this invite code with them:
                   </Text>
 
                   <View style={styles.inviteCodeContainer}>
@@ -276,7 +286,7 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
 
               <View style={styles.infoSection}>
                 <Text style={styles.infoText}>
-                  This is Lucy's current hourly rate for working with {client.name}.
+                  This is your current hourly rate for working with {formatName(client.name)}.
                   The rate is used to calculate earnings for all work sessions.
                 </Text>
               </View>

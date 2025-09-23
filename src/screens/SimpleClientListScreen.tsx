@@ -30,6 +30,16 @@ import {
   getClientMoneyState,
 } from '../services/storageService';
 
+// Helper function to format names in proper sentence case
+const formatName = (name: string): string => {
+  if (!name) return '';
+  return name
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
 interface ClientListScreenProps {
   navigation: any;
 }
@@ -352,7 +362,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
       >
         {/* Left Side: Client Info */}
         <View style={styles.clientLeft}>
-          <Text style={styles.clientName}>{item.name}</Text>
+          <Text style={styles.clientName}>{formatName(item.name)}</Text>
           <Text style={styles.clientRate}>
             ${item.hourlyRate}/hour
           </Text>
@@ -398,7 +408,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
         <Text style={styles.userName}>{currentUser}</Text>
         <View style={styles.navActions}>
           <TouchableOpacity onPress={handleAddClient} style={styles.addButton}>
-            <Text style={styles.addButtonText}>+</Text>
+            <Text style={styles.addButtonText}>+ Add Client</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
             <Text style={styles.logoutText}>Logout</Text>
@@ -407,18 +417,70 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
       </View>
 
       <View style={styles.content}>
-        {/* Total Outstanding Card */}
-        {totalUnpaid > 0 ? (
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Total Outstanding</Text>
-            <Text style={styles.summaryAmount}>${totalUnpaid.toFixed(2)}</Text>
-          </View>
-        ) : (
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Total Outstanding</Text>
-            <View style={styles.summaryZeroRow}>
-              <Text style={styles.summaryZeroAmount}>$0.00</Text>
-              <Text style={styles.summaryCheckmark}>✅</Text>
+        {/* Total Outstanding Card - Hidden in zero state */}
+        {clients.length > 0 && (
+          totalUnpaid > 0 ? (
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryLabel}>Total Outstanding</Text>
+              <Text style={styles.summaryAmount}>${totalUnpaid.toFixed(2)}</Text>
+            </View>
+          ) : (
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryLabel}>Total Outstanding</Text>
+              <View style={styles.summaryZeroRow}>
+                <Text style={styles.summaryZeroAmount}>$0.00</Text>
+                <Text style={styles.summaryCheckmark}>✅</Text>
+              </View>
+            </View>
+          )
+        )}
+
+        {/* Zero State - Single card with How it works + CTA */}
+        {clients.length === 0 && (
+          <View style={styles.zeroStateCard}>
+            <Text style={styles.sectionTitle}>How it works</Text>
+
+            <View style={styles.workflowStep}>
+              <View style={styles.stepIconContainer}>
+                <Text style={styles.stepIcon}>👤</Text>
+              </View>
+              <View style={styles.stepContent}>
+                <Text style={styles.stepTitle}>Add a Client</Text>
+                <Text style={styles.stepDescription}>Name and hourly rate. That's it.</Text>
+              </View>
+            </View>
+
+            <View style={styles.workflowStep}>
+              <View style={styles.stepIconContainer}>
+                <Text style={styles.stepIcon}>🕐</Text>
+              </View>
+              <View style={styles.stepContent}>
+                <Text style={styles.stepTitle}>Track Hours</Text>
+                <Text style={styles.stepDescription}>Start and stop sessions with precision timing.</Text>
+              </View>
+            </View>
+
+            <View style={styles.workflowStep}>
+              <View style={styles.stepIconContainer}>
+                <Text style={styles.stepIcon}>📧</Text>
+              </View>
+              <View style={styles.stepContent}>
+                <Text style={styles.stepTitle}>Invite & Request Payment</Text>
+                <Text style={styles.stepDescription}>Share your workspace, send requests, get notified when they confirm.</Text>
+              </View>
+            </View>
+
+            <View style={styles.ctaSection}>
+              <Text style={styles.ctaTitle}>Let's Set You Up</Text>
+              <Text style={styles.ctaSubtitle}>
+                Track hours, request payment, and invite clients to a shared workspace.
+              </Text>
+              <TouchableOpacity
+                style={styles.ctaPrimaryButton}
+                onPress={handleAddClient}
+              >
+                <Text style={styles.ctaPrimaryButtonText}>Add Client</Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -432,14 +494,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
           }
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyWrap}>
-              <Text style={styles.emptyTitle}>No clients yet</Text>
-              <TouchableOpacity style={styles.emptyBtn} onPress={handleAddClient}>
-                <Text style={styles.emptyBtnText}>Add Client</Text>
-              </TouchableOpacity>
-            </View>
-          }
+          ListEmptyComponent={null}
         />
       </View>
 
@@ -463,6 +518,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
           inviteCode={inviteCode}
         />
       )}
+
     </SafeAreaView>
   );
 };
@@ -502,15 +558,15 @@ const styles = StyleSheet.create({
     gap: theme.space.x16,
   },
   addButton: {
-    width: 32,
     height: 32,
+    paddingHorizontal: theme.space.x12,
     borderRadius: theme.radius.button,
     backgroundColor: theme.color.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   addButtonText: {
-    fontSize: 18,
+    fontSize: 14,
     color: theme.color.cardBg,
     fontWeight: '600',
   },
@@ -635,5 +691,94 @@ const styles = StyleSheet.create({
   emptyBtnText: {
     fontSize: theme.font.body,
     color: theme.color.text,
+  },
+
+  // Zero State Styles
+  zeroStateCard: {
+    backgroundColor: theme.color.cardBg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    padding: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.color.text,
+    fontFamily: theme.typography.fontFamily.primary,
+    marginBottom: 16,
+  },
+  ctaSection: {
+    alignItems: 'center',
+    marginTop: 24,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: theme.color.border,
+  },
+  ctaTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.color.text,
+    fontFamily: theme.typography.fontFamily.primary,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  ctaSubtitle: {
+    fontSize: theme.font.small,
+    color: theme.color.textSecondary,
+    fontFamily: theme.typography.fontFamily.primary,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 20,
+    marginHorizontal: 8,
+  },
+  ctaPrimaryButton: {
+    width: '100%',
+    height: 48,
+    backgroundColor: theme.color.accent,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctaPrimaryButtonText: {
+    fontSize: theme.font.body,
+    fontWeight: '600',
+    color: theme.color.cardBg,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+
+  // Workflow Steps
+  workflowStep: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 8,
+    minHeight: 56,
+  },
+  stepIconContainer: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    marginTop: 2,
+  },
+  stepIcon: {
+    fontSize: 16,
+  },
+  stepContent: {
+    flex: 1,
+  },
+  stepTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.color.text,
+    fontFamily: theme.typography.fontFamily.primary,
+    marginBottom: 2,
+  },
+  stepDescription: {
+    fontSize: 13,
+    color: theme.color.textSecondary,
+    fontFamily: theme.typography.fontFamily.primary,
+    lineHeight: 16,
   },
 });

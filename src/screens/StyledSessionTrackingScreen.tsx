@@ -22,6 +22,16 @@ import {
   getSessionsByClient,
 } from '../services/storageService';
 
+// Helper function to format names in proper sentence case
+const formatName = (name: string): string => {
+  if (!name) return '';
+  return name
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
 interface SessionTrackingScreenProps {
   route: {
     params: {
@@ -161,7 +171,7 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
         >
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.clientName}>{client.name}</Text>
+        <Text style={styles.clientName}>{formatName(client.name)}</Text>
         <Text style={styles.subtitle}>Session tracking</Text>
       </View>
 

@@ -32,6 +32,16 @@ import { ConfirmationModal } from '../components/ConfirmationModal';
 import { Toast } from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 
+// Helper function to format names in proper sentence case
+const formatName = (name: string): string => {
+  if (!name) return '';
+  return name
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
 interface ClientHistoryScreenProps {
   route: {
     params: {
@@ -328,12 +338,17 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
+          <Text style={styles.backButtonText}>‹ Clients</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('ClientProfile', { clientId: client.id })}>
-          <Text style={styles.clientName}>{client.name}</Text>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>{formatName(client.name)}</Text>
+          {client.claimedStatus === 'unclaimed' && (
+            <Text style={styles.headerSubtitle}>Invite pending</Text>
+          )}
+        </View>
+        <TouchableOpacity onPress={() => navigation.navigate('ClientProfile', { clientId: client.id })} style={styles.profileButton}>
+          <Text style={styles.profileButtonText}>Profile</Text>
         </TouchableOpacity>
-        <Text style={styles.subtitle}>Work History</Text>
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
@@ -458,10 +473,15 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
 
           {timelineItems.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No activity yet</Text>
+              <Text style={styles.emptyStateText}>No work yet</Text>
               <Text style={styles.emptyStateSubtext}>
-                Work sessions and payments will appear here
+                Work sessions and payments will appear here.
               </Text>
+              <View style={styles.emptyStateActions}>
+                <TouchableOpacity onPress={handleStartSession} style={styles.inlineLink}>
+                  <Text style={styles.inlineLinkText}>Start your first session</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ) : (
             groupedTimeline.map(([dayKey, dayItems]) => {
@@ -612,29 +632,46 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.primary,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingVertical: 12,
+    backgroundColor: theme.color.cardBg,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.color.border,
+    minHeight: 56,
   },
   backButton: {
-    marginBottom: 24,
+    minWidth: 60,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   backButtonText: {
-    fontSize: theme.font.body,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '400',
     color: theme.color.accent,
     fontFamily: theme.typography.fontFamily.primary,
   },
-  clientName: {
-    fontSize: theme.font.title,
+  headerTitle: {
+    fontSize: 18,
     fontWeight: '600',
-    color: theme.color.accent,
+    color: theme.color.text,
     fontFamily: theme.typography.fontFamily.display,
+    textAlign: 'center',
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: theme.color.textSecondary,
+    fontFamily: theme.typography.fontFamily.primary,
+    textAlign: 'center',
+    marginTop: 0,
   },
   subtitle: {
     fontSize: theme.font.small,
     color: theme.color.textSecondary,
-    marginTop: 4,
+    marginTop: 0,
     fontFamily: theme.typography.fontFamily.primary,
   },
   scrollView: {
@@ -667,17 +704,17 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.primary,
   },
   activeSessionTime: {
-    marginTop: 8,
+    marginTop: 16,
     fontSize: 32,
     fontWeight: '700',
     color: theme.color.text,
     letterSpacing: -0.5,
     fontVariant: ['tabular-nums'],
-    marginBottom: 12,
+    marginBottom: 16,
     fontFamily: theme.typography.fontFamily.primary,
   },
   endSessionButton: {
-    marginTop: 12,
+    marginTop: 16,
     width: '100%',
   },
   actionButtons: {
@@ -730,12 +767,12 @@ const styles = StyleSheet.create({
 
   // Summary card styles
   summaryCard: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     borderRadius: 16,
     backgroundColor: '#FFF',
-    gap: 8,
     marginTop: 16,
   },
   summaryRow: {
@@ -766,7 +803,7 @@ const styles = StyleSheet.create({
   },
   summaryButton: {
     height: 40,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     marginTop: 0,
   },
   summaryLabel: {
@@ -791,7 +828,7 @@ const styles = StyleSheet.create({
   },
   requestBtn: {
     height: 40,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     borderRadius: 10,
@@ -967,5 +1004,44 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     fontFamily: 'System',
+  },
+
+  // New zero-state polish styles
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  profileButton: {
+    minWidth: 60,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+  },
+  profileButtonText: {
+    fontSize: 16,
+    fontWeight: '400',
+    color: theme.color.accent,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  clientInfo: {
+    alignItems: 'center',
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingVertical: 4,
+  },
+  emptyStateActions: {
+    alignItems: 'center',
+  },
+  inlineLink: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  inlineLinkText: {
+    fontSize: theme.font.body,
+    color: theme.color.accent,
+    fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.primary,
   },
 });
