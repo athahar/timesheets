@@ -17,6 +17,7 @@ import { Feather } from '@expo/vector-icons';
 import { Client } from '../types';
 import { Button } from '../components/Button';
 import { HowItWorksModal } from '../components/HowItWorksModal';
+import { useAuth } from '../contexts/AuthContext';
 import {
   getClients,
   addClient,
@@ -41,6 +42,8 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [newClientName, setNewClientName] = useState('');
   const [newClientRate, setNewClientRate] = useState('');
+
+  const { userProfile, signOut } = useAuth();
 
   const loadClients = async () => {
     try {
@@ -107,6 +110,27 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     navigation.navigate('ClientProfile', { clientId: client.id });
   };
 
+  const handleSignOut = async () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await signOut();
+            } catch (error) {
+              console.error('Error signing out:', error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderClientCard = ({ item }: { item: ClientWithSummary }) => (
     <TouchableOpacity
       onPress={() => handleClientPress(item)}
@@ -149,11 +173,23 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   );
 
   const totalUnpaid = clients.reduce((sum, client) => sum + client.unpaidBalance, 0);
-  const showOutstanding = clients.length > 0 || totalUnpaid > 0;
-  const isZeroState = clients.length === 0;
+  const isZeroState = clients.length === 0; // Restore proper zero-state logic
+  const showOutstanding = !isZeroState && (clients.length > 0 || totalUnpaid > 0);
 
   const renderHeader = () => (
     <View style={styles.header}>
+      {/* User Info and Logout Row */}
+      <View style={styles.userInfoRow}>
+        <View style={styles.userInfo}>
+          <Text style={styles.welcomeText}>Welcome!</Text>
+          <Text style={styles.userName}>{userProfile?.name || userProfile?.email}</Text>
+        </View>
+        <TouchableOpacity onPress={handleSignOut} style={styles.logoutButton}>
+          <Text style={styles.logoutText}>Sign Out</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* App Title and Add Client Row */}
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>TrackPay</Text>
         {!isZeroState && (
@@ -370,6 +406,45 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.space.x16,
     paddingTop: theme.space.x16,
     paddingBottom: theme.space.x16,
+  },
+  userInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: theme.space.x16,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.color.border,
+    marginBottom: theme.space.x16,
+  },
+  userInfo: {
+    flex: 1,
+  },
+  welcomeText: {
+    fontSize: theme.font.small,
+    color: theme.color.textSecondary,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  userName: {
+    fontSize: theme.font.body,
+    fontWeight: '600',
+    color: theme.color.text,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  logoutButton: {
+    backgroundColor: theme.color.cardBg,
+    borderRadius: theme.radius.button,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    paddingHorizontal: theme.space.x16,
+    paddingVertical: theme.space.x8,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  logoutText: {
+    fontSize: theme.font.body,
+    color: theme.color.text,
+    fontFamily: theme.typography.fontFamily.primary,
+    fontWeight: '500',
   },
   headerRow: {
     flexDirection: 'row',

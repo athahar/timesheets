@@ -151,9 +151,7 @@ export const AccountSelectionScreen: React.FC<AccountSelectionScreenProps> = ({
       <View style={styles.content}>
         {/* App Title */}
         <Text style={styles.appTitle}>TrackPay</Text>
-        <Text style={styles.subtitle}>
-          {loading ? 'Loading...' : 'Choose your account to continue'}
-        </Text>
+        <Text style={styles.subtitle}>Loading...</Text>
 
         {/* Account Options */}
         <View style={styles.accountList}>
