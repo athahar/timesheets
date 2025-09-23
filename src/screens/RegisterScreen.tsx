@@ -489,7 +489,6 @@ const styles = StyleSheet.create({
 
   // Actions
   signUpButton: {
-    height: 48,
     marginTop: 20,
     marginBottom: 20,
   },

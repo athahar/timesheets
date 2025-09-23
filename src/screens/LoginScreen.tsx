@@ -261,7 +261,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.primary,
   },
   signInButton: {
-    height: 48,
     marginBottom: 20,
   },
   footer: {

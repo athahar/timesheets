@@ -387,7 +387,6 @@ const styles = StyleSheet.create({
 
   // Actions
   claimButton: {
-    height: 48,
     marginBottom: 20,
   },
 
