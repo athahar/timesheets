@@ -15,7 +15,7 @@ import { InviteClaimScreen } from '../screens/InviteClaimScreen';
 
 // App Screens
 import { AccountSelectionScreen } from '../screens/AccountSelectionScreen';
-import { SimpleClientListScreen } from '../screens/SimpleClientListScreen';
+import { ClientListScreen } from '../screens/ClientListScreen';
 import { ClientHistoryScreen } from '../screens/ClientHistoryScreen';
 import { StyledSessionTrackingScreen } from '../screens/StyledSessionTrackingScreen';
 import { ClientProfileScreen } from '../screens/ClientProfileScreen';
@@ -170,7 +170,7 @@ const AppNavigator = () => {
         <AppStack.Screen name="AccountSelection">
           {(props) => <SmartAccountSelection {...props} userProfile={userProfile} />}
         </AppStack.Screen>
-        <AppStack.Screen name="ClientList" component={SimpleClientListScreen} />
+        <AppStack.Screen name="ClientList" component={ClientListScreen} />
         <AppStack.Screen name="ClientHistory" component={ClientHistoryScreen} />
         <AppStack.Screen name="SessionTracking" component={StyledSessionTrackingScreen} />
         <AppStack.Screen name="ClientProfile" component={ClientProfileScreen} />
