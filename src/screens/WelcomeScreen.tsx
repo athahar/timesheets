@@ -10,6 +10,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { Button } from '../components/Button';
+import { StickyCTA } from '../components/StickyCTA';
 
 interface WelcomeScreenProps {
   navigation: any;
@@ -94,24 +95,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
             ))}
           </View>
 
-          {/* CTAs */}
-          <View style={styles.ctaSection}>
-            <Button
-              title="Create Account"
-              onPress={() => navigation.navigate('Register')}
-              variant="primary"
-              size="lg"
-              style={styles.primaryCta}
-            />
-
-            <Button
-              title="Sign In"
-              onPress={() => navigation.navigate('Login')}
-              variant="secondary"
-              size="lg"
-              style={styles.secondaryCta}
-            />
-
+          {/* Link CTA */}
+          <View style={styles.linkSection}>
             <Button
               title="Have an invite code?"
               onPress={() => navigation.navigate('InviteClaim')}
@@ -122,6 +107,19 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
           </View>
         </Animated.View>
       </ScrollView>
+
+      {/* Sticky bottom CTAs */}
+      <StickyCTA
+        primaryButton={{
+          title: "Create Account",
+          onPress: () => navigation.navigate('Register'),
+        }}
+        secondaryButton={{
+          title: "Sign In",
+          onPress: () => navigation.navigate('Login'),
+        }}
+        backgroundColor={theme.color.appBg}
+      />
     </SafeAreaView>
   );
 };
@@ -214,15 +212,10 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 
-  // CTA Section
-  ctaSection: {
-    paddingTop: 0,
-  },
-  primaryCta: {
-    marginBottom: 12,
-  },
-  secondaryCta: {
-    marginBottom: 16,
+  // Link Section
+  linkSection: {
+    paddingTop: 16,
+    alignItems: 'center',
   },
   linkCta: {
     alignSelf: 'center',

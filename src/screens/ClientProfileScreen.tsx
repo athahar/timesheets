@@ -13,6 +13,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Client } from '../types';
 import { Button } from '../components/Button';
+import { IOSHeader } from '../components/IOSHeader';
 import { theme } from '../styles/theme';
 import { getClientById, updateClient, directSupabase } from '../services/storageService';
 import { generateInviteLink } from '../utils/inviteCodeGenerator';
@@ -147,24 +148,18 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Client Profile</Text>
-        {!editing && (
-          <TouchableOpacity
-            onPress={() => setEditing(true)}
-            style={styles.editButton}
-          >
-            <Text style={styles.editButtonText}>Edit</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <IOSHeader
+        title="Client Profile"
+        leftAction={{
+          title: "Back",
+          onPress: () => navigation.goBack(),
+        }}
+        rightAction={!editing ? {
+          title: "Edit",
+          onPress: () => setEditing(true),
+        } : undefined}
+        largeTitleStyle="always"
+      />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={[styles.profileCard, theme.shadows.card]}>

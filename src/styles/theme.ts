@@ -241,6 +241,123 @@ export const theme = {
       display: 'SF Pro Display, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
     },
   },
+
+  // iOS-specific utilities
+  ios: {
+    // iOS spacing system (Apple's guidelines)
+    spacing: {
+      navigationBarHeight: 44,
+      tabBarHeight: 49,
+      toolBarHeight: 44,
+      searchBarHeight: 36,
+      keyboardPadding: 20,
+      sectionHeaderHeight: 28,
+      listRowHeight: 44,
+      listRowHeightLarge: 56,
+
+      // Standard iOS margins
+      systemMargin: 16,
+      readableMargin: 20,
+      separatorInset: 16,
+
+      // iOS status bar
+      statusBarHeight: 20, // Will be overridden by safe area
+    },
+
+    // Safe area utilities
+    safeArea: {
+      // Helper for common safe area patterns
+      containerWithInsets: {
+        flex: 1,
+        // SafeAreaView will handle the actual insets
+      },
+
+      // Keyboard-safe container
+      keyboardSafe: {
+        flex: 1,
+        // KeyboardAvoidingView will handle behavior
+      },
+    },
+
+    // iOS-specific colors (matching iOS system colors)
+    systemColors: {
+      blue: '#007AFF',
+      green: '#34C759',
+      indigo: '#5856D6',
+      orange: '#FF9500',
+      pink: '#FF2D92',
+      purple: '#AF52DE',
+      red: '#FF3B30',
+      teal: '#5AC8FA',
+      yellow: '#FFCC00',
+
+      // System grays
+      systemGray: '#8E8E93',
+      systemGray2: '#AEAEB2',
+      systemGray3: '#C7C7CC',
+      systemGray4: '#D1D1D6',
+      systemGray5: '#E5E5EA',
+      systemGray6: '#F2F2F7',
+
+      // Label colors
+      label: '#000000',
+      secondaryLabel: '#3C3C4399',
+      tertiaryLabel: '#3C3C434C',
+      quaternaryLabel: '#3C3C432D',
+
+      // Background colors
+      systemBackground: '#FFFFFF',
+      secondarySystemBackground: '#F2F2F7',
+      tertiarySystemBackground: '#FFFFFF',
+
+      // Grouped background colors
+      systemGroupedBackground: '#F2F2F7',
+      secondarySystemGroupedBackground: '#FFFFFF',
+      tertiarySystemGroupedBackground: '#F2F2F7',
+
+      // Separator colors
+      separator: '#3C3C4349',
+      opaqueSeparator: '#C6C6C8',
+    },
+
+    // Common iOS layout patterns
+    layout: {
+      // Standard list item
+      listItem: {
+        minHeight: 44,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+      },
+
+      // Form input
+      formInput: {
+        minHeight: 44,
+        paddingHorizontal: 16,
+        borderRadius: 10,
+      },
+
+      // Navigation button
+      navButton: {
+        minHeight: 44,
+        minWidth: 44,
+        paddingHorizontal: 16,
+      },
+
+      // Action sheet button
+      actionButton: {
+        minHeight: 56,
+        paddingHorizontal: 20,
+      },
+    },
+
+    // Animation durations (iOS standard)
+    animation: {
+      standard: 300,
+      quick: 200,
+      slow: 500,
+      keyboard: 250,
+    },
+  },
 } as const;
 
 export type Theme = typeof theme;

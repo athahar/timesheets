@@ -13,6 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Session, ActivityItem } from '../types';
 import { StatusPill } from '../components/StatusPill';
 import { MarkAsPaidModal } from '../components/MarkAsPaidModal';
+import { IOSHeader } from '../components/IOSHeader';
 import { theme } from '../styles/theme';
 import {
   getCurrentUser,
@@ -286,17 +287,15 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Custom Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.providerName}>{providerName}</Text>
-        <Text style={styles.subtitle}>Work Summary</Text>
-      </View>
+      <IOSHeader
+        title={providerName}
+        subtitle="Work Summary"
+        leftAction={{
+          title: "Back",
+          onPress: () => navigation.goBack(),
+        }}
+        largeTitleStyle="always"
+      />
 
       <ScrollView
         style={styles.scrollView}
@@ -305,30 +304,30 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
       >
         {/* Summary Card - Responsive like provider side */}
         <View style={styles.summaryCard}>
-          <View style={[styles.summaryRow, isWideLayout && styles.summaryCompactRow]}>
-            <View style={styles.summaryLeft}>
-              <Text style={styles.summaryLabel}>Balance due: </Text>
-              <Text style={[styles.summaryAmount, unpaidBalance === 0 && styles.summaryAmountPaid]}>{formatCurrency(unpaidBalance)}</Text>
-              {unpaidBalance > 0 && (
-                <Text style={styles.summaryHours}> [{formatHours(unpaidHours)}]</Text>
-              )}
-            </View>
+          <View style={styles.summaryBalanceRow}>
+            <Text style={styles.summaryLabel}>Balance due: </Text>
+            <Text style={[styles.summaryAmount, unpaidBalance === 0 && styles.summaryAmountPaid]}>{formatCurrency(unpaidBalance)}</Text>
+            {unpaidBalance > 0 && (
+              <Text style={styles.summaryHours}> [{formatHours(unpaidHours)}]</Text>
+            )}
+          </View>
 
-            {unpaidBalance > 0 ? (
-              <View style={styles.summaryRight}>
-                <Pressable
-                  style={styles.recordPaymentButton}
-                  onPress={() => setShowMarkAsPaidModal(true)}
-                >
-                  <Text style={styles.recordPaymentButtonText}>Record Payment</Text>
-                </Pressable>
-              </View>
-            ) : (
+          {unpaidBalance > 0 ? (
+            <View style={styles.summaryButtonRow}>
+              <Pressable
+                style={styles.recordPaymentButton}
+                onPress={() => setShowMarkAsPaidModal(true)}
+              >
+                <Text style={styles.recordPaymentButtonText}>Record Payment</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.summaryButtonRow}>
               <View style={styles.paidUpPill}>
                 <Text style={styles.paidUpText}>Paid up</Text>
               </View>
-            )}
-          </View>
+            </View>
+          )}
         </View>
 
         {/* Activity Timeline */}
@@ -622,8 +621,6 @@ const styles = StyleSheet.create({
   timelineRight: {
     alignItems: 'flex-end',
     gap: 4,
-    minWidth: 80,
-    justifyContent: 'center',
   },
   timelineAmount: {
     fontSize: 16,
@@ -647,13 +644,25 @@ const styles = StyleSheet.create({
   },
   // Summary card styles - matching provider design
   summaryCard: {
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     borderRadius: 16,
     backgroundColor: '#FFF',
-    gap: 8,
+    gap: 12,
+    marginTop: 16,
     marginBottom: 32,
+  },
+  summaryBalanceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+  },
+  summaryButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
   },
   summaryRow: {
     flexDirection: 'column',

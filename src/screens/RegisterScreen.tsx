@@ -15,6 +15,7 @@ import { Feather } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/Button';
+import { StickyCTA } from '../components/StickyCTA';
 import { directSupabase } from '../services/storageService';
 
 interface RegisterScreenProps {
@@ -321,15 +322,6 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
               )}
               {errors.role && <Text style={styles.errorText}>{errors.role}</Text>}
 
-              <Button
-                title={isLoading ? "Creating Account..." : "Create Account"}
-                onPress={handleSignUp}
-                variant="primary"
-                size="lg"
-                disabled={isLoading}
-                style={styles.signUpButton}
-              />
-
               {/* Footer */}
               <View style={styles.footer}>
                 <Text style={styles.footerText}>Already have an account? </Text>
@@ -341,6 +333,17 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Sticky bottom CTA */}
+      <StickyCTA
+        primaryButton={{
+          title: isLoading ? "Creating Account..." : "Create Account",
+          onPress: handleSignUp,
+          disabled: isLoading,
+          loading: isLoading,
+        }}
+        backgroundColor={theme.color.appBg}
+      />
     </SafeAreaView>
   );
 };

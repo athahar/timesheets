@@ -161,7 +161,7 @@ Whether you're a consultant tracking billable hours or a client wanting visibili
 
 
 
-
+FUTURE BIZ POTENTIAL
 possible extension -
 advertise services -> 
 Lucy can list her services and whoever wants to can hire her
@@ -170,3 +170,5 @@ Lucy can list her services and whoever wants to can hire her
 - drives incentives to use the app. 
 - folks can contact within the app. 
 - also can use 
+similarly home cooks, pets etc and other can list their services. 
+the hours worked and rating should hgive the satisfaction for new users -> similar to what uber does? (maybe we need to build a )

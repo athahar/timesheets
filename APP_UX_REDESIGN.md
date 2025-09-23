@@ -618,3 +618,131 @@ space: { 4: 4, 8: 8, 12: 12, 16: 16, 24: 24 }
 - **Performance Optimization**: Bundle size and loading improvements
 
 **Design Philosophy Achieved**: TrackPay now features a complete, cohesive design system from first impression through daily use across both provider and client experiences. The app provides a professional, trustworthy mobile utility that emphasizes money amounts while keeping everything else appropriately subdued. Both sides of the marketplace enjoy a calm, efficient interface that builds confidence in financial transactions.
+
+## 🔄 Phase 5: iOS Native Polish & Keyboard Safety ⚡
+
+### Phase 5.1: iOS-Native Design Patterns
+**Objective**: Transform every screen to feel truly native on iOS with proper keyboard handling, navigation patterns, and form ergonomics.
+
+#### iOS Design Principles
+- **Large Titles**: Use iOS-style large titles on root screens (navigationOptions.headerLargeTitle)
+- **Chevron Navigation**: Back buttons show only chevron (←), no text labels
+- **Safe Areas**: All screens wrapped with SafeAreaView + proper content insets
+- **Keyboard Safety**: StickyCTA component ensures primary actions stay above keyboard
+- **Focus Flow**: Return key advances through form fields, submit on last field
+- **Haptic Feedback**: Light haptics on success actions (copy, submit, etc.)
+
+#### Technical Foundation Components
+
+**StickyCTA Component**
+```typescript
+interface StickyCTAProps {
+  title: string;
+  onPress: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+  variant?: 'primary' | 'secondary';
+}
+```
+- Always visible above keyboard using InputAccessoryView (iOS) or KeyboardAvoidingView fallback
+- Respects safe area insets with proper padding
+- 16pt internal spacing, 12pt corner radius
+- Handles disabled/loading states with proper visual feedback
+
+**iOS Header Patterns**
+- Large title display on root screens (Clients, Providers)
+- Entity names as titles on detail screens (client name, provider name)
+- No "..." overflow menus - use explicit Edit buttons
+- headerShadowVisible: false for clean appearance
+- headerBackTitleVisible: false (chevron only)
+
+### Phase 5.2: Screen-by-Screen Implementation
+
+#### Foundation Screens
+- **WelcomeScreen**: Large title, optimized CTAs, no keyboard issues
+- **LoginScreen**: StickyCTA, focus chaining (email → password → submit)
+- **RegisterScreen**: Role selection tiles, keyboard-safe registration
+- **InviteClaimScreen**: Monospace invite code with visual grouping
+
+#### Provider Flow Screens
+- **SimpleClientListScreen**: Large title "Clients", clean navigation
+- **ClientHistoryScreen**: Large title with client name, chevron back
+- **ClientProfileScreen**: Redesigned invite code section with copy/share
+
+#### Client Flow Screens
+- **ServiceProviderListScreen**: Large title "Providers", muted card design
+- **ServiceProviderSummaryScreen**: Provider name as title, clean timeline
+
+#### Modal & Form Screens
+- **AddClientModal**: StickyCTA, proper field flow (name → email → rate)
+- **MarkAsPaidModal**: Keyboard-safe payment entry with amount validation
+- **Other modals**: Consistent StickyCTA pattern throughout
+
+### Phase 5.3: Form Ergonomics Standards
+
+#### Input Field Requirements
+- **Labels**: Visible labels above each field
+- **Placeholders**: Helpful placeholder text
+- **Keyboard Types**: Proper keyboardType (decimal-pad for money, email-address)
+- **Return Key Flow**: returnKeyType="next" with focus chaining
+- **Validation**: Inline error text below fields, real-time validation
+- **Dismissal**: Tap outside to dismiss keyboard
+
+#### Field Flow Patterns
+```
+Name Field → Email Field → Rate Field → StickyCTA
+  ↓ next      ↓ next       ↓ done      ↓ submit
+```
+
+#### CTA Button States
+- **Disabled**: Until all required fields valid
+- **Loading**: Spinner with disabled interaction during submit
+- **Success**: Haptic feedback + visual confirmation
+
+### Phase 5.4: Zero State & Polish Details
+
+#### Zero State Improvements
+- Hide "Total Outstanding" card when no clients exist
+- Clear onboarding flow with "How it works" → "Let's Set You Up"
+- Primary action prominence (+ Add Client button)
+
+#### Typography & Spacing
+- **16pt Grid**: Consistent spacing throughout all screens
+- **Tabular Numerals**: fontVariant: ['tabular-nums'] on all money/time
+- **Dynamic Type**: Respect iOS accessibility text size preferences
+- **Hit Targets**: Minimum 44×44pt touch targets on all interactive elements
+
+#### Micro-Interactions
+- **Haptics**: Success feedback on form submit, copy actions
+- **Visual Feedback**: Button press states, focus rings
+- **Loading States**: Proper spinners and disabled states during async operations
+
+### Phase 5.5: Implementation Checklist
+
+#### Foundation Components
+- [ ] StickyCTA component with keyboard avoidance
+- [ ] iOS header configuration utilities
+- [ ] Enhanced theme with iOS spacing tokens
+- [ ] Focus management utilities
+
+#### Screen Updates
+- [ ] All auth screens use StickyCTA and focus flow
+- [ ] Provider screens have large titles and clean navigation
+- [ ] Client screens match iOS header patterns
+- [ ] All modals use consistent StickyCTA pattern
+
+#### Technical Requirements
+- [ ] SafeAreaView wrapper on all screens
+- [ ] ScrollView with contentInsetAdjustmentBehavior="automatic"
+- [ ] keyboardShouldPersistTaps="handled" for form dismissal
+- [ ] Haptic feedback on success actions
+- [ ] Dynamic Type support for accessibility
+
+#### QA Validation
+- [ ] Primary CTA visible with keyboard open on iPhone SE
+- [ ] Return key flow works through all form fields
+- [ ] Large titles display correctly on root screens
+- [ ] No horizontal scrolling or layout breaks
+- [ ] All touch targets meet 44pt minimum requirement
+
+**Expected Outcome**: Every screen feels native to iOS with professional keyboard handling, proper navigation hierarchy, and form ergonomics that match system apps. Users experience seamless interaction patterns that respect iOS conventions while maintaining TrackPay's professional brand.

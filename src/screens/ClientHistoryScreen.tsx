@@ -13,6 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Client, Session, ActivityItem } from '../types';
 import { Button } from '../components/Button';
 import { StatusPill } from '../components/StatusPill';
+import { IOSHeader } from '../components/IOSHeader';
 import { theme } from '../styles/theme';
 import {
   getClientById,
@@ -335,45 +336,44 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>‹ Clients</Text>
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>{formatName(client.name)}</Text>
-          {client.claimedStatus === 'unclaimed' && (
-            <Text style={styles.headerSubtitle}>Invite pending</Text>
-          )}
-        </View>
-        <TouchableOpacity onPress={() => navigation.navigate('ClientProfile', { clientId: client.id })} style={styles.profileButton}>
-          <Text style={styles.profileButtonText}>Profile</Text>
-        </TouchableOpacity>
-      </View>
+      <IOSHeader
+        title={formatName(client.name)}
+        subtitle={client.claimedStatus === 'unclaimed' ? "Invite pending" : undefined}
+        leftAction={{
+          title: "Clients",
+          onPress: () => navigation.goBack(),
+        }}
+        rightAction={{
+          title: "Profile",
+          onPress: () => navigation.navigate('ClientProfile', { clientId: client.id }),
+        }}
+        largeTitleStyle="always"
+      />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Summary Card */}
         <View style={styles.summaryCard}>
-          <View style={styles.summaryCompactRow}>
-            <View style={styles.summaryLeft}>
-              <Text style={styles.summaryLabel}>Balance due: </Text>
-              <Text style={[styles.summaryAmount, totalUnpaidBalance === 0 && styles.summaryAmountPaid]}>{formatCurrency(totalUnpaidBalance)}</Text>
-              {totalUnpaidBalance > 0 && (
-                <Text style={styles.summaryHours}> [{formatHours(unpaidHours + requestedHours)}]</Text>
-              )}
-            </View>
-            {(() => {
-              // Pure hide/show logic for buttons and paid up state
-              const hasPendingRequest = pendingRequest || moneyState?.lastPendingRequest;
-              const unpaidUnrequestedCents = Math.round((totalUnpaidBalance - requestedBalance) * 100);
+          <View style={styles.summaryBalanceRow}>
+            <Text style={styles.summaryLabel}>Balance due: </Text>
+            <Text style={[styles.summaryAmount, totalUnpaidBalance === 0 && styles.summaryAmountPaid]}>{formatCurrency(totalUnpaidBalance)}</Text>
+            {totalUnpaidBalance > 0 && (
+              <Text style={styles.summaryHours}> [{formatHours(unpaidHours + requestedHours)}]</Text>
+            )}
+          </View>
 
-              if (__DEV__) {
-                console.debug('[Button Logic] totalUnpaidBalance:', totalUnpaidBalance, 'hasPendingRequest:', hasPendingRequest, 'unpaidUnrequestedCents:', unpaidUnrequestedCents);
-              }
+          {(() => {
+            // Pure hide/show logic for buttons and paid up state
+            const hasPendingRequest = pendingRequest || moneyState?.lastPendingRequest;
+            const unpaidUnrequestedCents = Math.round((totalUnpaidBalance - requestedBalance) * 100);
 
-              // Case 1: Show Request button (enabled)
-              if (!hasPendingRequest && unpaidUnrequestedCents > 0) {
-                return (
+            if (__DEV__) {
+              console.debug('[Button Logic] totalUnpaidBalance:', totalUnpaidBalance, 'hasPendingRequest:', hasPendingRequest, 'unpaidUnrequestedCents:', unpaidUnrequestedCents);
+            }
+
+            // Case 1: Show Request button (enabled) - now on separate line
+            if (!hasPendingRequest && unpaidUnrequestedCents > 0) {
+              return (
+                <View style={styles.summaryButtonRow}>
                   <Pressable
                     style={({pressed}) => [
                       styles.btnBase,
@@ -389,22 +389,24 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
                       Request {formatCurrency(unpaidUnrequestedCents / 100)}
                     </Text>
                   </Pressable>
-                );
-              }
+                </View>
+              );
+            }
 
-              // Case 2: Show Paid up pill (no outstanding balance)
-              if (totalUnpaidBalance === 0 && !hasPendingRequest) {
-                return (
+            // Case 2: Show Paid up pill (no outstanding balance)
+            if (totalUnpaidBalance === 0 && !hasPendingRequest) {
+              return (
+                <View style={styles.summaryButtonRow}>
                   <View style={styles.paidUpPill}>
                     <Text style={styles.paidUpText}>Paid up</Text>
                   </View>
-                );
-              }
+                </View>
+              );
+            }
 
-              // Case 3: Hide button (pending request or requested-only balance)
-              return null;
-            })()}
-          </View>
+            // Case 3: Hide button (pending request or requested-only balance)
+            return null;
+          })()}
 
           {/* Active Session Hint */}
           {activeSession && (
@@ -631,43 +633,6 @@ const styles = StyleSheet.create({
     color: theme.color.textSecondary,
     fontFamily: theme.typography.fontFamily.primary,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: theme.color.cardBg,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.color.border,
-    minHeight: 56,
-  },
-  backButton: {
-    minWidth: 60,
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  backButtonText: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: theme.color.accent,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.color.text,
-    fontFamily: theme.typography.fontFamily.display,
-    textAlign: 'center',
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    fontWeight: '400',
-    color: theme.color.textSecondary,
-    fontFamily: theme.typography.fontFamily.primary,
-    textAlign: 'center',
-    marginTop: 0,
-  },
   subtitle: {
     fontSize: theme.font.small,
     color: theme.color.textSecondary,
@@ -767,13 +732,24 @@ const styles = StyleSheet.create({
 
   // Summary card styles
   summaryCard: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     borderRadius: 16,
     backgroundColor: '#FFF',
     marginTop: 16,
+    gap: 12,
+  },
+  summaryBalanceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+  },
+  summaryButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
   },
   summaryRow: {
     flexDirection: 'row',
@@ -1007,22 +983,6 @@ const styles = StyleSheet.create({
   },
 
   // New zero-state polish styles
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  profileButton: {
-    minWidth: 60,
-    minHeight: 44,
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-  },
-  profileButtonText: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: theme.color.accent,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
   clientInfo: {
     alignItems: 'center',
     minHeight: 44,

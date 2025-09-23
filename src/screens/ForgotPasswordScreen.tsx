@@ -13,6 +13,7 @@ import {
 import { theme } from '../styles/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/Button';
+import { IOSHeader } from '../components/IOSHeader';
 
 interface ForgotPasswordScreenProps {
   navigation: any;
@@ -61,15 +62,15 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
   if (emailSent) {
     return (
       <SafeAreaView style={styles.container}>
+        <IOSHeader
+          title="Check Your Email"
+          leftAction={{
+            title: "Back",
+            onPress: () => navigation.goBack(),
+          }}
+          largeTitleStyle="always"
+        />
         <View style={styles.content}>
-          <View style={styles.header}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={styles.backButton}
-            >
-              <Text style={styles.backButtonText}>← Back</Text>
-            </TouchableOpacity>
-          </View>
 
           <View style={styles.successContent}>
             <View style={styles.iconContainer}>
@@ -108,24 +109,21 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
 
   return (
     <SafeAreaView style={styles.container}>
+      <IOSHeader
+        title="Reset Password"
+        subtitle="We'll email you a reset link"
+        leftAction={{
+          title: "Back",
+          onPress: () => navigation.goBack(),
+        }}
+        largeTitleStyle="always"
+      />
+
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={styles.content}>
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={styles.backButton}
-            >
-              <Text style={styles.backButtonText}>← Back</Text>
-            </TouchableOpacity>
-            <Text style={styles.title}>Reset Password</Text>
-            <Text style={styles.subtitle}>
-              We'll email you a reset link
-            </Text>
-          </View>
 
           {/* Form */}
           <View style={styles.form}>

@@ -11,10 +11,10 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { useAuth } from '../contexts/AuthContext';
-import { Button } from '../components/Button';
+import { IOSHeader } from '../components/IOSHeader';
+import { StickyCTA } from '../components/StickyCTA';
 
 interface LoginScreenProps {
   navigation: any;
@@ -81,25 +81,22 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <IOSHeader
+        title="Welcome Back"
+        subtitle="Sign in to your TrackPay account"
+        leftAction={{
+          title: "Back",
+          onPress: () => navigation.goBack(),
+        }}
+        largeTitleStyle="always"
+      />
+
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.content}>
-            {/* Header */}
-            <View style={styles.header}>
-              <TouchableOpacity
-                onPress={() => navigation.goBack()}
-                style={styles.backButton}
-              >
-                <Feather name="chevron-left" size={24} color={theme.color.text} />
-              </TouchableOpacity>
-              <View style={styles.headerContent}>
-                <Text style={styles.title}>Welcome Back</Text>
-                <Text style={styles.subtitle}>Sign in to your TrackPay account</Text>
-              </View>
-            </View>
 
             {/* Form */}
             <View style={styles.form}>
@@ -140,15 +137,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
 
-              <Button
-                title={isLoading ? "Signing In..." : "Sign In"}
-                onPress={handleSignIn}
-                variant="primary"
-                size="lg"
-                disabled={isLoading}
-                style={styles.signInButton}
-              />
-
               {/* Footer */}
               <View style={styles.footer}>
                 <Text style={styles.footerText}>Don't have an account? </Text>
@@ -160,6 +148,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Sticky bottom CTA */}
+      <StickyCTA
+        primaryButton={{
+          title: isLoading ? "Signing In..." : "Sign In",
+          onPress: handleSignIn,
+          disabled: isLoading,
+          loading: isLoading,
+        }}
+        backgroundColor={theme.color.appBg}
+      />
     </SafeAreaView>
   );
 };
@@ -180,36 +179,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
 
-  // Header
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 16,
-    paddingBottom: 20,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
-  headerContent: {
-    flex: 1,
-    paddingLeft: 8,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: theme.color.text,
-    fontFamily: theme.typography.fontFamily.display,
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: theme.color.textSecondary,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
 
   // Form
   form: {
@@ -259,9 +228,6 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: theme.color.brand,
     fontFamily: theme.typography.fontFamily.primary,
-  },
-  signInButton: {
-    marginBottom: 20,
   },
   footer: {
     flexDirection: 'row',

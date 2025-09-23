@@ -14,6 +14,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { Button } from '../components/Button';
+import { StickyCTA } from '../components/StickyCTA';
 import { theme } from '../styles/theme';
 import { directSupabase } from '../services/storageService';
 import { validateInviteCodeFormat, extractInviteCode } from '../utils/inviteCodeGenerator';
@@ -230,15 +231,6 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
                 </View>
               )}
 
-              <Button
-                title="Join Workspace"
-                onPress={handleClaimInvite}
-                disabled={!inviteDetails?.valid || loading}
-                loading={loading}
-                variant="primary"
-                size="lg"
-                style={styles.claimButton}
-              />
             </View>
 
             {/* Footer */}
@@ -250,6 +242,17 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Sticky bottom CTA */}
+      <StickyCTA
+        primaryButton={{
+          title: "Join Workspace",
+          onPress: handleClaimInvite,
+          disabled: !inviteDetails?.valid || loading,
+          loading: loading,
+        }}
+        backgroundColor={theme.color.appBg}
+      />
     </SafeAreaView>
   );
 };
