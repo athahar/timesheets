@@ -76,6 +76,54 @@ export const addActivity = (activity: Omit<ActivityItem, 'id' | 'timestamp'>): P
   return directSupabase.addActivity(activity);
 };
 
+// Payment Request Service Extensions
+export const getPendingPaymentRequest = async (clientId: string) => {
+  const { data } = await supabase
+    .from('trackpay_requests')
+    .select('*')
+    .eq('client_id', clientId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  return data?.[0] || null;
+};
+
+export const getPaymentRequestsForClient = async (clientId: string) => {
+  const { data } = await supabase
+    .from('trackpay_requests')
+    .select('*')
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: false });
+
+  return data || [];
+};
+
+export const markPaymentRequestsFulfilled = async (clientId: string) => {
+  const { error } = await supabase
+    .from('trackpay_requests')
+    .update({ status: 'approved', updated_at: new Date().toISOString() })
+    .eq('client_id', clientId)
+    .eq('status', 'pending');
+
+  if (error) {
+    throw new Error(`Failed to mark payment requests as fulfilled: ${error.message}`);
+  }
+};
+
+export const createPaymentRequestActivity = async (clientId: string, amount: number, sessionCount: number, batchId: string) => {
+  return addActivity({
+    type: 'payment_request_created',
+    clientId,
+    data: {
+      amount,
+      sessionCount,
+      batchId,
+      createdAt: new Date().toISOString()
+    }
+  });
+};
+
 // User role functions
 export const getUserRole = (): Promise<'provider' | 'client'> => {
   return directSupabase.getUserRole();
@@ -300,6 +348,62 @@ export const debugInfo = async () => {
 // Export the direct Supabase instance for advanced usage
 export { directSupabase };
 
+// Payment Request API
+export const paymentRequests = {
+  async getOpenForClient(clientId: string) {
+    return getPendingPaymentRequest(clientId);
+  },
+
+  async listForClient(clientId: string) {
+    return getPaymentRequestsForClient(clientId);
+  },
+
+  async markFulfilled(clientId: string) {
+    return markPaymentRequestsFulfilled(clientId);
+  },
+
+  async createActivity(clientId: string, amount: number, sessionCount: number, batchId: string) {
+    return createPaymentRequestActivity(clientId, amount, sessionCount, batchId);
+  }
+};
+
+// Single source of truth for client money state
+export const getClientMoneyState = async (clientId: string, providerId?: string) => {
+  try {
+    // Get sessions summary
+    const summary = await getClientSummary(clientId);
+
+    // Get pending payment request
+    const lastPendingRequest = await getPendingPaymentRequest(clientId);
+
+    // Get active session
+    const activeSession = await getActiveSession(clientId);
+
+    // Calculate balance due (unpaid + requested, excludes active)
+    const balanceDueCents = Math.round(summary.totalUnpaidBalance * 100);
+    const unpaidDurationSec = (summary.unpaidHours + summary.requestedHours) * 3600;
+
+    return {
+      balanceDueCents,
+      unpaidDurationSec,
+      hasActiveSession: !!activeSession,
+      lastPendingRequest: lastPendingRequest ? {
+        id: lastPendingRequest.id,
+        amount: lastPendingRequest.amount,
+        created_at: lastPendingRequest.created_at
+      } : null,
+    };
+  } catch (error) {
+    console.error('Error getting client money state:', error);
+    return {
+      balanceDueCents: 0,
+      unpaidDurationSec: 0,
+      hasActiveSession: false,
+      lastPendingRequest: null,
+    };
+  }
+};
+
 // Default export for easy importing
 export default {
   // Client operations
@@ -319,6 +423,13 @@ export default {
   getPayments,
   requestPayment,
   markPaid,
+
+  // Payment request operations
+  getPendingPaymentRequest,
+  getPaymentRequestsForClient,
+  markPaymentRequestsFulfilled,
+  createPaymentRequestActivity,
+  paymentRequests,
 
   // Activity operations
   getActivities,
