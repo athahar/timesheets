@@ -199,7 +199,7 @@ export const getClientSessionsForProvider = async (clientUserId: string, provide
     console.log('👤 getCurrentUser result:', currentUser);
   }
   if (!currentUser) {
-    console.log('❌ No current user found');
+    if (__DEV__) { console.log('❌ No current user found'); }
     return [];
   }
 
@@ -213,11 +213,11 @@ export const getClientSessionsForProvider = async (clientUserId: string, provide
 
   if (__DEV__) {
 
-    console.log('📋 Client record lookup:', { clientRecord, clientError });
+    if (__DEV__) { console.log('📋 Client record lookup:', { clientRecord, clientError }); }
 
   }
   if (!clientRecord) {
-    console.log('❌ No client record found for user:', currentUser.id);
+    if (__DEV__) { console.log('❌ No client record found for user:', currentUser.id); }
     return [];
   }
 
@@ -237,14 +237,14 @@ export const getClientSessionsForProvider = async (clientUserId: string, provide
   }
   const filteredSessions = sessions.filter(session => {
     const matches = session.clientId === clientRecord.id && session.providerId === providerId;
-    console.log('🔎 Session check:', {
+    if (__DEV__) { console.log('🔎 Session check:', {
       sessionId: session.id.substring(0, 8) + '...',
       sessionClientId: session.clientId?.substring(0, 8) + '...',
       sessionProviderId: session.providerId?.substring(0, 8) + '...',
       targetClientId: clientRecord.id.substring(0, 8) + '...',
       targetProviderId: providerId.substring(0, 8) + '...',
       matches
-    });
+    }); }
     return matches;
   });
 

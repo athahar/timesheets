@@ -2,7 +2,7 @@
   "expo": {
     "name": "TrackPay",
     "slug": "trackpay",
-    "version": "0.3",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/app-icon.png",
     "userInterfaceStyle": "light",
@@ -18,7 +18,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.trackpay.track",
-      "buildNumber": "3",
+      "buildNumber": "4",
       "infoPlist": {
         "NSCameraUsageDescription": "TrackPay uses camera for profile photos and document scanning",
         "NSPhotoLibraryUsageDescription": "TrackPay accesses photo library for profile photos",
@@ -49,6 +49,9 @@
         "projectId": "966ed057-887f-46e7-887c-ebb1ed71bcef"
       }
     },
-    "owner": "athahar"
+    "owner": "athahar",
+    "plugins": [
+      "expo-font"
+    ]
   }
 }

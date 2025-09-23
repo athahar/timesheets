@@ -113,7 +113,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
             console.error('❌ Error loading relationships:', relError);
             clientsData = [];
           } else if (relationships && relationships.length > 0) {
-            console.log('📊 Found', relationships.length, 'relationships');
+            if (__DEV__) { console.log('📊 Found', relationships.length, 'relationships'); }
 
             const clientIds = relationships.map(rel => rel.client_id);
             const { data: relatedClients, error: clientError } = await supabase
@@ -228,7 +228,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
         await setUserRole(userProfile.role);
       }
 
-      console.log('📊 SimpleClientListScreen: Loaded', sortedClients.length, 'clients:', sortedClients.map(c => ({ id: c.id, name: c.name })));
+      if (__DEV__) { console.log('📊 SimpleClientListScreen: Loaded', sortedClients.length, 'clients:', sortedClients.map(c => ({ id: c.id, name: c.name }))); }
       if (__DEV__) {
         console.log('👤 Current user set to:', userName, 'with role:', userProfile?.role);
       }

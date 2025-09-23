@@ -79,7 +79,7 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
             console.error('❌ Error loading relationships:', relError);
             providersData = [];
           } else if (relationships && relationships.length > 0) {
-            console.log('📊 Found', relationships.length, 'relationships');
+            if (__DEV__) { console.log('📊 Found', relationships.length, 'relationships'); }
 
             // Get provider details for each relationship
             const providerIds = relationships.map(rel => rel.provider_id);
@@ -151,7 +151,7 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
 
               if (__DEV__) {
 
-                console.log('✅ Loaded', providersData.length, 'related providers with session data');
+                if (__DEV__) { console.log('✅ Loaded', providersData.length, 'related providers with session data'); }
 
               }
             }
@@ -208,7 +208,7 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
 
       // Only load providers if we have a userProfile
       if (userProfile) {
-        console.log('🔧 ServiceProviderListScreen: About to call loadServiceProviders...');
+        if (__DEV__) { console.log('🔧 ServiceProviderListScreen: About to call loadServiceProviders...'); }
         loadServiceProviders();
       } else {
         if (__DEV__) {

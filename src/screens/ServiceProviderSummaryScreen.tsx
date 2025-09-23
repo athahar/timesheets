@@ -258,7 +258,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
 
       // Check if date is valid before formatting
       if (isNaN(date.getTime())) {
-        console.warn('Invalid timestamp in timeline item:', item.timestamp);
+        if (__DEV__) { console.warn('Invalid timestamp in timeline item:', item.timestamp); }
         return; // Skip this item
       }
 
