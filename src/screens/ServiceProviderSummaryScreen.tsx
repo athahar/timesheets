@@ -255,6 +255,13 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
 
     timelineItems.slice(0, 20).forEach(item => {
       const date = new Date(item.timestamp);
+
+      // Check if date is valid before formatting
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid timestamp in timeline item:', item.timestamp);
+        return; // Skip this item
+      }
+
       // Use same date formatting as provider side for consistency
       const dayKey = formatDate(date).replace(/\s/g, '-'); // Convert "Sep 23, 2025" to "Sep-23,-2025"
 
@@ -337,20 +344,26 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
             </View>
           ) : (
             groupedTimeline.map(([dayKey, dayItems]) => {
-              // Parse back from formatted date key (e.g., "Sep-23,-2025")
-              const formattedDate = dayKey.replace(/-/g, ' '); // Convert back to "Sep 23, 2025"
-              const date = new Date(formattedDate);
-              const isToday = date.toDateString() === new Date().toDateString();
-              const isYesterday = date.toDateString() === new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();
+              // Get date from first item in group instead of parsing formatted string
+              const firstItem = dayItems[0];
+              const date = new Date(firstItem.timestamp);
 
+              // Check if date is valid
               let dayLabel;
-              if (isToday) {
-                dayLabel = 'Today';
-              } else if (isYesterday) {
-                dayLabel = 'Yesterday';
+              if (isNaN(date.getTime())) {
+                dayLabel = 'Invalid Date';
               } else {
-                // Use consistent formatting with provider side
-                dayLabel = formatDate(date);
+                const isToday = date.toDateString() === new Date().toDateString();
+                const isYesterday = date.toDateString() === new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();
+
+                if (isToday) {
+                  dayLabel = 'Today';
+                } else if (isYesterday) {
+                  dayLabel = 'Yesterday';
+                } else {
+                  // Use consistent formatting with provider side
+                  dayLabel = formatDate(date);
+                }
               }
 
               return (
@@ -609,6 +622,8 @@ const styles = StyleSheet.create({
   timelineRight: {
     alignItems: 'flex-end',
     gap: 4,
+    minWidth: 80,
+    justifyContent: 'center',
   },
   timelineAmount: {
     fontSize: 16,
