@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.card,
     padding: theme.spacing.lg,
     borderWidth: 1,
-    borderColor: theme.colors.primary + '30',
+    borderColor: 'rgba(0, 122, 255, 0.18)',
     ...theme.shadows.card,
   },
   sessionValueLabel: {

@@ -1,86 +1,127 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
   SafeAreaView,
   StyleSheet,
-  TouchableOpacity,
-  Image,
+  Animated,
+  ScrollView,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
+import { Button } from '../components/Button';
 
 interface WelcomeScreenProps {
   navigation: any;
 }
 
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, slideAnim]);
+
+  const uspFeatures = [
+    {
+      icon: 'clock' as const,
+      title: 'Time Tracking',
+      subtitle: 'Start and stop sessions with precision timing'
+    },
+    {
+      icon: 'credit-card' as const,
+      title: 'Payment Requests',
+      subtitle: 'Request payment and get notified when clients confirm'
+    },
+    {
+      icon: 'user-plus' as const,
+      title: 'Invite Your Clients',
+      subtitle: 'Share a workspace where they see hours and requests'
+    }
+  ];
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>TrackPay</Text>
-          <Text style={styles.subtitle}>Professional Time Tracking & Billing</Text>
-        </View>
-
-        {/* Main Content */}
-        <View style={styles.mainContent}>
-          <View style={styles.iconContainer}>
-            <Text style={styles.icon}>⏱️</Text>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        <Animated.View
+          style={[
+            styles.content,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            }
+          ]}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.wordmark}>TrackPay</Text>
+            <Text style={styles.headline}>
+              Track hours. Request payment. Get paid faster.
+            </Text>
+            <Text style={styles.subhead}>
+              Made for house cleaners, babysitters, tutors, and other local services.
+            </Text>
           </View>
 
-          <Text style={styles.description}>
-            Track your time, manage clients, and get paid faster with TrackPay's
-            professional time tracking and billing solution.
-          </Text>
-
-          <View style={styles.features}>
-            <View style={styles.feature}>
-              <Text style={styles.featureIcon}>📊</Text>
-              <Text style={styles.featureText}>Real-time tracking</Text>
-            </View>
-            <View style={styles.feature}>
-              <Text style={styles.featureIcon}>💰</Text>
-              <Text style={styles.featureText}>Easy billing</Text>
-            </View>
-            <View style={styles.feature}>
-              <Text style={styles.featureIcon}>📱</Text>
-              <Text style={styles.featureText}>Mobile friendly</Text>
-            </View>
+          {/* USP Rows */}
+          <View style={styles.uspSection}>
+            {uspFeatures.map((feature, index) => (
+              <View key={index} style={styles.uspRow}>
+                <View style={styles.iconContainer}>
+                  <Feather name={feature.icon} size={28} color={theme.color.text} />
+                </View>
+                <View style={styles.uspContent}>
+                  <Text style={styles.uspTitle}>{feature.title}</Text>
+                  <Text style={styles.uspSubtitle}>{feature.subtitle}</Text>
+                </View>
+              </View>
+            ))}
           </View>
-        </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={[styles.button, styles.primaryButton]}
-            onPress={() => navigation.navigate('Login')}
-          >
-            <Text style={styles.primaryButtonText}>Sign In</Text>
-          </TouchableOpacity>
+          {/* CTAs */}
+          <View style={styles.ctaSection}>
+            <Button
+              title="Create Account"
+              onPress={() => navigation.navigate('Register')}
+              variant="primary"
+              size="lg"
+              style={styles.primaryCta}
+            />
 
-          <TouchableOpacity
-            style={[styles.button, styles.secondaryButton]}
-            onPress={() => navigation.navigate('Register')}
-          >
-            <Text style={styles.secondaryButtonText}>Create Account</Text>
-          </TouchableOpacity>
+            <Button
+              title="Sign In"
+              onPress={() => navigation.navigate('Login')}
+              variant="secondary"
+              size="lg"
+              style={styles.secondaryCta}
+            />
 
-          <TouchableOpacity
-            style={styles.textButton}
-            onPress={() => navigation.navigate('ForgotPassword')}
-          >
-            <Text style={styles.textButtonText}>Forgot your password?</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.textButton}
-            onPress={() => navigation.navigate('InviteClaim')}
-          >
-            <Text style={styles.inviteButtonText}>Have an invite code?</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+            <Button
+              title="Have an invite code?"
+              onPress={() => navigation.navigate('InviteClaim')}
+              variant="link"
+              size="md"
+              style={styles.linkCta}
+            />
+          </View>
+        </Animated.View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -88,121 +129,105 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.color.appBg,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   content: {
     flex: 1,
-    paddingHorizontal: theme.spacing.xl,
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 16,
     justifyContent: 'space-between',
   },
+
+  // Header Section
   header: {
     alignItems: 'center',
-    marginTop: theme.spacing.xxl * 2,
+    marginBottom: 20,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.primary,
+  wordmark: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: theme.color.brand,
     fontFamily: theme.typography.fontFamily.display,
-    marginBottom: theme.spacing.sm,
-  },
-  subtitle: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.secondary,
-    fontFamily: theme.typography.fontFamily.primary,
+    marginBottom: 16,
     textAlign: 'center',
   },
-  mainContent: {
-    flex: 1,
-    justifyContent: 'center',
+  headline: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: theme.color.text,
+    fontFamily: theme.typography.fontFamily.display,
+    textAlign: 'center',
+    lineHeight: 32,
+    marginBottom: 8,
+  },
+  subhead: {
+    fontSize: 16,
+    fontWeight: '400',
+    color: theme.color.textSecondary,
+    fontFamily: theme.typography.fontFamily.primary,
+    textAlign: 'center',
+    lineHeight: 22,
+    paddingHorizontal: 16,
+  },
+
+  // USP Section
+  uspSection: {
+    marginBottom: 20,
+  },
+  uspRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: theme.spacing.xxl,
+    backgroundColor: theme.color.cardBg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    padding: 16,
+    marginBottom: 12,
+    height: 72,
   },
   iconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: theme.colors.primary + '10',
+    marginRight: 16,
+    width: 32,
+    height: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: theme.spacing.xl,
   },
-  icon: {
-    fontSize: 48,
-  },
-  description: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.primary,
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: theme.spacing.xxl,
-    paddingHorizontal: theme.spacing.lg,
-  },
-  features: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    paddingHorizontal: theme.spacing.lg,
-  },
-  feature: {
-    alignItems: 'center',
+  uspContent: {
     flex: 1,
   },
-  featureIcon: {
-    fontSize: 24,
-    marginBottom: theme.spacing.sm,
-  },
-  featureText: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
+  uspTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.color.text,
     fontFamily: theme.typography.fontFamily.primary,
-    textAlign: 'center',
+    marginBottom: 2,
   },
-  actionButtons: {
-    paddingBottom: theme.spacing.xl,
-  },
-  button: {
-    borderRadius: theme.borderRadius.button,
-    paddingVertical: theme.spacing.lg,
-    paddingHorizontal: theme.spacing.xl,
-    marginBottom: theme.spacing.md,
-    alignItems: 'center',
-    ...theme.shadows.button,
-  },
-  primaryButton: {
-    backgroundColor: theme.colors.primary,
-  },
-  primaryButtonText: {
-    fontSize: theme.fontSize.headline,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.surface,
+  uspSubtitle: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: theme.color.textSecondary,
     fontFamily: theme.typography.fontFamily.primary,
+    lineHeight: 16,
   },
-  secondaryButton: {
-    backgroundColor: theme.colors.surface,
-    borderWidth: 2,
-    borderColor: theme.colors.primary,
+
+  // CTA Section
+  ctaSection: {
+    paddingTop: 16,
   },
-  secondaryButtonText: {
-    fontSize: theme.fontSize.headline,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.primary,
-    fontFamily: theme.typography.fontFamily.primary,
+  primaryCta: {
+    height: 48,
+    marginBottom: 12,
   },
-  textButton: {
-    alignItems: 'center',
-    paddingVertical: theme.spacing.md,
+  secondaryCta: {
+    height: 48,
+    marginBottom: 16,
   },
-  textButtonText: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.secondary,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  inviteButtonText: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.primary,
-    fontFamily: theme.typography.fontFamily.primary,
-    fontWeight: theme.fontWeight.medium,
+  linkCta: {
+    alignSelf: 'center',
+    minHeight: 44,
   },
 });

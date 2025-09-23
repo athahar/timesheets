@@ -8,8 +8,11 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  TouchableOpacity,
+  ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Feather } from '@expo/vector-icons';
 import { Button } from '../components/Button';
 import { theme } from '../styles/theme';
 import { directSupabase } from '../services/storageService';
@@ -31,6 +34,7 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
   const [loading, setLoading] = useState(false);
   const [validating, setValidating] = useState(false);
   const [inviteDetails, setInviteDetails] = useState<any>(null);
+  const [errors, setErrors] = useState<{inviteCode?: string}>({});
 
   // Pre-fill invite code if passed via deep link
   useEffect(() => {
@@ -67,12 +71,30 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
     }
   };
 
+  const validateInviteCode = () => {
+    const newErrors: {inviteCode?: string} = {};
+
+    if (!inviteCode.trim()) {
+      newErrors.inviteCode = 'Please enter an invite code';
+    } else if (!inviteDetails?.valid || !inviteDetails.invite) {
+      newErrors.inviteCode = 'Please enter a valid invite code';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleInviteCodeChange = (text: string) => {
     const uppercaseCode = text.toUpperCase();
     setInviteCode(uppercaseCode);
 
-    // Auto-validate when code is 8 characters
-    if (uppercaseCode.length === 8) {
+    // Clear errors when user starts typing
+    if (errors.inviteCode) {
+      setErrors(prev => ({ ...prev, inviteCode: undefined }));
+    }
+
+    // Auto-validate when code is 6-8 characters
+    if (uppercaseCode.length >= 6 && uppercaseCode.length <= 8) {
       validateCode(uppercaseCode);
     } else {
       setInviteDetails(null);
@@ -80,9 +102,7 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
   };
 
   const handleClaimInvite = async () => {
-
-    if (!inviteDetails?.valid || !inviteDetails.invite) {
-      Alert.alert('Error', 'Please enter a valid invite code first');
+    if (!validateInviteCode()) {
       return;
     }
 
@@ -142,94 +162,93 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
       >
-        <View style={styles.content}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>Claim Your Invite</Text>
-            <Text style={styles.subtitle}>
-              Enter the invite code you received to access your work tracking account
-            </Text>
-          </View>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.content}>
+            {/* Header */}
+            <View style={styles.header}>
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                style={styles.backButton}
+              >
+                <Feather name="chevron-left" size={24} color={theme.color.text} />
+              </TouchableOpacity>
+              <View style={styles.headerContent}>
+                <Text style={styles.title}>Claim Your Invite</Text>
+              </View>
+            </View>
 
-          {/* Invite Code Input */}
-          <View style={styles.inputSection}>
-            <Text style={styles.inputLabel}>Invite Code</Text>
-            <TextInput
-              style={styles.codeInput}
-              value={inviteCode}
-              onChangeText={handleInviteCodeChange}
-              placeholder="ABC12XYZ"
-              placeholderTextColor={theme.colors.text.secondary}
-              maxLength={8}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              autoComplete="off"
-              textContentType="none"
-            />
-
-            {/* Validation Status */}
-            {validating && (
-              <Text style={styles.validatingText}>Validating code...</Text>
-            )}
-
-            {inviteDetails && !validating && (
-              <View style={[
-                styles.validationResult,
-                inviteDetails.valid ? styles.validResult : styles.invalidResult
-              ]}>
-                {inviteDetails.valid && inviteDetails.invite ? (
-                  <View>
-                    <Text style={styles.validText}>✓ Valid invite code</Text>
-                    <Text style={styles.inviteDetailsText}>
-                      {inviteDetails.invite.inviterRole === 'client'
-                        ? `${inviteDetails.invite.clientName} wants to work with you`
-                        : `Invited by ${inviteDetails.invite.clientName}`
-                      }
-                    </Text>
-                  </View>
+            {/* Form */}
+            <View style={styles.form}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Invite Code</Text>
+                <TextInput
+                  style={[styles.codeInput, errors.inviteCode && styles.inputError]}
+                  value={inviteCode}
+                  onChangeText={handleInviteCodeChange}
+                  placeholder="ABC123"
+                  placeholderTextColor={theme.color.textSecondary}
+                  maxLength={8}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  autoComplete="off"
+                  textContentType="none"
+                />
+                {errors.inviteCode ? (
+                  <Text style={styles.errorText}>{errors.inviteCode}</Text>
                 ) : (
-                  <Text style={styles.invalidText}>
-                    ✗ {inviteDetails.message || 'Invalid invite code'}
+                  <Text style={styles.helperText}>
+                    Enter the 6–8 character code from your provider
                   </Text>
                 )}
               </View>
-            )}
-          </View>
 
-          {/* Debug Info */}
-          {__DEV__ && (
-            <View style={{ marginBottom: 16, padding: 10, backgroundColor: '#f0f0f0' }}>
-              <Text>Debug Info:</Text>
-              <Text>User: {user ? 'Logged in' : 'Not logged in'}</Text>
-              <Text>Valid: {inviteDetails?.valid ? 'Yes' : 'No'}</Text>
-              <Text>Button disabled: {(!inviteDetails?.valid || loading) ? 'Yes' : 'No'}</Text>
+              {/* Validation Status */}
+              {validating && (
+                <Text style={styles.validatingText}>Validating code...</Text>
+              )}
+
+              {inviteDetails && !validating && (
+                <View style={[
+                  styles.validationResult,
+                  inviteDetails.valid ? styles.validResult : styles.invalidResult
+                ]}>
+                  {inviteDetails.valid && inviteDetails.invite ? (
+                    <View>
+                      <Text style={styles.validText}>✓ Valid invite code</Text>
+                      <Text style={styles.inviteDetailsText}>
+                        {inviteDetails.invite.inviterRole === 'client'
+                          ? `${inviteDetails.invite.clientName} wants to work with you`
+                          : `Invited by ${inviteDetails.invite.clientName}`
+                        }
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.invalidText}>
+                      ✗ {inviteDetails.message || 'Invalid invite code'}
+                    </Text>
+                  )}
+                </View>
+              )}
+
+              <Button
+                title="Join Workspace"
+                onPress={handleClaimInvite}
+                disabled={!inviteDetails?.valid || loading}
+                loading={loading}
+                variant="primary"
+                size="lg"
+                style={styles.claimButton}
+              />
             </View>
-          )}
 
-          {/* Action Button */}
-          <Button
-            title={
-              inviteDetails?.invite?.inviterRole === 'client'
-                ? "Accept Work Opportunity"
-                : "Join Workspace"
-            }
-            onPress={() => {
-              handleClaimInvite();
-            }}
-            disabled={!inviteDetails?.valid || loading}
-            loading={loading}
-            variant="primary"
-            size="lg"
-            style={styles.claimButton}
-          />
-
-          {/* Help Text */}
-          <View style={styles.helpSection}>
-            <Text style={styles.helpText}>
-              Don't have an invite code? Contact your service provider to get one.
-            </Text>
+            {/* Footer */}
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>
+                Don't have an invite code? Ask your service provider.
+              </Text>
+            </View>
           </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -238,114 +257,150 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.color.appBg,
   },
   keyboardAvoidingView: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+  },
   content: {
     flex: 1,
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.xxl,
+    paddingHorizontal: 16,
   },
+
+  // Header
   header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: theme.spacing.xxl,
+    paddingTop: 16,
+    paddingBottom: 20,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  headerContent: {
+    flex: 1,
+    paddingLeft: 8,
   },
   title: {
-    fontSize: theme.fontSize.title,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text.primary,
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.color.text,
     fontFamily: theme.typography.fontFamily.display,
-    marginBottom: theme.spacing.sm,
-    textAlign: 'center',
   },
-  subtitle: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.secondary,
+
+  // Form
+  form: {
+    flex: 1,
+    paddingTop: 8,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.color.text,
     fontFamily: theme.typography.fontFamily.primary,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  inputSection: {
-    marginBottom: theme.spacing.xxl,
-  },
-  inputLabel: {
-    fontSize: theme.fontSize.footnote,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.primary,
-    marginBottom: theme.spacing.sm,
+    marginBottom: 8,
   },
   codeInput: {
-    borderWidth: 2,
-    borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.medium,
-    padding: theme.spacing.lg,
-    fontSize: theme.fontSize.title,
+    height: 56,
+    backgroundColor: theme.color.cardBg,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    paddingHorizontal: 16,
+    fontSize: 20,
     fontFamily: 'Courier New',
-    color: theme.colors.text.primary,
-    backgroundColor: theme.colors.card,
+    color: theme.color.text,
     textAlign: 'center',
     letterSpacing: 2,
-    fontWeight: theme.fontWeight.bold,
+    fontWeight: '600',
+    marginBottom: 8,
   },
-  validatingText: {
-    fontSize: theme.fontSize.caption,
-    color: theme.colors.text.secondary,
+  inputError: {
+    borderColor: '#EF4444',
+    backgroundColor: 'rgba(239, 68, 68, 0.05)',
+  },
+  errorText: {
+    fontSize: 13,
+    color: '#EF4444',
+    fontFamily: theme.typography.fontFamily.primary,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  helperText: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: theme.color.textSecondary,
     fontFamily: theme.typography.fontFamily.primary,
     textAlign: 'center',
-    marginTop: theme.spacing.sm,
+  },
+
+  // Validation
+  validatingText: {
+    fontSize: 13,
+    color: theme.color.textSecondary,
+    fontFamily: theme.typography.fontFamily.primary,
+    textAlign: 'center',
+    marginBottom: 20,
     fontStyle: 'italic',
   },
   validationResult: {
-    marginTop: theme.spacing.md,
-    padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.medium,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 20,
   },
   validResult: {
-    backgroundColor: theme.colors.success + '20',
-    borderWidth: 1,
-    borderColor: theme.colors.success + '40',
+    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    borderColor: 'rgba(34, 197, 94, 0.3)',
   },
   invalidResult: {
-    backgroundColor: theme.colors.error + '20',
-    borderWidth: 1,
-    borderColor: theme.colors.error + '40',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
   },
   validText: {
-    fontSize: theme.fontSize.footnote,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.success,
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.color.brand,
     fontFamily: theme.typography.fontFamily.primary,
-    marginBottom: theme.spacing.xs,
+    marginBottom: 4,
   },
   invalidText: {
-    fontSize: theme.fontSize.footnote,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.error,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#EF4444',
     fontFamily: theme.typography.fontFamily.primary,
   },
   inviteDetailsText: {
-    fontSize: theme.fontSize.caption,
-    color: theme.colors.text.primary,
+    fontSize: 13,
+    color: theme.color.text,
     fontFamily: theme.typography.fontFamily.primary,
-    marginBottom: theme.spacing.xs,
   },
+
+  // Actions
   claimButton: {
-    marginBottom: theme.spacing.xl,
+    height: 48,
+    marginBottom: 20,
   },
-  helpSection: {
-    alignItems: 'center',
-    paddingTop: theme.spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
+
+  // Footer
+  footer: {
+    paddingBottom: 20,
   },
-  helpText: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
+  footerText: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: theme.color.textSecondary,
     fontFamily: theme.typography.fontFamily.primary,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 18,
   },
 });

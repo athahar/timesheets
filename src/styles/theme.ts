@@ -1,81 +1,215 @@
-export const theme = {
-  colors: {
-    // Primary Colors
-    primary: '#007AFF',
-    background: '#F8F9FA',
-    card: '#FFFFFF',
-    border: '#E5E7EB',
+export const palette = {
+  green:'#22C55E', teal:'#2DD4BF', amber:'#F59E0B', red:'#EF4444', purple:'#6D28D9',
+  ink:'#111827', gray600:'#4B5563', gray500:'#6B7280', gray400:'#9AA1A9',
+  gray300:'#D1D5DB', gray200:'#E5E7EB', gray100:'#F3F4F6', gray50:'#F8F9FB',
+  greenBg:'#ECFDF5', amberBg:'#FFFBEB', purpleBg:'#F3E8FF', tealBg:'#E6FFFA',
+  white:'#FFFFFF', black:'#000000',
+};
 
-    // Status Colors (full strength)
-    success: '#10B981',
-    warning: '#F59E0B',
-    danger: '#EF4444',
+export const theme = {
+  color: {
+    // Core surfaces
+    appBg: '#F7F8FA',
+    cardBg: '#FFFFFF',
+    border: '#E6E8EB',
+    divider: '#E5E7EB',
+
+    // Text hierarchy
+    text: '#111827',
+    textSecondary: '#6B7280',
+    textTertiary: '#9AA1A9',
+
+    // Brand colors
+    accent: palette.green,
+    accentTeal: palette.teal,
+    warn: palette.amber,
+    danger: palette.red,
+    requested: palette.purple,
+    brand: '#22C55E',
+    brandPressed: '#16A34A',
+    focusRing: 'rgba(34,197,94,0.25)',
+
+    // Professional button system
+    btnPrimaryBg: '#22C55E',
+    btnPrimaryText: '#FFFFFF',
+    btnSecondaryBg: '#FFFFFF',
+    btnSecondaryText: '#111827',
+    btnSecondaryBorder: '#E6E8EB',
+    btnLinkText: '#10B981',
+
+    // Money and warnings
+    money: '#22C55E',
+    warnBg: '#FFFBEB',
+    warnText: '#B45309',
+
+    // Button system - complete variants
+    btnPrimaryBg: '#22C55E',
+    btnPrimaryText: '#FFFFFF',
+    btnDangerBg: '#EF4444',
+    btnDangerText: '#FFFFFF',
+    btnSecondaryBg: '#FFFFFF',
+    btnSecondaryText: '#111827',
+    btnSecondaryBorder: '#E5E7EB',
+
+    // Interactive states
+    btnPrimaryBgPressed: '#16A34A',
+    btnDangerBgPressed: '#DC2626',
+    btnSecondaryBorderPressed: '#D1D5DB',
+
+    // Disabled states
+    btnDisabledBg: '#F3F4F6',
+    btnDisabledText: '#9AA1A9',
+    btnDisabledBorder: '#E5E7EB',
+
+    // Chips and pills
+    chipActiveBg: '#E6FFFA',
+    chipActiveText: '#0F766E',
+
+    // Status pills
+    pillPaidText:'#047857',
+    pillPaidBg:'#ECFDF5',
+    pillDueText:'#B45309',
+    pillDueBg:'#FFFBEB',
+    pillReqText:'#6D28D9',
+    pillReqBg:'#F3E8FF',
+    pillActiveText:'#0F766E',
+    pillActiveBg:'#E6FFFA',
+
+    // Modal and overlay
+    modalOverlay: 'rgba(0, 0, 0, 0.5)',
+    modalBg: '#FFFFFF',
+
+    // Toast
+    toastBg: '#111827',
+    toastText: '#FFFFFF',
+
+    // Error states
+    errorBg: '#FEF2F2',
+    errorText: '#DC2626',
+    errorBorder: '#FEE2E2',
+  },
+  radius:{ card:16, button:12, pill:10, input:12 },
+  space:{ x2:2,x4:4,x8:8,x12:12,x16:16,x20:20,x24:24,x32:32 },
+  font:{ title:22, large:28, body:16, small:13 },
+
+  shadow: {
+    cardLight: {
+      ios:  { shadowColor: palette.black, shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } },
+      android: { elevation: 2 },
+    },
+  },
+
+  // Legacy compatibility - map old theme properties to new palette
+  colors: {
+    primary: palette.green,
+    background: palette.slate50,
+    card: palette.white,
+    border: palette.slate200,
+
+    // Semantic tokens for backwards compatibility
+    money: {
+      50: palette.greenBg,
+      100: '#D1FAE5',
+      500: palette.green,
+      600: '#059669',
+    },
+
+    active: {
+      50: palette.tealBg,
+      100: '#CCFBF1',
+      500: palette.teal,
+      600: '#0D9488',
+    },
+
+    warning: {
+      50: palette.amberBg,
+      100: '#FEF3C7',
+      500: palette.amber,
+      600: '#D97706',
+    },
+
+    danger: {
+      50: '#FEF2F2',
+      100: '#FEE2E2',
+      500: palette.red,
+      600: '#DC2626',
+    },
+
+    // Status Colors (backwards compatibility)
+    success: palette.green,
+    warning: palette.amber,
+    error: palette.red,
     info: '#3B82F6',
+    white: palette.white,
 
     // Text Colors
     text: {
-      primary: '#1F2937',
-      secondary: '#6B7280',
-      tertiary: '#9CA3AF',
+      primary: palette.ink,
+      secondary: palette.slate500,
+      tertiary: palette.slate400,
     },
 
-    // Status Color Applications (10% background, 20% border, full text)
+    // Enhanced Status Color Applications
     status: {
       paid: {
-        background: 'rgba(16, 185, 129, 0.1)', // success at 10%
-        border: 'rgba(16, 185, 129, 0.2)',     // success at 20%
-        text: '#10B981',                       // full success
+        background: palette.greenBg,
+        border: '#D1FAE5',
+        text: palette.green,
       },
       unpaid: {
-        background: 'rgba(245, 158, 11, 0.1)', // warning at 10%
-        border: 'rgba(245, 158, 11, 0.2)',     // warning at 20%
-        text: '#F59E0B',                       // full warning
+        background: palette.amberBg,
+        border: '#FEF3C7',
+        text: palette.amber,
+      },
+      active: {
+        background: palette.tealBg,
+        border: '#CCFBF1',
+        text: palette.teal,
       },
       requested: {
-        background: 'rgba(59, 130, 246, 0.1)', // info at 10%
-        border: 'rgba(59, 130, 246, 0.2)',     // info at 20%
-        text: '#3B82F6',                       // full info
+        background: palette.purpleBg,
+        border: 'rgba(109, 40, 217, 0.2)',
+        text: palette.purple,
       },
       error: {
-        background: 'rgba(239, 68, 68, 0.1)',  // danger at 10%
-        border: 'rgba(239, 68, 68, 0.2)',      // danger at 20%
-        text: '#EF4444',                       // full danger
+        background: '#FEF2F2',
+        border: '#FEE2E2',
+        text: palette.red,
       },
     },
   },
 
-  // Spacing System (8pt Grid)
+  // Spacing System (8pt Grid) - backwards compatibility
   spacing: {
-    xxs: 4,   // 4px
-    xs: 8,    // 8px
-    sm: 12,   // 12px
-    md: 16,   // 16px
-    lg: 24,   // 24px
-    xl: 32,   // 32px
-    xxl: 48,  // 48px
+    xxs: 4,
+    xs: 8,
+    sm: 12,
+    md: 16,
+    lg: 24,
+    xl: 32,
+    xxl: 48,
   },
 
-  // Border Radius
+  // Border Radius - backwards compatibility
   borderRadius: {
-    small: 6,   // Status pills and small interactive elements
-    medium: 8,  // Buttons and form inputs
-    card: 12,   // Content cards and containers
-    large: 16,  // Modals and major UI elements
+    small: 6,
+    medium: 8,
+    button: 12,
+    card: 16,
+    large: 16,
   },
 
-  // Shadows & Depth
+  // Shadows & Depth - backwards compatibility
   shadows: {
-    // Card Shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)
     card: {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.1,
-      shadowRadius: 3,
+      shadowColor: palette.black,
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.05,
+      shadowRadius: 6,
       elevation: 2,
     },
-    // Button Shadow: 0 1px 2px rgba(0, 0, 0, 0.05)
     button: {
-      shadowColor: '#000',
+      shadowColor: palette.black,
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.05,
       shadowRadius: 2,
@@ -83,21 +217,22 @@ export const theme = {
     },
   },
 
-  // Typography
+  // Typography - backwards compatibility
   fontSize: {
-    display: 28,    // Page titles and major headings
-    title: 22,      // Section headers and important content
-    headline: 17,   // Card titles and secondary headers
-    body: 16,       // Main content and form labels
-    callout: 15,    // Secondary content and descriptions
-    footnote: 13,   // Metadata, status labels, and supporting text
+    display: 28,
+    title: 22,
+    headline: 17,
+    body: 16,
+    callout: 15,
+    footnote: 13,
+    caption: 12,
   },
 
   fontWeight: {
-    regular: '400',   // Body text and standard content
-    medium: '500',    // Interactive elements and secondary emphasis
-    semibold: '600',  // Section headers and primary content
-    bold: '700',      // High emphasis titles and important information
+    regular: '400',
+    medium: '500',
+    semibold: '600',
+    bold: '700',
   },
 
   typography: {
@@ -106,4 +241,6 @@ export const theme = {
       display: 'SF Pro Display, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
     },
   },
-};
+} as const;
+
+export type Theme = typeof theme;

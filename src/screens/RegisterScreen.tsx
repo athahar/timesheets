@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/Button';
@@ -36,52 +37,99 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
   // Determine user role based on inviter role
   const autoRole = inviteParams?.inviterRole === 'provider' ? 'client' : 'provider';
 
-  const [displayName, setDisplayName] = useState(inviteParams?.clientName || ''); // Pre-fill with client name from invite
+  const [displayName, setDisplayName] = useState(inviteParams?.clientName || '');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState<'provider' | 'client' | null>(isInviteFlow ? autoRole : null);
   const [isLoading, setIsLoading] = useState(false);
-  const { signUp, reloadUserProfile } = useAuth();
+  const [errors, setErrors] = useState<{displayName?: string; email?: string; password?: string; confirmPassword?: string; role?: string}>({});
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const { signUp, reloadUserProfile, isAuthenticated, user } = useAuth();
+
+  // Monitor auth state changes after successful registration
+  useEffect(() => {
+    if (registrationSuccess && isAuthenticated && user) {
+      // Give a moment for the auth state to fully settle
+      const timer = setTimeout(() => {
+        // The AuthNavigator will handle the navigation automatically
+        // No need to manually navigate here - just clear the flag
+        setRegistrationSuccess(false);
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [registrationSuccess, isAuthenticated, user]);
 
   const validateForm = () => {
+    const newErrors: {displayName?: string; email?: string; password?: string; confirmPassword?: string; role?: string} = {};
+
     if (!displayName.trim()) {
-      Alert.alert('Validation Error', 'Please enter your full name');
-      return false;
+      newErrors.displayName = 'Please enter your full name';
     }
 
     if (!email.trim()) {
-      Alert.alert('Validation Error', 'Please enter your email address');
-      return false;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      Alert.alert('Validation Error', 'Please enter a valid email address');
-      return false;
+      newErrors.email = 'Please enter your email address';
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        newErrors.email = 'Please enter a valid email address';
+      }
     }
 
     if (!password) {
-      Alert.alert('Validation Error', 'Please enter a password');
-      return false;
+      newErrors.password = 'Please enter a password';
+    } else if (password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters long';
     }
 
-    if (password.length < 6) {
-      Alert.alert('Validation Error', 'Password must be at least 6 characters long');
-      return false;
-    }
-
-    if (password !== confirmPassword) {
-      Alert.alert('Validation Error', 'Passwords do not match');
-      return false;
+    if (!confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password';
+    } else if (password !== confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
     }
 
     if (!role) {
-      Alert.alert('Validation Error', 'Please select your account type');
-      return false;
+      newErrors.role = 'Please select your account type';
     }
 
-    return true;
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleDisplayNameChange = (text: string) => {
+    setDisplayName(text);
+    if (errors.displayName) {
+      setErrors(prev => ({ ...prev, displayName: undefined }));
+    }
+  };
+
+  const handleEmailChange = (text: string) => {
+    setEmail(text);
+    if (errors.email) {
+      setErrors(prev => ({ ...prev, email: undefined }));
+    }
+  };
+
+  const handlePasswordChange = (text: string) => {
+    setPassword(text);
+    if (errors.password) {
+      setErrors(prev => ({ ...prev, password: undefined }));
+    }
+  };
+
+  const handleConfirmPasswordChange = (text: string) => {
+    setConfirmPassword(text);
+    if (errors.confirmPassword) {
+      setErrors(prev => ({ ...prev, confirmPassword: undefined }));
+    }
+  };
+
+  const handleRoleChange = (newRole: 'provider' | 'client') => {
+    setRole(newRole);
+    if (errors.role) {
+      setErrors(prev => ({ ...prev, role: undefined }));
+    }
   };
 
   const handleSignUp = async () => {
@@ -94,6 +142,9 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
       if (error) {
         Alert.alert('Registration Failed', error);
       } else {
+        // Set registration success flag to trigger auth state monitoring
+        setRegistrationSuccess(true);
+
         // If this is an invite flow, automatically claim the invite
         if (isInviteFlow && inviteParams?.inviteCode && data?.user) {
           try {
@@ -103,40 +154,35 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
             await new Promise(resolve => setTimeout(resolve, 1000));
             await reloadUserProfile(data.user.id);
 
+            // Show success message but don't navigate manually - let auth state handle it
             Alert.alert(
               'Welcome!',
-              `Your account has been created and you've successfully joined ${inviteParams.inviterName}'s workspace!`,
-              [{
-                text: 'Continue',
-                onPress: () => {
-                  // Navigate directly to the service provider's workspace
-                  navigation.reset({
-                    index: 0,
-                    routes: [{
-                      name: 'ServiceProviderSummary',
-                      params: {
-                        providerId: providerId,
-                        providerName: inviteParams.inviterName
-                      }
-                    }],
-                  });
-                }
-              }]
+              `Your account has been created and you've successfully joined ${inviteParams.inviterName}'s workspace!`
             );
           } catch (inviteError) {
-            // Still show success but mention they need to claim manually
+            console.error('Error claiming invite after registration:', inviteError);
+            // Still show success - the user can claim the invite later
             Alert.alert(
               'Account Created',
-              'Your account has been created successfully! Please use your invite code again to join the workspace.',
-              [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
+              'Your account has been created successfully! Please use your invite code again to join the workspace.'
             );
           }
         } else {
-          // Normal registration flow
+          // Normal registration flow - reload user profile to ensure it's available
+          if (data?.user) {
+            try {
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              await reloadUserProfile(data.user.id);
+            } catch (profileError) {
+              console.log('Profile reload error (non-critical):', profileError);
+            }
+          }
+
+          // Show success message without navigation
+          // The auth state monitoring will handle navigation automatically
           Alert.alert(
-            'Account Created',
-            'Your account has been created successfully! Please check your email to verify your account.',
-            [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
+            'Welcome!',
+            'Your account has been created successfully! You can now start using TrackPay.'
           );
         }
       }
@@ -161,10 +207,12 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
                 onPress={() => navigation.goBack()}
                 style={styles.backButton}
               >
-                <Text style={styles.backButtonText}>← Back</Text>
+                <Feather name="chevron-left" size={24} color={theme.color.text} />
               </TouchableOpacity>
-              <Text style={styles.title}>Create Account</Text>
-              <Text style={styles.subtitle}>Join TrackPay and start tracking your time</Text>
+              <View style={styles.headerContent}>
+                <Text style={styles.title}>Create Account</Text>
+                <Text style={styles.subtitle}>Track your time and get paid faster</Text>
+              </View>
             </View>
 
             {/* Form */}
@@ -172,63 +220,67 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Full Name</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, errors.displayName && styles.inputError]}
                   value={displayName}
-                  onChangeText={setDisplayName}
+                  onChangeText={handleDisplayNameChange}
                   placeholder="Enter your full name"
-                  placeholderTextColor={theme.colors.text.secondary}
+                  placeholderTextColor={theme.color.textSecondary}
                   autoComplete="name"
                 />
+                {errors.displayName && <Text style={styles.errorText}>{errors.displayName}</Text>}
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Email Address</Text>
+                <Text style={styles.label}>Email</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, errors.email && styles.inputError]}
                   value={email}
-                  onChangeText={setEmail}
+                  onChangeText={handleEmailChange}
                   placeholder="your@email.com"
-                  placeholderTextColor={theme.colors.text.secondary}
+                  placeholderTextColor={theme.color.textSecondary}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
                   autoComplete="email"
                 />
+                {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
               </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Password</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, errors.password && styles.inputError]}
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={handlePasswordChange}
                   placeholder="Create a secure password"
-                  placeholderTextColor={theme.colors.text.secondary}
+                  placeholderTextColor={theme.color.textSecondary}
                   secureTextEntry
                   autoComplete="password-new"
                 />
+                {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
               </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Confirm Password</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, errors.confirmPassword && styles.inputError]}
                   value={confirmPassword}
-                  onChangeText={setConfirmPassword}
+                  onChangeText={handleConfirmPasswordChange}
                   placeholder="Confirm your password"
-                  placeholderTextColor={theme.colors.text.secondary}
+                  placeholderTextColor={theme.color.textSecondary}
                   secureTextEntry
                   autoComplete="password-new"
                 />
+                {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
               </View>
 
-              {/* Role Selection - Show different UI for invite flows */}
+              {/* Account Type Selection */}
               {isInviteFlow ? (
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>Account Type</Text>
                   <View style={styles.inviteRoleInfo}>
                     <Text style={styles.inviteRoleText}>
-                      {role === 'client' ? '👤' : '👨‍💼'} {role === 'client' ? 'Client' : 'Service Provider'}
+                      {role === 'client' ? 'Client' : 'Service Provider'}
                     </Text>
                     <Text style={styles.inviteRoleDescription}>
                       You're joining as a {role} (invited by {inviteParams?.inviterName})
@@ -241,58 +293,33 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
                   <View style={styles.roleSelection}>
                     <TouchableOpacity
                       style={[
-                        styles.roleButton,
-                        role === 'provider' && styles.roleButtonSelected,
+                        styles.roleCard,
+                        role === 'provider' && styles.roleCardSelected,
                       ]}
-                      onPress={() => setRole('provider')}
+                      onPress={() => handleRoleChange('provider')}
                     >
-                      <Text style={styles.roleIcon}>👨‍💼</Text>
-                      <Text
-                        style={[
-                          styles.roleButtonText,
-                          role === 'provider' && styles.roleButtonTextSelected,
-                        ]}
-                      >
-                        Service Provider
-                      </Text>
-                      <Text
-                        style={[
-                          styles.roleDescription,
-                          role === 'provider' && styles.roleDescriptionSelected,
-                        ]}
-                      >
-                        I provide services and track time for clients
+                      <Text style={styles.roleTitle}>Service Provider</Text>
+                      <Text style={styles.roleDescription}>
+                        Baby-sitter, house cleaner, tutor, and more
                       </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
                       style={[
-                        styles.roleButton,
-                        role === 'client' && styles.roleButtonSelected,
+                        styles.roleCard,
+                        role === 'client' && styles.roleCardSelected,
                       ]}
-                      onPress={() => setRole('client')}
+                      onPress={() => handleRoleChange('client')}
                     >
-                      <Text style={styles.roleIcon}>👤</Text>
-                      <Text
-                        style={[
-                          styles.roleButtonText,
-                          role === 'client' && styles.roleButtonTextSelected,
-                        ]}
-                      >
-                        Client
-                      </Text>
-                      <Text
-                        style={[
-                          styles.roleDescription,
-                          role === 'client' && styles.roleDescriptionSelected,
-                        ]}
-                      >
-                        I hire service providers and view their work
+                      <Text style={styles.roleTitle}>Client</Text>
+                      <Text style={styles.roleDescription}>
+                        Hire providers and view their work
                       </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
               )}
+              {errors.role && <Text style={styles.errorText}>{errors.role}</Text>}
 
               <Button
                 title={isLoading ? "Creating Account..." : "Create Account"}
@@ -302,14 +329,14 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
                 disabled={isLoading}
                 style={styles.signUpButton}
               />
-            </View>
 
-            {/* Footer */}
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>Already have an account? </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                <Text style={styles.footerLink}>Sign In</Text>
-              </TouchableOpacity>
+              {/* Footer */}
+              <View style={styles.footer}>
+                <Text style={styles.footerText}>Already have an account? </Text>
+                <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                  <Text style={styles.footerLink}>Sign In</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </ScrollView>
@@ -321,7 +348,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.color.appBg,
   },
   keyboardAvoid: {
     flex: 1,
@@ -331,138 +358,158 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: theme.spacing.xl,
-    justifyContent: 'space-between',
+    paddingHorizontal: 16,
   },
+
+  // Header
   header: {
-    marginTop: theme.spacing.xl,
-    marginBottom: theme.spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 16,
+    paddingBottom: 20,
   },
   backButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: theme.spacing.sm,
-    marginBottom: theme.spacing.lg,
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
   },
-  backButtonText: {
-    fontSize: theme.fontSize.headline,
-    color: theme.colors.primary,
-    fontFamily: theme.typography.fontFamily.primary,
+  headerContent: {
+    flex: 1,
+    paddingLeft: 8,
   },
   title: {
-    fontSize: 28,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text.primary,
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.color.text,
     fontFamily: theme.typography.fontFamily.display,
-    marginBottom: theme.spacing.sm,
+    marginBottom: 4,
   },
   subtitle: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.secondary,
+    fontSize: 16,
+    fontWeight: '400',
+    color: theme.color.textSecondary,
     fontFamily: theme.typography.fontFamily.primary,
   },
+
+  // Form
   form: {
     flex: 1,
+    paddingTop: 8,
   },
   inputGroup: {
-    marginBottom: theme.spacing.lg,
+    marginBottom: 16,
   },
   label: {
-    fontSize: theme.fontSize.body,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.primary,
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.color.text,
     fontFamily: theme.typography.fontFamily.primary,
-    marginBottom: theme.spacing.sm,
+    marginBottom: 8,
   },
   input: {
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.borderRadius.input,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.primary,
+    height: 48,
+    backgroundColor: theme.color.cardBg,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    ...theme.shadows.card,
-  },
-  roleSelection: {
-    gap: theme.spacing.md,
-  },
-  roleButton: {
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.borderRadius.card,
-    padding: theme.spacing.lg,
-    borderWidth: 2,
-    borderColor: theme.colors.border,
-    alignItems: 'center',
-  },
-  roleButtonSelected: {
-    borderColor: theme.colors.primary,
-    backgroundColor: theme.colors.primary + '08',
-  },
-  roleIcon: {
-    fontSize: 32,
-    marginBottom: theme.spacing.sm,
-  },
-  roleButtonText: {
-    fontSize: theme.fontSize.headline,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.primary,
+    borderColor: theme.color.border,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: theme.color.text,
     fontFamily: theme.typography.fontFamily.primary,
-    marginBottom: theme.spacing.xs,
   },
-  roleButtonTextSelected: {
-    color: theme.colors.primary,
+  inputError: {
+    borderColor: '#EF4444',
+    backgroundColor: 'rgba(239, 68, 68, 0.05)',
+  },
+  errorText: {
+    fontSize: 13,
+    color: '#EF4444',
+    fontFamily: theme.typography.fontFamily.primary,
+    marginTop: 4,
+    marginLeft: 4,
+  },
+
+  // Role Selection
+  roleSelection: {
+    gap: 12,
+  },
+  roleCard: {
+    backgroundColor: theme.color.cardBg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    padding: 16,
+    minHeight: 72,
+    justifyContent: 'center',
+  },
+  roleCardSelected: {
+    borderColor: theme.color.brand,
+    borderWidth: 2,
+  },
+  roleTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.color.text,
+    fontFamily: theme.typography.fontFamily.primary,
+    marginBottom: 4,
   },
   roleDescription: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
+    fontSize: 13,
+    fontWeight: '400',
+    color: theme.color.textSecondary,
+    fontFamily: theme.typography.fontFamily.primary,
+    lineHeight: 18,
+  },
+
+  // Invite Role Info
+  inviteRoleInfo: {
+    backgroundColor: theme.color.cardBg,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.3)',
+    padding: 16,
+    alignItems: 'center',
+  },
+  inviteRoleText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.color.brand,
+    fontFamily: theme.typography.fontFamily.primary,
+    marginBottom: 4,
+  },
+  inviteRoleDescription: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: theme.color.textSecondary,
     fontFamily: theme.typography.fontFamily.primary,
     textAlign: 'center',
+    lineHeight: 18,
   },
-  roleDescriptionSelected: {
-    color: theme.colors.primary,
-  },
+
+  // Actions
   signUpButton: {
-    marginTop: theme.spacing.xl,
-    marginBottom: theme.spacing.xl,
+    height: 48,
+    marginTop: 20,
+    marginBottom: 20,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: theme.spacing.xl,
+    paddingBottom: 20,
+    minHeight: 44,
   },
   footerText: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.secondary,
+    fontSize: 16,
+    fontWeight: '400',
+    color: theme.color.textSecondary,
     fontFamily: theme.typography.fontFamily.primary,
   },
   footerLink: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.primary,
-    fontWeight: theme.fontWeight.medium,
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.color.brand,
     fontFamily: theme.typography.fontFamily.primary,
-  },
-  inviteRoleInfo: {
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.borderRadius.medium,
-    padding: theme.spacing.lg,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.primary + '30',
-  },
-  inviteRoleText: {
-    fontSize: theme.fontSize.headline,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.primary,
-    fontFamily: theme.typography.fontFamily.primary,
-    marginBottom: theme.spacing.sm,
-  },
-  inviteRoleDescription: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
-    fontFamily: theme.typography.fontFamily.primary,
-    textAlign: 'center',
   },
 });

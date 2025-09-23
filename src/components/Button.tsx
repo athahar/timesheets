@@ -5,9 +5,10 @@ import { theme } from '../styles/theme';
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'danger';
+  variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'link';
   size?: 'sm' | 'md' | 'lg';
   disabled?: boolean;
+  loading?: boolean;
   style?: any;
 }
 
@@ -17,6 +18,7 @@ export const Button: React.FC<ButtonProps> = ({
   variant = 'primary',
   size = 'lg',
   disabled = false,
+  loading = false,
   style,
 }) => {
   const getButtonStyle = () => {
@@ -41,10 +43,13 @@ export const Button: React.FC<ButtonProps> = ({
     } else {
       switch (variant) {
         case 'primary':
-          baseStyle.push(styles.buttonPrimary, theme.shadows.button);
+          baseStyle.push(styles.buttonPrimary);
           break;
         case 'secondary':
           baseStyle.push(styles.buttonSecondary);
+          break;
+        case 'link':
+          baseStyle.push(styles.buttonLink);
           break;
         case 'success':
           baseStyle.push(styles.buttonSuccess, theme.shadows.button);
@@ -80,10 +85,26 @@ export const Button: React.FC<ButtonProps> = ({
     // Variant styles
     if (disabled) {
       baseStyle.push({ color: theme.colors.text.secondary });
-    } else if (variant === 'secondary') {
-      baseStyle.push({ color: theme.colors.success });
     } else {
-      baseStyle.push({ color: '#FFFFFF' });
+      switch (variant) {
+        case 'primary':
+          baseStyle.push({ color: theme.color.btnPrimaryText });
+          break;
+        case 'secondary':
+          baseStyle.push({ color: theme.color.btnSecondaryText });
+          break;
+        case 'link':
+          baseStyle.push({ color: theme.color.btnLinkText });
+          break;
+        case 'success':
+        case 'warning':
+        case 'danger':
+          baseStyle.push({ color: '#FFFFFF' });
+          break;
+        default:
+          baseStyle.push({ color: '#FFFFFF' });
+          break;
+      }
     }
 
     return baseStyle;
@@ -126,12 +147,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.xl,      // 32px
   },
   buttonPrimary: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.color.btnPrimaryBg,
+    borderRadius: theme.radius.button,
+    minHeight: 48,
   },
   buttonSecondary: {
-    backgroundColor: 'transparent',
+    backgroundColor: theme.color.btnSecondaryBg,
     borderWidth: 1,
-    borderColor: theme.colors.success,
+    borderColor: theme.color.btnSecondaryBorder,
+    borderRadius: theme.radius.button,
+    minHeight: 48,
+  },
+  buttonLink: {
+    backgroundColor: 'transparent',
+    minHeight: 48,
+    paddingVertical: theme.spacing.sm,
   },
   buttonSuccess: {
     backgroundColor: theme.colors.success,

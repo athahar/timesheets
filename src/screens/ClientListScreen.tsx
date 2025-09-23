@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   RefreshControl,
   TouchableOpacity,
+  StyleSheet,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Client } from '../types';
@@ -18,6 +19,7 @@ import {
   addClient,
   getClientSummary,
 } from '../services/storageService';
+import { theme } from '../styles/theme';
 
 interface ClientListScreenProps {
   navigation: any;
@@ -104,35 +106,102 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const renderClientCard = ({ item }: { item: ClientWithSummary }) => (
     <TouchableOpacity
       onPress={() => handleClientPress(item)}
-      className="bg-card rounded-card shadow-card p-6 mb-4"
+      style={{
+        backgroundColor: theme.colors.card,
+        borderRadius: theme.borderRadius.card,
+        padding: theme.spacing.lg,
+        marginBottom: theme.spacing.md,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        ...theme.shadows.card,
+      }}
     >
-      <View className="flex-row justify-between items-start mb-4">
-        <View className="flex-1">
-          <Text className="text-headline font-semibold text-text-primary mb-1">
+      <View style={{
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: theme.spacing.md,
+      }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{
+            fontSize: theme.fontSize.headline,
+            fontWeight: theme.fontWeight.semibold,
+            color: theme.colors.text.primary,
+            marginBottom: 4,
+          }}>
             {item.name}
           </Text>
-          <Text className="text-callout text-text-secondary">
-            ${item.hourlyRate}/hour
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{
+              fontSize: theme.fontSize.body,
+              fontWeight: theme.fontWeight.medium,
+              color: theme.colors.money[500],
+            }}>
+              ${item.hourlyRate}
+            </Text>
+            <Text style={{
+              fontSize: theme.fontSize.callout,
+              color: theme.colors.text.secondary,
+              marginLeft: 4,
+            }}>
+              /hour
+            </Text>
+          </View>
         </View>
 
-        <View className="items-end">
+        <View style={{ alignItems: 'flex-end' }}>
           {item.unpaidBalance > 0 ? (
-            <Text className="text-title font-bold text-warning">
-              ${item.unpaidBalance.toFixed(0)}
-            </Text>
+            <View style={{
+              backgroundColor: theme.colors.warning[50],
+              borderWidth: 1,
+              borderColor: theme.colors.warning[100],
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 8,
+            }}>
+              <Text style={{
+                fontSize: theme.fontSize.callout,
+                fontWeight: theme.fontWeight.semibold,
+                color: theme.colors.warning[600],
+              }}>
+                ${item.unpaidBalance.toFixed(0)}
+              </Text>
+            </View>
           ) : (
-            <Text className="text-callout font-medium text-success">
-              Paid up
-            </Text>
+            <View style={{
+              backgroundColor: theme.colors.money[50],
+              borderWidth: 1,
+              borderColor: theme.colors.money[100],
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 8,
+            }}>
+              <Text style={{
+                fontSize: theme.fontSize.footnote,
+                fontWeight: theme.fontWeight.medium,
+                color: theme.colors.money[600],
+              }}>
+                Paid up
+              </Text>
+            </View>
           )}
         </View>
       </View>
 
       {item.unpaidHours > 0 && (
-        <View className="bg-warning/10 rounded-lg p-3">
-          <Text className="text-warning text-footnote font-medium">
-            {item.unpaidHours.toFixed(1)} unpaid hours
+        <View style={{
+          backgroundColor: theme.colors.warning[50],
+          borderWidth: 1,
+          borderColor: theme.colors.warning[100],
+          borderRadius: 8,
+          padding: 12,
+        }}>
+          <Text style={{
+            fontSize: theme.fontSize.callout,
+            fontWeight: theme.fontWeight.medium,
+            color: theme.colors.warning[600],
+          }}>
+            ⏱️ {item.unpaidHours.toFixed(1)} unpaid hours
           </Text>
         </View>
       )}
@@ -142,19 +211,83 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const totalUnpaid = clients.reduce((sum, client) => sum + client.unpaidBalance, 0);
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
       {/* Header */}
-      <View className="px-6 pt-6 pb-4">
-        <Text className="text-display font-bold text-text-primary mb-6">Clients</Text>
+      <View style={{
+        paddingHorizontal: theme.spacing.lg,
+        paddingTop: theme.spacing.lg,
+        paddingBottom: theme.spacing.md,
+      }}>
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          marginBottom: theme.spacing.lg,
+        }}>
+          <Text style={{
+            fontSize: 32,
+            fontWeight: '700',
+            color: theme.colors.text.primary,
+            flex: 1,
+          }}>
+            Clients
+          </Text>
+          <View style={{
+            backgroundColor: 'rgba(0, 122, 255, 0.15)',
+            paddingHorizontal: 12,
+            paddingVertical: 4,
+            borderRadius: 16,
+          }}>
+            <Text style={{
+              fontSize: theme.fontSize.footnote,
+              fontWeight: theme.fontWeight.medium,
+              color: theme.colors.primary,
+            }}>
+              {clients.length}
+            </Text>
+          </View>
+        </View>
 
         {totalUnpaid > 0 && (
-          <View className="bg-warning/10 border border-warning/20 rounded-card p-4 mb-6">
-            <Text className="text-callout text-text-secondary mb-1">
-              Total Outstanding
-            </Text>
-            <Text className="text-title font-bold text-warning">
-              ${totalUnpaid.toFixed(2)}
-            </Text>
+          <View style={{
+            backgroundColor: theme.colors.warning[50],
+            borderWidth: 1,
+            borderColor: theme.colors.warning[100],
+            borderRadius: theme.borderRadius.card,
+            padding: theme.spacing.lg,
+            marginBottom: theme.spacing.lg,
+          }}>
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{
+                  fontSize: theme.fontSize.callout,
+                  color: theme.colors.text.secondary,
+                  marginBottom: 4,
+                }}>
+                  💰 Total Outstanding
+                </Text>
+                <Text style={{
+                  fontSize: 24,
+                  fontWeight: theme.fontWeight.bold,
+                  color: theme.colors.warning[600],
+                }}>
+                  ${totalUnpaid.toFixed(2)}
+                </Text>
+              </View>
+              <View style={{
+                backgroundColor: theme.colors.warning[100],
+                width: 48,
+                height: 48,
+                borderRadius: 24,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <Text style={{ fontSize: 18 }}>📊</Text>
+              </View>
+            </View>
           </View>
         )}
       </View>
@@ -169,21 +302,35 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
         }
         contentContainerStyle={{ padding: 24, paddingTop: 0 }}
         ListEmptyComponent={
-          <View className="flex-1 justify-center items-center py-20">
-            <Text className="text-body text-text-secondary mb-4">No clients yet</Text>
-            <Text className="text-callout text-text-secondary text-center">
+          <View style={{
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingVertical: 80,
+          }}>
+            <Text style={{
+              fontSize: theme.fontSize.body,
+              color: theme.colors.text.secondary,
+              marginBottom: 16,
+            }}>
+              No clients yet
+            </Text>
+            <Text style={{
+              fontSize: theme.fontSize.callout,
+              color: theme.colors.text.secondary,
+              textAlign: 'center',
+            }}>
               Add your first client to start tracking time
             </Text>
           </View>
         }
         ListFooterComponent={
-          <View className="mt-6">
+          <View style={{ marginTop: 24 }}>
             <Button
               title="Add New Client"
               onPress={() => setShowAddModal(true)}
               variant="primary"
               size="lg"
-              className="w-full"
             />
           </View>
         }
@@ -197,68 +344,127 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
         presentationStyle="pageSheet"
         onRequestClose={() => setShowAddModal(false)}
       >
-        <SafeAreaView className="flex-1 bg-background">
-          <View className="flex-1 px-6 pt-6">
+        <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+          <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 24 }}>
             {/* Modal Header */}
-            <View className="flex-row justify-between items-center mb-8">
-              <Text className="text-title font-bold text-text-primary">Add New Client</Text>
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 32,
+            }}>
+              <Text style={{
+                fontSize: theme.fontSize.title,
+                fontWeight: theme.fontWeight.bold,
+                color: theme.colors.text.primary,
+              }}>
+                Add New Client
+              </Text>
               <TouchableOpacity
                 onPress={() => setShowAddModal(false)}
-                className="px-4 py-2"
+                style={{ paddingHorizontal: 16, paddingVertical: 8 }}
               >
-                <Text className="text-primary text-headline font-medium">Cancel</Text>
+                <Text style={{
+                  color: theme.colors.primary,
+                  fontSize: theme.fontSize.headline,
+                  fontWeight: theme.fontWeight.medium,
+                }}>
+                  Cancel
+                </Text>
               </TouchableOpacity>
             </View>
 
             {/* Form */}
-            <View className="space-y-6">
-              <View>
-                <Text className="text-callout font-medium text-text-primary mb-3">
+            <View>
+              <View style={{ marginBottom: 24 }}>
+                <Text style={{
+                  fontSize: theme.fontSize.callout,
+                  fontWeight: theme.fontWeight.medium,
+                  color: theme.colors.text.primary,
+                  marginBottom: 12,
+                }}>
                   Client Name
                 </Text>
-                <View className="bg-card rounded-button border border-gray-200">
+                <View style={{
+                  backgroundColor: theme.colors.card,
+                  borderRadius: theme.borderRadius.medium,
+                  borderWidth: 1,
+                  borderColor: '#E5E7EB',
+                }}>
                   <TextInput
                     value={newClientName}
                     onChangeText={setNewClientName}
                     placeholder="Enter client name"
                     placeholderTextColor="#86868B"
-                    className="px-4 py-4 text-body text-text-primary"
+                    style={{
+                      paddingHorizontal: 16,
+                      paddingVertical: 16,
+                      fontSize: theme.fontSize.body,
+                      color: theme.colors.text.primary,
+                      fontFamily: '-apple-system',
+                    }}
                     autoCapitalize="words"
-                    style={{ fontFamily: '-apple-system' }}
                   />
                 </View>
               </View>
 
-              <View>
-                <Text className="text-callout font-medium text-text-primary mb-3">
+              <View style={{ marginBottom: 24 }}>
+                <Text style={{
+                  fontSize: theme.fontSize.callout,
+                  fontWeight: theme.fontWeight.medium,
+                  color: theme.colors.text.primary,
+                  marginBottom: 12,
+                }}>
                   Hourly Rate
                 </Text>
-                <View className="bg-card rounded-button border border-gray-200">
-                  <View className="flex-row items-center">
-                    <Text className="text-body text-text-secondary pl-4">$</Text>
+                <View style={{
+                  backgroundColor: theme.colors.card,
+                  borderRadius: theme.borderRadius.medium,
+                  borderWidth: 1,
+                  borderColor: '#E5E7EB',
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{
+                      fontSize: theme.fontSize.body,
+                      color: theme.colors.text.secondary,
+                      paddingLeft: 16,
+                    }}>
+                      $
+                    </Text>
                     <TextInput
                       value={newClientRate}
                       onChangeText={setNewClientRate}
                       placeholder="45"
                       placeholderTextColor="#86868B"
                       keyboardType="numeric"
-                      className="flex-1 px-2 py-4 text-body text-text-primary"
-                      style={{ fontFamily: '-apple-system' }}
+                      style={{
+                        flex: 1,
+                        paddingHorizontal: 8,
+                        paddingVertical: 16,
+                        fontSize: theme.fontSize.body,
+                        color: theme.colors.text.primary,
+                        fontFamily: '-apple-system',
+                      }}
                     />
-                    <Text className="text-body text-text-secondary pr-4">/hour</Text>
+                    <Text style={{
+                      fontSize: theme.fontSize.body,
+                      color: theme.colors.text.secondary,
+                      paddingRight: 16,
+                    }}>
+                      /hour
+                    </Text>
                   </View>
                 </View>
               </View>
             </View>
 
             {/* Add Button */}
-            <View className="mt-12">
+            <View style={{ marginTop: 48 }}>
               <Button
                 title="Add Client"
                 onPress={handleAddClient}
                 variant="primary"
                 size="lg"
-                className="w-full"
               />
             </View>
           </View>

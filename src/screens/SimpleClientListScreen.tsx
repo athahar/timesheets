@@ -26,6 +26,8 @@ import {
   setUserRole,
   requestPayment,
   getSessionsByClient,
+  getActiveSession,
+  getClientMoneyState,
 } from '../services/storageService';
 
 interface ClientListScreenProps {
@@ -41,8 +43,17 @@ interface ClientWithSummary extends Client {
   hasUnpaidSessions: boolean;
   hasRequestedSessions: boolean;
   paymentStatus: 'unpaid' | 'requested' | 'paid';
-  claimedStatus?: 'claimed' | 'unclaimed'; // Inherited from Client but made explicit
+  claimedStatus?: 'claimed' | 'unclaimed';
+  hasActiveSession?: boolean;
+  activeSessionTime?: number;
 }
+
+const pillColors = {
+  paid:{ bg:theme.color.pillPaidBg, text:theme.color.pillPaidText, label:'Paid up' },
+  due:(amount:number)=>({ bg:theme.color.pillDueBg, text:theme.color.pillDueText, label:`Due $${amount}` }),
+  requested:{ bg:theme.color.pillReqBg, text:theme.color.pillReqText, label:'Requested' },
+  active:(timer:string)=>({ bg:theme.color.pillActiveBg, text:theme.color.pillActiveText, label:`Active • ${timer}` }),
+} as const;
 
 export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }) => {
   if (__DEV__) {
@@ -57,36 +68,32 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<string>('');
-  const [showPaymentConfirm, setShowPaymentConfirm] = useState<string | null>(null);
-  const [showInviteModal, setShowInviteModal] = useState(false);
   const [selectedClientForInvite, setSelectedClientForInvite] = useState<ClientWithSummary | null>(null);
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
+
+  const formatTime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const loadClients = async () => {
     if (__DEV__) {
       console.log('🔄 ClientList: loadClients function called!');
     }
-    if (__DEV__) {
-      console.log('🔄 ClientList: Starting to load clients...');
-    }
-    if (__DEV__) {
-      console.log('🔄 ClientList: userProfile:', userProfile);
-    }
     try {
-      // For authenticated users, only load their own clients
-      // For now, show empty list until we implement user-specific storage
       let clientsData: Client[] = [];
       let user = '';
 
       if (userProfile) {
-        // Authenticated user - load clients based on relationships
         user = userProfile.name;
         if (__DEV__) {
           console.log('📊 Auth user - loading relationship-based clients for:', user);
         }
 
         try {
-          // Get client IDs that have relationships with this provider
           const { data: relationships, error: relError } = await supabase
             .from('trackpay_relationships')
             .select('client_id')
@@ -98,7 +105,6 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
           } else if (relationships && relationships.length > 0) {
             console.log('📊 Found', relationships.length, 'relationships');
 
-            // Get client details for each relationship
             const clientIds = relationships.map(rel => rel.client_id);
             const { data: relatedClients, error: clientError } = await supabase
               .from('trackpay_users')
@@ -110,13 +116,12 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
               console.error('❌ Error loading related clients:', clientError);
               clientsData = [];
             } else {
-              // Convert Supabase format to Client format
               clientsData = (relatedClients || []).map(client => ({
                 id: client.id,
                 name: client.name,
                 email: client.email,
                 hourlyRate: client.hourly_rate || 0,
-                claimedStatus: client.claimed_status || 'claimed' // Default to claimed for existing clients
+                claimedStatus: client.claimed_status || 'claimed'
               }));
               if (__DEV__) {
                 console.log('✅ Loaded', clientsData.length, 'related clients');
@@ -133,7 +138,6 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
           clientsData = [];
         }
       } else {
-        // Fallback for non-auth users (development mode)
         const [allClientsData, currentUser] = await Promise.all([
           getClients(),
           getCurrentUser()
@@ -146,21 +150,23 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
       }
 
       if (__DEV__) {
-
         console.log('💰 ClientList: Loading client summaries for', clientsData.length, 'clients...');
-
       }
 
-      // Load summaries with timeout to prevent hanging
+      // Load summaries and check for active sessions
       const clientsWithSummary = await Promise.allSettled(
         clientsData.map(async (client) => {
           try {
-            const summary = await Promise.race([
-              getClientSummary(client.id),
-              new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Summary timeout')), 2000)
-              )
+            const [summary, activeSession] = await Promise.all([
+              Promise.race([
+                getClientSummary(client.id),
+                new Promise((_, reject) =>
+                  setTimeout(() => reject(new Error('Summary timeout')), 2000)
+                )
+              ]),
+              getActiveSession(client.id).catch(() => null)
             ]);
+
             return {
               ...client,
               unpaidHours: summary.unpaidHours,
@@ -171,12 +177,14 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
               hasUnpaidSessions: summary.hasUnpaidSessions,
               hasRequestedSessions: summary.hasRequestedSessions,
               paymentStatus: summary.paymentStatus,
+              hasActiveSession: !!activeSession,
+              activeSessionTime: activeSession ?
+                (Date.now() - new Date(activeSession.startTime).getTime()) / 1000 : 0,
             };
           } catch (error) {
             if (__DEV__) {
               console.warn('⚠️ Failed to load summary for client:', client.name, error.message);
             }
-            // Return client with default summary
             return {
               ...client,
               unpaidHours: 0,
@@ -187,25 +195,24 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
               hasUnpaidSessions: false,
               hasRequestedSessions: false,
               paymentStatus: 'paid' as const,
+              hasActiveSession: false,
+              activeSessionTime: 0,
             };
           }
         })
       );
 
-      // Filter successful results
       const successfulClients = clientsWithSummary
         .filter((result): result is PromiseFulfilledResult<ClientWithSummary> =>
           result.status === 'fulfilled'
         )
         .map(result => result.value);
 
-      // Sort alphabetically to ensure stable ordering
       const sortedClients = successfulClients.sort((a, b) => a.name.localeCompare(b.name));
       setClients(sortedClients);
       const userName = userProfile?.name || user || 'Provider';
       setCurrentUser(userName);
 
-      // Set user role and current user in storage for backward compatibility
       if (userProfile) {
         await setCurrentUser(userName);
         await setUserRole(userProfile.role);
@@ -214,9 +221,6 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
       console.log('📊 SimpleClientListScreen: Loaded', sortedClients.length, 'clients:', sortedClients.map(c => ({ id: c.id, name: c.name })));
       if (__DEV__) {
         console.log('👤 Current user set to:', userName, 'with role:', userProfile?.role);
-      }
-      if (__DEV__) {
-        console.log('✅ ClientList: Loading complete!');
       }
     } catch (error) {
       console.error('Error loading clients:', error);
@@ -231,11 +235,6 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
       if (__DEV__) {
         console.log('🎯 SimpleClientListScreen: useFocusEffect triggered');
       }
-      if (__DEV__) {
-        console.log('🔧 SimpleClientListScreen: userProfile available:', !!userProfile);
-      }
-
-      // Only load clients if we have a userProfile
       if (userProfile) {
         console.log('🔧 SimpleClientListScreen: About to call loadClients...');
         loadClients();
@@ -243,7 +242,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
         if (__DEV__) {
           console.log('⏳ SimpleClientListScreen: Waiting for userProfile...');
         }
-        setLoading(false); // Stop loading state if no profile yet
+        setLoading(false);
       }
     }, [userProfile])
   );
@@ -257,9 +256,6 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
     if (__DEV__) {
       console.log('🎯 SimpleClientListScreen: Client pressed:', client.name, 'ID:', client.id);
     }
-    if (__DEV__) {
-      console.log('🧭 Navigating to ClientHistory with clientId:', client.id);
-    }
     navigation.navigate('ClientHistory', { clientId: client.id });
   };
 
@@ -268,13 +264,11 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
   };
 
   const handleClientAdded = () => {
-    // Refresh the client list when a new client is added
     loadClients();
   };
 
   const handleShowInvite = async (client: ClientWithSummary) => {
     try {
-      // Load the invite code for this client
       const invites = await directSupabase.getInvites();
       const clientInvite = invites.find(invite =>
         invite.clientId === client.id && invite.status === 'pending'
@@ -306,172 +300,148 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
     }
   };
 
+  const renderStatusPill = (client: ClientWithSummary) => {
+    let pillConfig;
 
-  const handleRequestPayment = async (client: ClientWithSummary) => {
-    try {
-      const sessions = await getSessionsByClient(client.id);
-      const unpaidSessions = sessions.filter(session => session.status === 'unpaid');
-
-      if (unpaidSessions.length === 0) {
-        Alert.alert('No Unpaid Sessions', 'There are no unpaid sessions for this client.');
-        return;
+    if (client.totalUnpaidBalance > 0) {
+      if (client.paymentStatus === 'requested') {
+        pillConfig = pillColors.requested;
+      } else {
+        pillConfig = pillColors.due(client.totalUnpaidBalance.toFixed(0));
       }
-
-      await requestPayment(client.id, unpaidSessions.map(s => s.id));
-      Alert.alert('Payment Requested', `Payment request for $${client.unpaidBalance.toFixed(2)} has been sent to ${client.name}.`);
-      loadClients(); // Refresh data
-      setShowPaymentConfirm(null);
-    } catch (error) {
-      console.error('Error requesting payment:', error);
-      Alert.alert('Error', 'Failed to request payment');
+    } else {
+      pillConfig = pillColors.paid;
     }
-  };
 
-  const formatHours = (hours: number) => {
-    const h = Math.floor(hours);
-    const m = Math.round((hours - h) * 60);
-    return `${h}hr ${m}min`;
-  };
-
-  const renderClientCard = ({ item }: { item: ClientWithSummary }) => (
-    <TouchableOpacity
-      onPress={() => handleClientPress(item)}
-      style={[styles.clientCard, theme.shadows.card]}
-      activeOpacity={0.8}
-    >
-      <View style={styles.clientHeader}>
-        {/* Left Side: Client Info */}
-        <View style={styles.clientInfo}>
-          <View style={styles.clientNameRow}>
-            <Text style={styles.clientName}>{item.name}</Text>
-            {item.claimedStatus === 'unclaimed' && (
-              <TouchableOpacity
-                style={styles.inviteButton}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleShowInvite(item);
-                }}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.inviteButtonText}>Invite</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          <Text style={styles.clientRate}>${item.hourlyRate}/hour</Text>
-        </View>
-
-        {/* Right Side: Balance Info & Actions */}
-        <View style={styles.balanceSection}>
-          {item.totalUnpaidBalance > 0 ? (
-            <>
-              <Text style={styles.balanceDue}>
-                Balance due: ${item.totalUnpaidBalance.toFixed(0)}
-              </Text>
-
-              {/* Status-specific hours display */}
-              {item.hasUnpaidSessions && item.hasRequestedSessions ? (
-                <Text style={styles.unpaidHoursInline}>
-                  [{formatHours(item.unpaidHours)} unpaid, {formatHours(item.requestedHours)} requested]
-                </Text>
-              ) : item.hasUnpaidSessions ? (
-                <Text style={styles.unpaidHoursInline}>
-                  [{formatHours(item.unpaidHours)} unpaid]
-                </Text>
-              ) : item.hasRequestedSessions ? (
-                <Text style={styles.requestedHoursInline}>
-                  [{formatHours(item.requestedHours)} requested]
-                </Text>
-              ) : null}
-
-              {/* Status-aware action button */}
-              {item.paymentStatus === 'unpaid' ? (
-                <TouchableOpacity
-                  style={styles.requestButton}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    setShowPaymentConfirm(item.id);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.requestButtonText}>Request Payment</Text>
-                </TouchableOpacity>
-              ) : item.paymentStatus === 'requested' ? (
-                <TouchableOpacity
-                  style={styles.requestedButton}
-                  disabled={true}
-                >
-                  <Text style={styles.requestedButtonText}>Payment Requested</Text>
-                </TouchableOpacity>
-              ) : null}
-            </>
-          ) : (
-            <Text style={styles.paidUp}>Paid up</Text>
-          )}
-        </View>
+    return (
+      <View style={[styles.pill, { backgroundColor: pillConfig.bg }]}>
+        <Text style={[styles.pillText, { color: pillConfig.text }]}>
+          {pillConfig.label}
+        </Text>
       </View>
-    </TouchableOpacity>
-  );
+    );
+  };
+
+  const renderActiveChip = (client: ClientWithSummary) => {
+    if (!client.hasActiveSession) return null;
+
+    const activeConfig = pillColors.active(formatTime(client.activeSessionTime || 0));
+
+    return (
+      <View style={[styles.pill, styles.activeMeta, { backgroundColor: activeConfig.bg }]}>
+        <Text style={[styles.pillText, { color: activeConfig.text }]}>
+          {activeConfig.label}
+        </Text>
+      </View>
+    );
+  };
+
+  const renderClientCard = ({ item }: { item: ClientWithSummary }) => {
+    const isActive = item.hasActiveSession;
+
+    return (
+      <TouchableOpacity
+        onPress={() => handleClientPress(item)}
+        style={[
+          styles.clientCard,
+          isActive && styles.clientCardActive
+        ]}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.name}, ${item.totalUnpaidBalance > 0 ? `Due $${item.totalUnpaidBalance.toFixed(0)}` : 'Paid up'}`}
+      >
+        {/* Left Side: Client Info */}
+        <View style={styles.clientLeft}>
+          <Text style={styles.clientName}>{item.name}</Text>
+          <Text style={styles.clientRate}>
+            ${item.hourlyRate}/hour
+          </Text>
+          {item.claimedStatus === 'unclaimed' && (
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                handleShowInvite(item);
+              }}
+              activeOpacity={0.7}
+              style={styles.inviteButton}
+            >
+              <Text style={styles.inviteButtonText}>Invite</Text>
+            </TouchableOpacity>
+          )}
+          {renderActiveChip(item)}
+        </View>
+
+        {/* Right Side: Status Pill */}
+        <View style={styles.clientRight}>
+          {renderStatusPill(item)}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const totalUnpaid = clients.reduce((sum, client) => sum + client.totalUnpaidBalance, 0);
 
+  if (loading || !userProfile) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* User Header */}
-      <View style={styles.userHeader}>
+      {/* Top Navigation */}
+      <View style={styles.topNav}>
         <Text style={styles.userName}>{currentUser}</Text>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+        <View style={styles.navActions}>
+          <TouchableOpacity onPress={handleAddClient} style={styles.addButton}>
+            <Text style={styles.addButtonText}>+</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Scrollable Content */}
-      <FlatList
-        data={clients}
-        renderItem={renderClientCard}
-        keyExtractor={(item) => item.id}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-        contentContainerStyle={styles.listContainer}
-        style={styles.scrollContainer}
-        ListHeaderComponent={
-          <View>
-            {/* Main Header */}
-            <View style={styles.header}>
-              <Text style={styles.title}>Clients</Text>
-
-              {totalUnpaid > 0 && (
-                <View style={styles.outstandingCard}>
-                  <Text style={styles.outstandingLabel}>Total Outstanding</Text>
-                  <Text style={styles.outstandingAmount}>
-                    ${totalUnpaid.toFixed(2)}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            {/* Add New Client Button */}
-            <View style={styles.addButtonContainer}>
-              <Button
-                title="Add New Client"
-                onPress={handleAddClient}
-                variant="primary"
-                size="lg"
-                style={styles.addButton}
-              />
+      <View style={styles.content}>
+        {/* Total Outstanding Card */}
+        {totalUnpaid > 0 ? (
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Total Outstanding</Text>
+            <Text style={styles.summaryAmount}>${totalUnpaid.toFixed(2)}</Text>
+          </View>
+        ) : (
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Total Outstanding</Text>
+            <View style={styles.summaryZeroRow}>
+              <Text style={styles.summaryZeroAmount}>$0.00</Text>
+              <Text style={styles.summaryCheckmark}>✅</Text>
             </View>
           </View>
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>No clients yet</Text>
-            <Text style={styles.emptySubtitle}>
-              Add your first client to start tracking time
-            </Text>
-          </View>
-        }
-        showsVerticalScrollIndicator={false}
-      />
+        )}
+
+        {/* Client List */}
+        <FlatList
+          data={clients}
+          renderItem={renderClientCard}
+          keyExtractor={(item) => item.id}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          }
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyWrap}>
+              <Text style={styles.emptyTitle}>No clients yet</Text>
+              <TouchableOpacity style={styles.emptyBtn} onPress={handleAddClient}>
+                <Text style={styles.emptyBtnText}>Add Client</Text>
+              </TouchableOpacity>
+            </View>
+          }
+        />
+      </View>
 
       {/* Add Client Modal */}
       <AddClientModal
@@ -493,40 +463,6 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
           inviteCode={inviteCode}
         />
       )}
-
-      {/* Payment Confirmation Dialog */}
-      {showPaymentConfirm && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.confirmDialog}>
-            <Text style={styles.confirmTitle}>Request Payment</Text>
-            <Text style={styles.confirmMessage}>
-              {(() => {
-                const client = clients.find(c => c.id === showPaymentConfirm);
-                return client ?
-                  `Request $${client.unpaidBalance.toFixed(2)} payment from ${client.name}?` :
-                  'Request payment?';
-              })()}
-            </Text>
-            <View style={styles.confirmButtons}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setShowPaymentConfirm(null)}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.confirmButton}
-                onPress={() => {
-                  const client = clients.find(c => c.id === showPaymentConfirm);
-                  if (client) handleRequestPayment(client);
-                }}
-              >
-                <Text style={styles.confirmButtonText}>Request</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      )}
     </SafeAreaView>
   );
 };
@@ -534,289 +470,170 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.color.appBg,
   },
-  userHeader: {
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: theme.font.body,
+    color: theme.color.textSecondary,
+  },
+  topNav: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.md,
-    paddingBottom: theme.spacing.md,
-    backgroundColor: theme.colors.card,
+    paddingHorizontal: theme.space.x16,
+    paddingVertical: theme.space.x12,
+    backgroundColor: theme.color.cardBg,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E7',
+    borderBottomColor: theme.color.border,
   },
   userName: {
-    fontSize: theme.fontSize.headline,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: theme.font.body,
+    fontWeight: '600',
+    color: theme.color.text,
   },
-  logoutButton: {
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
-  },
-  logoutText: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.primary,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  header: {
-    paddingTop: theme.spacing.lg,
-    paddingBottom: theme.spacing.md,
-  },
-  title: {
-    fontSize: theme.fontSize.title,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.lg,
-    fontFamily: theme.typography.fontFamily.display,
-  },
-  outstandingCard: {
-    backgroundColor: theme.colors.status.unpaid.background,
-    borderWidth: 1,
-    borderColor: theme.colors.warning + '40',
-    borderRadius: theme.borderRadius.card,
-    padding: theme.spacing.lg,
-    marginBottom: theme.spacing.lg,
-    ...theme.shadows.card,
-  },
-  outstandingLabel: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
-    marginBottom: theme.spacing.xs,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  outstandingAmount: {
-    fontSize: theme.fontSize.title,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.warning,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  scrollContainer: {
-    flex: 1,
-  },
-  listContainer: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.xl,
-    flexGrow: 1,
-  },
-  clientCard: {
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.borderRadius.card,
-    padding: theme.spacing.xl,
-    marginBottom: theme.spacing.lg,
-    ...theme.shadows.card,
-  },
-  clientHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  clientInfo: {
-    flex: 1,
-  },
-  clientNameRow: {
+  navActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: theme.spacing.xs,
-    gap: theme.spacing.sm,
-  },
-  clientName: {
-    fontSize: theme.fontSize.headline,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  statusBadge: {
-    backgroundColor: theme.colors.warning + '20',
-    borderRadius: theme.borderRadius.small,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 2,
-  },
-  statusBadgeText: {
-    fontSize: theme.fontSize.caption,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.warning,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  inviteButton: {
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-  },
-  inviteButtonText: {
-    fontSize: theme.fontSize.caption,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.primary,
-    fontFamily: theme.typography.fontFamily.primary,
-    textDecorationLine: 'underline',
-  },
-  clientRate: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  balanceSection: {
-    alignItems: 'flex-end',
-    flex: 1,
-  },
-  balanceDue: {
-    fontSize: theme.fontSize.body,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.warning,
-    fontFamily: theme.typography.fontFamily.primary,
-    marginBottom: theme.spacing.xs,
-  },
-  unpaidHoursInline: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
-    fontFamily: theme.typography.fontFamily.primary,
-    marginBottom: theme.spacing.sm,
-  },
-  requestedHoursInline: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.primary,
-    fontFamily: theme.typography.fontFamily.primary,
-    marginBottom: theme.spacing.sm,
-  },
-  requestButton: {
-    backgroundColor: theme.colors.success,
-    borderRadius: theme.borderRadius.button,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    ...theme.shadows.button,
-  },
-  requestButtonText: {
-    fontSize: theme.fontSize.footnote,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.white,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  requestedButton: {
-    backgroundColor: theme.colors.primary + '20',
-    borderWidth: 1,
-    borderColor: theme.colors.primary,
-    borderRadius: theme.borderRadius.button,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-  },
-  requestedButtonText: {
-    fontSize: theme.fontSize.footnote,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.primary,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  paidUp: {
-    fontSize: theme.fontSize.body,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.success,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  // Remove unused styles
-  unpaidHoursContainer: {
-    display: 'none', // Keep for compatibility but hide
-  },
-  unpaidHoursText: {
-    fontSize: theme.fontSize.footnote,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.warning,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 80,
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.borderRadius.card,
-    margin: theme.spacing.lg,
-    ...theme.shadows.card,
-  },
-  emptyTitle: {
-    fontSize: theme.fontSize.body,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.secondary,
-    marginBottom: theme.spacing.md,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  emptySubtitle: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
-    textAlign: 'center',
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  addButtonContainer: {
-    paddingBottom: theme.spacing.lg,
+    gap: theme.space.x16,
   },
   addButton: {
-    width: '100%',
-  },
-  // Modal styles
-  modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    width: 32,
+    height: 32,
+    borderRadius: theme.radius.button,
+    backgroundColor: theme.color.accent,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
   },
-  confirmDialog: {
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.borderRadius.card,
-    padding: theme.spacing.xl,
-    margin: theme.spacing.lg,
-    maxWidth: 350,
-    width: '90%',
-    ...theme.shadows.card,
+  addButtonText: {
+    fontSize: 18,
+    color: theme.color.cardBg,
+    fontWeight: '600',
   },
-  confirmTitle: {
-    fontSize: theme.fontSize.headline,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.md,
-    textAlign: 'center',
-    fontFamily: theme.typography.fontFamily.primary,
+  logoutButton: {
+    paddingVertical: theme.space.x8,
+    paddingHorizontal: theme.space.x12,
   },
-  confirmMessage: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.secondary,
-    marginBottom: theme.spacing.xl,
-    textAlign: 'center',
-    fontFamily: theme.typography.fontFamily.primary,
-    lineHeight: 22,
+  logoutText: {
+    fontSize: theme.font.body,
+    color: theme.color.accent,
   },
-  confirmButtons: {
+  content: {
+    flex: 1,
+    paddingHorizontal: theme.space.x16,
+    paddingTop: theme.space.x16,
+  },
+  summaryCard: {
+    backgroundColor: theme.color.cardBg,
+    borderRadius: theme.radius.card,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    padding: theme.space.x16,
+    marginBottom: theme.space.x16,
+  },
+  summaryLabel: {
+    color: theme.color.textSecondary,
+    fontSize: theme.font.small,
+    marginBottom: theme.space.x8,
+  },
+  summaryAmount: {
+    fontSize: theme.font.large,
+    fontWeight: '600',
+    color: theme.color.accent,
+  },
+  summaryZeroRow: {
     flexDirection: 'row',
-    gap: theme.spacing.md,
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: theme.colors.border,
-    borderRadius: theme.borderRadius.button,
-    paddingVertical: theme.spacing.md,
     alignItems: 'center',
+    gap: theme.space.x8,
   },
-  cancelButtonText: {
-    fontSize: theme.fontSize.body,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.secondary,
-    fontFamily: theme.typography.fontFamily.primary,
+  summaryZeroAmount: {
+    fontSize: theme.font.large,
+    fontWeight: '600',
+    color: theme.color.text,
   },
-  confirmButton: {
-    flex: 1,
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.borderRadius.button,
-    paddingVertical: theme.spacing.md,
+  summaryCheckmark: {
+    fontSize: 16,
+  },
+  clientCard: {
+    backgroundColor: theme.color.cardBg,
+    borderRadius: theme.radius.card,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    padding: theme.space.x16,
+    marginBottom: theme.space.x12,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  confirmButtonText: {
-    fontSize: theme.fontSize.body,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.white,
-    fontFamily: theme.typography.fontFamily.primary,
+  clientCardActive: {
+    borderLeftWidth: 3,
+    borderLeftColor: theme.color.accentTeal,
+  },
+  clientLeft: {
+    flexShrink: 1,
+  },
+  clientRight: {
+    alignItems: 'flex-end',
+  },
+  clientName: {
+    fontSize: theme.font.body,
+    color: theme.color.text,
+    fontWeight: '600',
+  },
+  clientRate: {
+    marginTop: theme.space.x2,
+    fontSize: theme.font.small,
+    color: theme.color.textSecondary,
+  },
+  inviteButton: {
+    marginTop: theme.space.x8,
+    alignSelf: 'flex-start',
+  },
+  inviteButtonText: {
+    fontSize: theme.font.small,
+    fontWeight: '600',
+    color: theme.color.accent,
+    textDecorationLine: 'underline',
+  },
+  pill: {
+    paddingVertical: theme.space.x8,
+    paddingHorizontal: theme.space.x12,
+    borderRadius: theme.radius.pill,
+    alignSelf: 'flex-start',
+  },
+  pillText: {
+    fontSize: theme.font.small,
+    fontWeight: '600',
+  },
+  activeMeta: {
+    marginTop: theme.space.x8,
+  },
+  emptyWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: theme.space.x24,
+    marginTop: 80,
+  },
+  emptyTitle: {
+    marginTop: theme.space.x12,
+    fontSize: theme.font.body,
+    color: theme.color.text,
+    marginBottom: theme.space.x16,
+  },
+  emptyBtn: {
+    paddingVertical: theme.space.x12,
+    paddingHorizontal: theme.space.x16,
+    borderRadius: theme.radius.button,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+  },
+  emptyBtnText: {
+    fontSize: theme.font.body,
+    color: theme.color.text,
   },
 });

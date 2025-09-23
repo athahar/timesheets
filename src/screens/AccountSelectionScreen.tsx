@@ -33,8 +33,8 @@ export const AccountSelectionScreen: React.FC<AccountSelectionScreenProps> = ({
     const loadAccounts = async () => {
       try {
         if (!userProfile) {
-          console.log('No user profile available yet');
-          setLoading(false);
+          console.log('No user profile available yet, waiting...');
+          // Keep loading state true while waiting for user profile
           return;
         }
 
@@ -140,7 +140,7 @@ export const AccountSelectionScreen: React.FC<AccountSelectionScreenProps> = ({
       {/* Header with user info and logout */}
       <View style={styles.header}>
         <View style={styles.userInfo}>
-          <Text style={styles.welcomeText}>Welcome back!</Text>
+          <Text style={styles.welcomeText}>Welcome!</Text>
           <Text style={styles.userName}>{userProfile?.name || userProfile?.email}</Text>
         </View>
         <TouchableOpacity onPress={handleSignOut} style={styles.logoutButton}>
@@ -151,7 +151,9 @@ export const AccountSelectionScreen: React.FC<AccountSelectionScreenProps> = ({
       <View style={styles.content}>
         {/* App Title */}
         <Text style={styles.appTitle}>TrackPay</Text>
-        <Text style={styles.subtitle}>Choose your account to continue</Text>
+        <Text style={styles.subtitle}>
+          {loading ? 'Loading...' : 'Choose your account to continue'}
+        </Text>
 
         {/* Account Options */}
         <View style={styles.accountList}>
@@ -161,7 +163,7 @@ export const AccountSelectionScreen: React.FC<AccountSelectionScreenProps> = ({
             accountOptions.map((account) => (
             <TouchableOpacity
               key={account.id}
-              style={[styles.accountCard, theme.shadows.card]}
+              style={styles.accountCard}
               onPress={() => handleAccountSelect(account)}
               activeOpacity={0.8}
             >
@@ -179,95 +181,100 @@ export const AccountSelectionScreen: React.FC<AccountSelectionScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.color.appBg,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.xl,
-    paddingVertical: theme.spacing.lg,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    borderBottomColor: theme.color.border,
   },
   userInfo: {
     flex: 1,
   },
   welcomeText: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
+    fontSize: 13,
+    color: theme.color.textSecondary,
     fontFamily: theme.typography.fontFamily.primary,
   },
   userName: {
-    fontSize: theme.fontSize.headline,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.primary,
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.color.text,
     fontFamily: theme.typography.fontFamily.primary,
   },
   logoutButton: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borderRadius.button,
+    backgroundColor: theme.color.cardBg,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: theme.colors.error,
+    borderColor: theme.color.border,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   logoutText: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.error,
+    fontSize: 16,
+    color: theme.color.text,
     fontFamily: theme.typography.fontFamily.primary,
+    fontWeight: '500',
   },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.xl,
+    paddingHorizontal: 16,
   },
   appTitle: {
-    fontSize: 32,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text.primary,
+    fontSize: 28,
+    fontWeight: '700',
+    color: theme.color.brand,
     fontFamily: theme.typography.fontFamily.display,
-    marginBottom: theme.spacing.md,
+    marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.secondary,
+    fontSize: 16,
+    color: theme.color.textSecondary,
     fontFamily: theme.typography.fontFamily.primary,
-    marginBottom: theme.spacing.xxl,
+    marginBottom: 32,
     textAlign: 'center',
   },
   accountList: {
     width: '100%',
     maxWidth: 400,
-    gap: theme.spacing.lg,
+    gap: 16,
   },
   accountCard: {
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.borderRadius.card,
-    paddingVertical: theme.spacing.xl,
-    paddingHorizontal: theme.spacing.lg,
-    alignItems: 'flex-start',
+    backgroundColor: theme.color.cardBg,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: theme.color.border,
+    padding: 16,
+    alignItems: 'flex-start',
+    minHeight: 72,
+    justifyContent: 'center',
   },
   accountName: {
-    fontSize: theme.fontSize.headline,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.color.text,
     fontFamily: theme.typography.fontFamily.primary,
-    marginBottom: theme.spacing.xs,
+    marginBottom: 4,
   },
   accountSubtitle: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
+    fontSize: 13,
+    color: theme.color.textSecondary,
     fontFamily: theme.typography.fontFamily.primary,
   },
   loadingText: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.secondary,
+    fontSize: 16,
+    color: theme.color.textSecondary,
     fontFamily: theme.typography.fontFamily.primary,
     textAlign: 'center',
-    paddingVertical: theme.spacing.xl,
+    paddingVertical: 32,
   },
 });

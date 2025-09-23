@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { theme } from '../styles/theme';
 
 interface StatusPillProps {
-  status: 'paid' | 'unpaid' | 'requested';
+  status: 'paid' | 'unpaid' | 'requested' | 'active';
   size?: 'sm' | 'md';
   style?: any;
 }
@@ -17,30 +17,32 @@ export const StatusPill: React.FC<StatusPillProps> = ({
     switch (status) {
       case 'paid':
         return {
-          backgroundColor: theme.colors.status.paid.background,
-          borderColor: theme.colors.status.paid.border,
-          textColor: theme.colors.status.paid.text,
+          backgroundColor: theme.color.pillPaidBg,
+          textColor: theme.color.pillPaidText,
           text: 'Paid'
         };
       case 'unpaid':
         return {
-          backgroundColor: theme.colors.status.unpaid.background,
-          borderColor: theme.colors.status.unpaid.border,
-          textColor: theme.colors.status.unpaid.text,
+          backgroundColor: theme.color.pillDueBg,
+          textColor: theme.color.pillDueText,
           text: 'Unpaid'
         };
       case 'requested':
         return {
-          backgroundColor: theme.colors.status.requested.background,
-          borderColor: theme.colors.status.requested.border,
-          textColor: theme.colors.status.requested.text,
+          backgroundColor: theme.color.pillReqBg,
+          textColor: theme.color.pillReqText,
           text: 'Requested'
+        };
+      case 'active':
+        return {
+          backgroundColor: theme.color.pillActiveBg,
+          textColor: theme.color.pillActiveText,
+          text: 'Active'
         };
       default:
         return {
-          backgroundColor: theme.colors.text.tertiary + '1A', // 10% opacity
-          borderColor: theme.colors.text.tertiary + '33',     // 20% opacity
-          textColor: theme.colors.text.tertiary,
+          backgroundColor: theme.color.textTertiary + '1A', // 10% opacity
+          textColor: theme.color.textTertiary,
           text: 'Unknown'
         };
     }
@@ -55,8 +57,6 @@ export const StatusPill: React.FC<StatusPillProps> = ({
         size === 'sm' ? styles.pillSm : styles.pillMd,
         {
           backgroundColor: config.backgroundColor,
-          borderWidth: 1,
-          borderColor: config.borderColor,
         },
         style,
       ]}
@@ -67,6 +67,8 @@ export const StatusPill: React.FC<StatusPillProps> = ({
           size === 'sm' ? styles.textSm : styles.textMd,
           { color: config.textColor }
         ]}
+        numberOfLines={1}
+        ellipsizeMode="tail"
       >
         {config.text}
       </Text>
@@ -76,27 +78,27 @@ export const StatusPill: React.FC<StatusPillProps> = ({
 
 const styles = StyleSheet.create({
   pill: {
-    borderRadius: theme.borderRadius.small, // 6px for status pills
+    borderRadius: theme.radius.pill, // 10px for consistent pill design
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'flex-start',
   },
   pillSm: {
-    paddingHorizontal: theme.spacing.xs,  // 8px
-    paddingVertical: theme.spacing.xxs,   // 4px
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   pillMd: {
-    paddingHorizontal: theme.spacing.sm,  // 12px
-    paddingVertical: theme.spacing.xxs,   // 4px
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   text: {
     fontFamily: theme.typography.fontFamily.primary,
-    fontWeight: theme.fontWeight.medium,  // 500 weight for interactive elements
+    fontWeight: '600',  // semibold for pills
   },
   textSm: {
-    fontSize: theme.fontSize.footnote,    // 13px
+    fontSize: theme.font.small,    // 13px
   },
   textMd: {
-    fontSize: theme.fontSize.footnote,    // 13px for status labels
+    fontSize: theme.font.small,    // 13px for status labels
   },
 });

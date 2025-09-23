@@ -362,6 +362,7 @@ If the app is broken or styles aren't working:
 - [ ] Splash screen configured
 - [ ] `ITSAppUsesNonExemptEncryption: false` in iOS config
 - [ ] Proper iOS permissions in infoPlist
+- [ ] buildNumber incremented in the app.json
 
 #### **5. Dependencies & SDK Compatibility**
 - [ ] All peer dependencies installed (`react-native-gesture-handler`, `react-native-worklets`)

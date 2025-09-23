@@ -123,7 +123,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
             </TouchableOpacity>
             <Text style={styles.title}>Reset Password</Text>
             <Text style={styles.subtitle}>
-              Enter your email address and we'll send you a link to reset your password
+              We'll email you a reset link
             </Text>
           </View>
 
@@ -136,7 +136,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
                 value={email}
                 onChangeText={setEmail}
                 placeholder="your@email.com"
-                placeholderTextColor={theme.colors.text.secondary}
+                placeholderTextColor={theme.color.textSecondary}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -170,40 +170,41 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.color.appBg,
   },
   keyboardAvoid: {
     flex: 1,
   },
   content: {
     flex: 1,
-    paddingHorizontal: theme.spacing.xl,
+    paddingHorizontal: theme.space.x32,
     justifyContent: 'space-between',
   },
   header: {
-    marginTop: theme.spacing.xl,
-    marginBottom: theme.spacing.xxl,
+    marginTop: theme.space.x32,
+    marginBottom: theme.space.x32,
   },
   backButton: {
     alignSelf: 'flex-start',
-    paddingVertical: theme.spacing.sm,
-    marginBottom: theme.spacing.lg,
+    paddingVertical: theme.space.x12,
+    marginBottom: theme.space.x24,
+    minHeight: 44,
   },
   backButtonText: {
-    fontSize: theme.fontSize.headline,
-    color: theme.colors.primary,
+    fontSize: theme.font.body,
+    color: theme.color.btnLinkText,
     fontFamily: theme.typography.fontFamily.primary,
   },
   title: {
-    fontSize: 28,
+    fontSize: theme.font.large,
     fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text.primary,
+    color: theme.color.text,
     fontFamily: theme.typography.fontFamily.display,
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.space.x8,
   },
   subtitle: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.secondary,
+    fontSize: theme.font.body,
+    color: theme.color.textSecondary,
     fontFamily: theme.typography.fontFamily.primary,
     lineHeight: 22,
   },
@@ -211,44 +212,46 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   inputGroup: {
-    marginBottom: theme.spacing.xl,
+    marginBottom: theme.space.x24,
   },
   label: {
-    fontSize: theme.fontSize.body,
+    fontSize: theme.font.body,
     fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.primary,
+    color: theme.color.text,
     fontFamily: theme.typography.fontFamily.primary,
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.space.x8,
   },
   input: {
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.borderRadius.input,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.primary,
+    backgroundColor: theme.color.cardBg,
+    borderRadius: theme.radius.input,
+    paddingHorizontal: theme.space.x16,
+    paddingVertical: theme.space.x16,
+    fontSize: theme.font.body,
+    color: theme.color.text,
     fontFamily: theme.typography.fontFamily.primary,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    ...theme.shadows.card,
+    borderColor: theme.color.border,
+    minHeight: 48,
+    ...theme.shadow.cardLight.ios,
   },
   resetButton: {
-    marginBottom: theme.spacing.xl,
+    marginBottom: theme.space.x24,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: theme.spacing.xl,
+    paddingBottom: theme.space.x32,
+    minHeight: 44,
   },
   footerText: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.secondary,
+    fontSize: theme.font.body,
+    color: theme.color.textSecondary,
     fontFamily: theme.typography.fontFamily.primary,
   },
   footerLink: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.primary,
+    fontSize: theme.font.body,
+    color: theme.color.btnLinkText,
     fontWeight: theme.fontWeight.medium,
     fontFamily: theme.typography.fontFamily.primary,
   },
@@ -257,46 +260,46 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
+    paddingHorizontal: theme.space.x24,
   },
   iconContainer: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: theme.colors.success + '20',
+    backgroundColor: 'rgba(34, 197, 94, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: theme.spacing.xl,
+    marginBottom: theme.space.x24,
   },
   successIcon: {
     fontSize: 32,
   },
   successTitle: {
-    fontSize: 24,
+    fontSize: theme.font.title,
     fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text.primary,
+    color: theme.color.text,
     fontFamily: theme.typography.fontFamily.display,
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.space.x16,
     textAlign: 'center',
   },
   successMessage: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.primary,
+    fontSize: theme.font.body,
+    color: theme.color.text,
     fontFamily: theme.typography.fontFamily.primary,
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.space.x16,
   },
   note: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
+    fontSize: theme.font.small,
+    color: theme.color.textSecondary,
     fontFamily: theme.typography.fontFamily.primary,
     textAlign: 'center',
   },
   actions: {
-    paddingBottom: theme.spacing.xl,
+    paddingBottom: theme.space.x32,
   },
   actionButton: {
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.space.x12,
   },
 });

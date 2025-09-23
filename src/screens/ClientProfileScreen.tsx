@@ -458,12 +458,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   inviteSection: {
-    backgroundColor: theme.colors.warning + '10',
+    backgroundColor: 'rgba(245, 158, 11, 0.06)',
     borderRadius: theme.borderRadius.card,
     padding: theme.spacing.lg,
     marginBottom: theme.spacing.xl,
     borderWidth: 1,
-    borderColor: theme.colors.warning + '30',
+    borderColor: 'rgba(245, 158, 11, 0.18)',
   },
   inviteSectionTitle: {
     fontSize: theme.fontSize.headline,
