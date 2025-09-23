@@ -301,7 +301,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
           <View style={[styles.summaryRow, isWideLayout && styles.summaryCompactRow]}>
             <View style={styles.summaryLeft}>
               <Text style={styles.summaryLabel}>Balance due: </Text>
-              <Text style={styles.summaryAmount}>{formatCurrency(unpaidBalance)}</Text>
+              <Text style={[styles.summaryAmount, unpaidBalance === 0 && styles.summaryAmountPaid]}>{formatCurrency(unpaidBalance)}</Text>
               {unpaidBalance > 0 && (
                 <Text style={styles.summaryHours}> [{formatHours(unpaidHours)}]</Text>
               )}
@@ -318,7 +318,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
               </View>
             ) : (
               <View style={styles.paidUpPill}>
-                <Text style={styles.paidUpText}>All paid up</Text>
+                <Text style={styles.paidUpText}>Paid up</Text>
               </View>
             )}
           </View>
@@ -667,6 +667,9 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontFamily: 'System',
     fontVariant: ['tabular-nums'],
+  },
+  summaryAmountPaid: {
+    color: '#22C55E',
   },
   summaryHours: {
     fontSize: 16,

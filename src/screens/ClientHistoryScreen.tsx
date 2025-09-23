@@ -148,62 +148,48 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
 
   // Create timeline with day-grouped sessions and payment activities - memoized for performance
   const timelineItems = useMemo(() => {
-    // Group sessions by date (exclude active sessions since they have their own timeline entry)
-    const sessionsByDate = sessions
-      .filter(session => session.status !== 'active') // Exclude active sessions
-      .reduce((acc, session) => {
-        const dateKey = new Date(session.endTime || session.startTime).toDateString();
-        if (!acc[dateKey]) {
-          acc[dateKey] = [];
-        }
-        acc[dateKey].push(session);
-        return acc;
-      }, {} as Record<string, typeof sessions>);
+    const items = [
+      // Map sessions to timeline items
+      ...sessions.map(session => ({
+        type: 'session' as const,
+        id: session.id,
+        timestamp: new Date(session.endTime || session.startTime),
+        data: session
+      })),
+      // Map payment activities to timeline items
+      ...activities
+        .filter(a => a.type === 'payment_completed' || a.type === 'payment_request_created')
+        .map(activity => ({
+          type: activity.type === 'payment_completed' ? 'payment' as const : 'payment_request' as const,
+          id: activity.id,
+          timestamp: activity.data.paymentDate ? new Date(activity.data.paymentDate) : activity.timestamp,
+          data: activity
+        }))
+    ];
 
-    // Create day group entries
-    const dayGroups = Object.entries(sessionsByDate).map(([dateKey, daySessions]) => {
-      const totalAmount = daySessions.reduce((sum, s) => sum + (s.amount || 0), 0);
-      const date = new Date(dateKey);
+    // Sort by timestamp, newest first
+    items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
-      return {
-        type: 'day_group' as const,
-        id: `day_${dateKey}`,
-        timestamp: date,
-        data: {
-          date,
-          sessions: daySessions,
-          totalAmount,
-          sessionCount: daySessions.length
-        }
-      };
+    return items;
+  }, [sessions, activities, activeSession]);
+
+  // Group timeline items by day for cleaner presentation
+  const groupedTimeline = useMemo(() => {
+    const groups: { [key: string]: typeof timelineItems } = {};
+
+    timelineItems.slice(0, 20).forEach(item => {
+      const date = new Date(item.timestamp);
+      // Use same date formatting as client side for consistency
+      const dayKey = formatDate(date).replace(/\s/g, '-'); // Convert "Sep 23, 2025" to "Sep-23,-2025"
+
+      if (!groups[dayKey]) {
+        groups[dayKey] = [];
+      }
+      groups[dayKey].push(item);
     });
 
-    // Get payment activities
-    const paymentItems = activities
-      .filter(a => a.type === 'payment_completed' || a.type === 'payment_request_created')
-      .map(activity => ({
-        type: activity.type === 'payment_request_created' ? 'payment_request' as const : 'payment' as const,
-        id: activity.id,
-        timestamp: activity.data.paymentDate ? new Date(activity.data.paymentDate) : activity.timestamp,
-        data: activity
-      }));
-
-    // Add active session entry if exists
-    const activeSessionItems = activeSession ? [{
-      type: 'active_session' as const,
-      id: `active_${activeSession.id}`,
-      timestamp: activeSession.startTime,
-      data: activeSession
-    }] : [];
-
-    // Combine day groups with payment activities and active session
-    const allItems = [...dayGroups, ...paymentItems, ...activeSessionItems];
-
-    // Sort by timestamp (most recent first)
-    allItems.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-    return allItems;
-  }, [sessions, activities, activeSession]);
+    return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
+  }, [timelineItems]);
 
   const handleStartSession = async () => {
     try {
@@ -356,47 +342,53 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
           <View style={styles.summaryCompactRow}>
             <View style={styles.summaryLeft}>
               <Text style={styles.summaryLabel}>Balance due: </Text>
-              <Text style={styles.summaryAmount}>{formatCurrency(totalUnpaidBalance)}</Text>
+              <Text style={[styles.summaryAmount, totalUnpaidBalance === 0 && styles.summaryAmountPaid]}>{formatCurrency(totalUnpaidBalance)}</Text>
               {totalUnpaidBalance > 0 && (
                 <Text style={styles.summaryHours}> [{formatHours(unpaidHours + requestedHours)}]</Text>
               )}
             </View>
-            {totalUnpaidBalance > 0 && (
-              (() => {
-                // Check both pending requests AND requested sessions
-                const hasPendingRequest = pendingRequest || moneyState?.lastPendingRequest;
-                const hasRequestedSessions = paymentStatus === 'requested' || requestedBalance > 0;
-                const shouldShowDisabled = hasPendingRequest || hasRequestedSessions;
-                if (__DEV__) {
-                  console.debug('[Button Decision] totalUnpaidBalance:', totalUnpaidBalance, 'pendingRequest:', pendingRequest, 'moneyState.lastPendingRequest:', moneyState?.lastPendingRequest, 'paymentStatus:', paymentStatus, 'requestedBalance:', requestedBalance, 'shouldShowDisabled:', shouldShowDisabled);
-                }
-                return shouldShowDisabled;
-              })() ? (
-                // Show disabled requested status
-                <View style={[styles.btnBase, styles.btnDisabled, styles.summaryButton]}>
-                  <Text style={[styles.btnText, styles.btnDisabledText]}>
-                    Requested {formatCurrency((pendingRequest || moneyState?.lastPendingRequest)?.amount || requestedBalance || totalUnpaidBalance)}
-                  </Text>
-                </View>
-              ) : (
-                // Show active request button
-                <Pressable
-                  style={({pressed}) => [
-                    styles.btnBase,
-                    styles.btnSecondary,
-                    styles.summaryButton,
-                    pressed && { borderColor: theme.color.btnSecondaryBorderPressed },
-                  ]}
-                  onPress={handleRequestPayment}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Request payment of ${formatCurrency(totalUnpaidBalance)}`}
-                >
-                  <Text style={[styles.btnText, styles.btnSecondaryText]}>
-                    Request {formatCurrency(totalUnpaidBalance)}
-                  </Text>
-                </Pressable>
-              )
-            )}
+            {(() => {
+              // Pure hide/show logic for buttons and paid up state
+              const hasPendingRequest = pendingRequest || moneyState?.lastPendingRequest;
+              const unpaidUnrequestedCents = Math.round((totalUnpaidBalance - requestedBalance) * 100);
+
+              if (__DEV__) {
+                console.debug('[Button Logic] totalUnpaidBalance:', totalUnpaidBalance, 'hasPendingRequest:', hasPendingRequest, 'unpaidUnrequestedCents:', unpaidUnrequestedCents);
+              }
+
+              // Case 1: Show Request button (enabled)
+              if (!hasPendingRequest && unpaidUnrequestedCents > 0) {
+                return (
+                  <Pressable
+                    style={({pressed}) => [
+                      styles.btnBase,
+                      styles.btnSecondary,
+                      styles.summaryButton,
+                      pressed && { borderColor: theme.color.btnSecondaryBorderPressed },
+                    ]}
+                    onPress={handleRequestPayment}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Request payment of ${formatCurrency(unpaidUnrequestedCents / 100)}`}
+                  >
+                    <Text style={[styles.btnText, styles.btnSecondaryText]}>
+                      Request {formatCurrency(unpaidUnrequestedCents / 100)}
+                    </Text>
+                  </Pressable>
+                );
+              }
+
+              // Case 2: Show Paid up pill (no outstanding balance)
+              if (totalUnpaidBalance === 0 && !hasPendingRequest) {
+                return (
+                  <View style={styles.paidUpPill}>
+                    <Text style={styles.paidUpText}>Paid up</Text>
+                  </View>
+                );
+              }
+
+              // Case 3: Hide button (pending request or requested-only balance)
+              return null;
+            })()}
           </View>
 
           {/* Active Session Hint */}
@@ -472,104 +464,110 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
               </Text>
             </View>
           ) : (
-            timelineItems.slice(0, 20).map((item, index) => (
-              <View key={item.id}>
-                <View style={styles.timelineItem}>
-                  {item.type === 'day_group' ? (
-                  // Day Group with Sessions
-                  <View>
-                    {/* Day Header */}
-                    <View style={styles.dayHeader}>
-                      <Text style={styles.dayHeaderText}>
-                        ⏱️ Work done • {formatDate(item.data.date)} • {formatCurrency(item.data.totalAmount)} • {item.data.sessionCount} session{item.data.sessionCount > 1 ? 's' : ''}
-                      </Text>
-                    </View>
+            groupedTimeline.map(([dayKey, dayItems]) => {
+              // Parse back from formatted date key (e.g., "Sep-23,-2025")
+              const formattedDate = dayKey.replace(/-/g, ' '); // Convert back to "Sep 23, 2025"
+              const date = new Date(formattedDate);
+              const isToday = date.toDateString() === new Date().toDateString();
+              const isYesterday = date.toDateString() === new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();
 
-                    {/* Session Details */}
-                    {item.data.sessions.map((session, sessionIndex) => {
-                      const formatSessionTime = (startTime: Date, endTime?: Date) => {
-                        if (!endTime) {
-                          // For active sessions, show "started at [time]"
-                          const start = new Date(startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                          return `started at ${start}`;
-                        }
-                        const start = new Date(startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                        const end = new Date(endTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                        return `${start}–${end}`;
-                      };
+              let dayLabel;
+              if (isToday) {
+                dayLabel = 'Today';
+              } else if (isYesterday) {
+                dayLabel = 'Yesterday';
+              } else {
+                // Use consistent formatting with client side
+                dayLabel = formatDate(date);
+              }
 
-                      const formatSessionDuration = (startTime: Date, endTime?: Date) => {
-                        if (!endTime) return '';
-                        const durationMs = new Date(endTime).getTime() - new Date(startTime).getTime();
-                        const hours = Math.floor(durationMs / (1000 * 60 * 60));
-                        const minutes = Math.round((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-                        return formatHours(hours + minutes / 60);
-                      };
+              return (
+                <View key={dayKey}>
+                  <View style={styles.dayHeader}>
+                    <Text style={styles.dayHeaderText}>{dayLabel}</Text>
+                  </View>
 
-                      return (
-                        <View key={session.id} style={styles.sessionDetail}>
-                          <Text style={styles.sessionBullet}>•</Text>
-                          <View style={styles.sessionContent}>
-                            <Text style={styles.sessionText}>
-                              {formatSessionTime(session.startTime, session.endTime)}
-                              {session.endTime && (
-                                <Text> — {formatSessionDuration(session.startTime, session.endTime)} — <Text style={styles.sessionAmount}>{formatCurrency(session.amount || 0)}</Text></Text>
-                              )}
+                  {dayItems.map((item, index) => (
+                    <View key={item.id} style={styles.timelineItem}>
+                      {item.type === 'session' ? (
+                        // Work Session Line - Simplified
+                        <View style={styles.timelineLine}>
+                          <Text style={styles.timelineIcon}>🕒</Text>
+                          <View style={styles.timelineContent}>
+                            <Text style={styles.timelineMainText}>
+                              Work session
+                            </Text>
+                            <Text style={styles.timelineSubText}>
+                              {item.data.endTime
+                                ? (() => {
+                                    const durationMs = new Date(item.data.endTime).getTime() - new Date(item.data.startTime).getTime();
+                                    const hours = Math.floor(durationMs / (1000 * 60 * 60));
+                                    const minutes = Math.round((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+                                    const startTime = new Date(item.data.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                                    const endTime = new Date(item.data.endTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                                    return `${hours}hr${minutes > 0 ? ` ${minutes}min` : ''} • ${startTime}-${endTime}`;
+                                  })()
+                                : (() => {
+                                    const startTime = new Date(item.data.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                                    return `Active session • Started at ${startTime}`;
+                                  })()
+                              }
                             </Text>
                           </View>
-                          {session.status === 'active' && (
-                            <StatusPill
-                              status="active"
-                              size="sm"
-                            />
-                          )}
+                          <View style={styles.timelineRight}>
+                            <Text style={styles.timelineAmount}>
+                              {item.data.endTime ? formatCurrency(item.data.amount || 0) : ''}
+                            </Text>
+                            {item.data.endTime && item.data.status !== 'requested' && (
+                              <StatusPill
+                                status={item.data.status as 'paid' | 'unpaid'}
+                                size="sm"
+                              />
+                            )}
+                          </View>
                         </View>
-                      );
-                    })}
-                  </View>
-                ) : item.type === 'active_session' ? (
-                  // Active Session Entry
-                  <View style={styles.timelineLine}>
-                    <Text style={styles.timelineIcon}>⏱️</Text>
-                    <View style={styles.timelineContent}>
-                      <Text style={styles.timelineMainText}>
-                        Work started • {new Date(item.data.startTime).toLocaleString([], {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                          hour: 'numeric',
-                          minute: '2-digit'
-                        })} (active)
-                      </Text>
+                      ) : item.type === 'payment' ? (
+                        // Payment Line - Simplified
+                        <View style={styles.timelineLine}>
+                          <Text style={styles.timelineIcon}>💰</Text>
+                          <View style={styles.timelineContent}>
+                            <Text style={styles.timelineMainText}>
+                              Payment received
+                            </Text>
+                            <Text style={styles.timelineSubText}>
+                              {formatCurrency(item.data.data.amount || 0)} • {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''}
+                            </Text>
+                          </View>
+                          <View style={styles.timelineRight}>
+                            <Text style={styles.timelineAmount}>
+                              {item.data.data.method}
+                            </Text>
+                          </View>
+                        </View>
+                      ) : (
+                        // Payment Request Line
+                        <View style={styles.timelineLine}>
+                          <Text style={styles.timelineIcon}>📋</Text>
+                          <View style={styles.timelineContent}>
+                            <Text style={styles.timelineMainText}>
+                              Payment requested
+                            </Text>
+                            <Text style={styles.timelineSubText}>
+                              {formatCurrency(item.data.data.amount || 0)} • {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''}
+                            </Text>
+                          </View>
+                          <View style={styles.timelineRight}>
+                            <Text style={styles.timelineAmount}>
+                              Pending
+                            </Text>
+                          </View>
+                        </View>
+                      )}
                     </View>
-                  </View>
-                ) : item.type === 'payment_request' ? (
-                  // Money Requested Line
-                  <View style={styles.timelineLine}>
-                    <Text style={styles.timelineIcon}>💰</Text>
-                    <View style={styles.timelineContent}>
-                      <Text style={styles.timelineMainText}>
-                        Money requested • {formatDate(item.timestamp)} • {formatCurrency(item.data.data.amount || 0)} • {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''}
-                      </Text>
-                    </View>
-                  </View>
-                ) : (
-                  // Payment Received Line
-                  <View style={styles.timelineLine}>
-                    <Text style={styles.timelineIcon}>💸</Text>
-                    <View style={styles.timelineContent}>
-                      <Text style={styles.timelineMainText}>
-                        Payment received • {formatDate(item.timestamp)} • {formatCurrency(item.data.data.amount || 0)} • {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''}
-                      </Text>
-                    </View>
-                  </View>
-                  )}
+                  ))}
                 </View>
-                {index < timelineItems.slice(0, 20).length - 1 && (
-                  <View style={styles.timelineDivider} />
-                )}
-              </View>
-            ))
+              );
+            })
           )}
         </View>
       </ScrollView>
@@ -777,11 +775,14 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.primary,
   },
   summaryAmount: {
-    color: '#16A34A',
+    color: '#EF4444',
     fontWeight: '700',
     fontSize: theme.font.title,
     fontVariant: ['tabular-nums'],
     fontFamily: theme.typography.fontFamily.primary,
+  },
+  summaryAmountPaid: {
+    color: '#22C55E',
   },
   summaryHours: {
     color: '#6B7280',
@@ -904,22 +905,23 @@ const styles = StyleSheet.create({
   timelineAmount: {
     fontSize: theme.font.body,
     fontWeight: '600',
-    color: theme.color.money,
+    color: '#111827',
     fontVariant: ['tabular-nums'],
     fontFamily: theme.typography.fontFamily.primary,
   },
   // Day header styles
   dayHeader: {
-    marginBottom: 8,
-    paddingBottom: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: theme.color.border + '40', // 25% opacity
+    borderBottomColor: '#E5E7EB',
+    marginBottom: 8,
   },
   dayHeaderText: {
-    fontSize: theme.font.body,
+    fontSize: 14,
     fontWeight: '600',
-    color: theme.color.text,
-    fontFamily: theme.typography.fontFamily.primary,
+    color: '#374151',
+    fontFamily: 'System',
   },
   // Session detail styles
   sessionDetail: {
@@ -948,5 +950,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
     color: theme.color.text,
+  },
+
+  // Paid up pill styles
+  paidUpPill: {
+    backgroundColor: '#D1FAE5',
+    borderWidth: 1,
+    borderColor: '#22C55E',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    alignSelf: 'flex-end',
+  },
+  paidUpText: {
+    color: '#22C55E',
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'System',
   },
 });
