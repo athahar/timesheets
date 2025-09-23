@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,11 @@ import {
   TextInput,
   StyleSheet,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { Session, PaymentMethod } from '../types';
-import { Button } from './Button';
+import { StickyCTA } from './StickyCTA';
+import { IOSHeader } from './IOSHeader';
 import { theme } from '../styles/theme';
 import { markPaid } from '../services/storageService';
 
@@ -37,6 +39,10 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [customAmount, setCustomAmount] = useState(unpaidAmount.toString());
   const [loading, setLoading] = useState(false);
+
+  // Focus management
+  const amountRef = useRef<TextInput>(null);
+  const dateRef = useRef<TextInput>(null);
 
   const paymentMethods: { value: PaymentMethod; label: string }[] = [
     { value: 'cash', label: 'Cash' },
@@ -129,6 +135,11 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
     }
   };
 
+  const isFormValid = () => {
+    const amount = parseFloat(customAmount);
+    return !isNaN(amount) && amount > 0 && amount <= unpaidAmount;
+  };
+
   const handleDateChange = (text: string) => {
     // Simple date validation - in a real app you'd use a proper date picker
     setPaymentDate(text);
@@ -137,28 +148,47 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
   return (
     <Modal
       visible={visible}
-      transparent
-      animationType="fade"
+      animationType="slide"
+      presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Mark as Paid</Text>
-          <Text style={styles.modalSubtitle}>
-            Record payment to {providerName}
-          </Text>
+      <View style={styles.container}>
+        <IOSHeader
+          title="Mark as Paid"
+          subtitle={`Record payment to ${providerName}`}
+          leftAction={{
+            title: "Cancel",
+            onPress: onClose,
+          }}
+          backgroundColor={theme.color.cardBg}
+          largeTitleStyle="never"
+        />
 
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          contentInsetAdjustmentBehavior="automatic"
+        >
           {/* Payment Amount */}
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>Payment Amount</Text>
-            <TextInput
-              style={styles.amountInput}
-              value={customAmount}
-              onChangeText={setCustomAmount}
-              keyboardType="numeric"
-              placeholder="0.00"
-              autoFocus
-            />
+            <View style={styles.amountInputContainer}>
+              <Text style={styles.dollarSign}>$</Text>
+              <TextInput
+                ref={amountRef}
+                style={styles.amountInput}
+                value={customAmount}
+                onChangeText={setCustomAmount}
+                keyboardType="decimal-pad"
+                placeholder="0.00"
+                placeholderTextColor={theme.color.textSecondary}
+                autoFocus
+                returnKeyType="next"
+                onSubmitEditing={() => dateRef.current?.focus()}
+                blurOnSubmit={false}
+              />
+            </View>
             <Text style={styles.fieldHint}>
               Maximum: ${unpaidAmount.toFixed(2)}
             </Text>
@@ -168,10 +198,13 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>Payment Date</Text>
             <TextInput
+              ref={dateRef}
               style={styles.dateInput}
               value={paymentDate}
               onChangeText={handleDateChange}
               placeholder="YYYY-MM-DD"
+              placeholderTextColor={theme.color.textSecondary}
+              returnKeyType="done"
             />
             <Text style={styles.fieldHint}>
               Format: YYYY-MM-DD (e.g., 2024-01-15)
@@ -190,6 +223,7 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
                     paymentMethod === method.value && styles.methodButtonSelected
                   ]}
                   onPress={() => setPaymentMethod(method.value)}
+                  activeOpacity={0.7}
                 >
                   <Text style={[
                     styles.methodButtonText,
@@ -201,133 +235,118 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
               ))}
             </View>
           </View>
+        </ScrollView>
 
-          {/* Action Buttons */}
-          <View style={styles.buttonContainer}>
-            <Button
-              title="Cancel"
-              onPress={onClose}
-              variant="secondary"
-              size="md"
-              style={styles.cancelButton}
-              disabled={loading}
-            />
-            <Button
-              title={loading ? "Recording..." : "Mark as Paid"}
-              onPress={handleMarkAsPaid}
-              variant="success"
-              size="md"
-              style={styles.confirmButton}
-              disabled={loading}
-            />
-          </View>
-        </View>
+        <StickyCTA
+          primaryButton={{
+            title: loading ? "Recording..." : "Mark as Paid",
+            onPress: handleMarkAsPaid,
+            disabled: !isFormValid(),
+            loading,
+          }}
+          secondaryButton={{
+            title: "Cancel",
+            onPress: onClose,
+            disabled: loading,
+          }}
+          backgroundColor={theme.color.cardBg}
+        />
       </View>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  modalOverlay: {
+  container: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: theme.spacing.lg,
+    backgroundColor: theme.color.cardBg,
   },
-  modalContent: {
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.borderRadius.card,
-    padding: theme.spacing.xl,
-    width: '100%',
-    maxWidth: 400,
-    ...theme.shadows.card,
+  scrollView: {
+    flex: 1,
   },
-  modalTitle: {
-    fontSize: theme.fontSize.headline,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
-    textAlign: 'center',
-    marginBottom: theme.spacing.sm,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  modalSubtitle: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
-    textAlign: 'center',
-    marginBottom: theme.spacing.xl,
-    fontFamily: theme.typography.fontFamily.primary,
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 24,
+    paddingBottom: 32,
   },
   fieldContainer: {
-    marginBottom: theme.spacing.lg,
+    marginBottom: 24,
   },
   fieldLabel: {
-    fontSize: theme.fontSize.body,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.sm,
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.color.text,
+    marginBottom: 8,
     fontFamily: theme.typography.fontFamily.primary,
   },
   fieldHint: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
-    marginTop: theme.spacing.xs,
+    fontSize: 13,
+    color: theme.color.textSecondary,
+    marginTop: 4,
     fontFamily: theme.typography.fontFamily.primary,
+  },
+  amountInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.color.cardBg,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    minHeight: 44,
+  },
+  dollarSign: {
+    fontSize: 16,
+    color: theme.color.textSecondary,
+    fontFamily: theme.typography.fontFamily.primary,
+    marginRight: 4,
   },
   amountInput: {
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.medium,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    fontSize: theme.fontSize.body,
+    flex: 1,
+    fontSize: 16,
+    color: theme.color.text,
     fontFamily: theme.typography.fontFamily.primary,
-    backgroundColor: theme.colors.background,
+    fontVariant: ['tabular-nums'],
   },
   dateInput: {
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.medium,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    fontSize: theme.fontSize.body,
+    backgroundColor: theme.color.cardBg,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: theme.color.text,
     fontFamily: theme.typography.fontFamily.primary,
-    backgroundColor: theme.colors.background,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    minHeight: 44,
   },
   methodContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: theme.spacing.sm,
+    gap: 8,
   },
   methodButton: {
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.small,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    backgroundColor: theme.colors.background,
+    borderColor: theme.color.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: theme.color.cardBg,
+    minHeight: 36,
+    justifyContent: 'center',
   },
   methodButtonSelected: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
+    backgroundColor: theme.color.brand,
+    borderColor: theme.color.brand,
   },
   methodButtonText: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.primary,
+    fontSize: 14,
+    color: theme.color.text,
     fontFamily: theme.typography.fontFamily.primary,
+    fontWeight: '500',
   },
   methodButtonTextSelected: {
-    color: theme.colors.white,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    gap: theme.spacing.md,
-    marginTop: theme.spacing.lg,
-  },
-  cancelButton: {
-    flex: 1,
-  },
-  confirmButton: {
-    flex: 1,
+    color: '#FFFFFF',
   },
 });

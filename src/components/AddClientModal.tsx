@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,12 @@ import {
   TouchableOpacity,
   Alert,
   StyleSheet,
-  KeyboardAvoidingView,
+  ScrollView,
   Platform,
 } from 'react-native';
 import { theme } from '../styles/theme';
-import { Button } from './Button';
+import { StickyCTA } from './StickyCTA';
+import { IOSHeader } from './IOSHeader';
 import { addClient } from '../services/storageService';
 import { useAuth } from '../contexts/AuthContext';
 import { directSupabase } from '../services/storageService';
@@ -32,6 +33,11 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
   const [email, setEmail] = useState('');
   const [hourlyRate, setHourlyRate] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Focus management refs
+  const nameRef = useRef<TextInput>(null);
+  const emailRef = useRef<TextInput>(null);
+  const rateRef = useRef<TextInput>(null);
 
   const validateForm = () => {
     if (!name.trim()) {
@@ -108,6 +114,8 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
     onClose();
   };
 
+  const isFormValid = name.trim() && hourlyRate && !isNaN(parseFloat(hourlyRate)) && parseFloat(hourlyRate) > 0;
+
   return (
     <Modal
       visible={visible}
@@ -115,44 +123,56 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
       presentationStyle="pageSheet"
       onRequestClose={handleCancel}
     >
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleCancel} style={styles.cancelButton}>
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Add New Client</Text>
-          <View style={styles.placeholder} />
-        </View>
+      <View style={styles.container}>
+        <IOSHeader
+          title="Add New Client"
+          leftAction={{
+            title: "Cancel",
+            onPress: handleCancel,
+          }}
+          backgroundColor={theme.color.cardBg}
+          largeTitleStyle="never"
+        />
 
-        <View style={styles.content}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          contentInsetAdjustmentBehavior="automatic"
+        >
           <View style={styles.formSection}>
             <Text style={styles.label}>Client Name</Text>
             <TextInput
+              ref={nameRef}
               style={styles.input}
               value={name}
               onChangeText={setName}
               placeholder="Enter client name"
-              placeholderTextColor={theme.colors.text.secondary}
+              placeholderTextColor={theme.color.textSecondary}
               autoFocus
               maxLength={50}
+              returnKeyType="next"
+              onSubmitEditing={() => emailRef.current?.focus()}
+              blurOnSubmit={false}
             />
           </View>
 
           <View style={styles.formSection}>
             <Text style={styles.label}>Email (Optional)</Text>
             <TextInput
+              ref={emailRef}
               style={styles.input}
               value={email}
               onChangeText={setEmail}
               placeholder="client@example.com"
-              placeholderTextColor={theme.colors.text.secondary}
+              placeholderTextColor={theme.color.textSecondary}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
               maxLength={100}
+              returnKeyType="next"
+              onSubmitEditing={() => rateRef.current?.focus()}
+              blurOnSubmit={false}
             />
           </View>
 
@@ -161,30 +181,32 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
             <View style={styles.rateInputContainer}>
               <Text style={styles.dollarSign}>$</Text>
               <TextInput
+                ref={rateRef}
                 style={styles.rateInput}
                 value={hourlyRate}
                 onChangeText={setHourlyRate}
                 placeholder="0.00"
-                placeholderTextColor={theme.colors.text.secondary}
-                keyboardType="numeric"
+                placeholderTextColor={theme.color.textSecondary}
+                keyboardType="decimal-pad"
                 maxLength={10}
+                returnKeyType="done"
+                onSubmitEditing={isFormValid ? handleSave : undefined}
               />
               <Text style={styles.perHour}>/hour</Text>
             </View>
           </View>
+        </ScrollView>
 
-          <View style={styles.buttonContainer}>
-            <Button
-              title={loading ? "Adding..." : "Add Client"}
-              onPress={handleSave}
-              variant="primary"
-              size="lg"
-              disabled={loading}
-              style={styles.saveButton}
-            />
-          </View>
-        </View>
-      </KeyboardAvoidingView>
+        <StickyCTA
+          primaryButton={{
+            title: loading ? "Adding..." : "Add Client",
+            onPress: handleSave,
+            disabled: !isFormValid,
+            loading,
+          }}
+          backgroundColor={theme.color.cardBg}
+        />
+      </View>
     </Modal>
   );
 };
@@ -192,94 +214,64 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.color.cardBg,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.xl,
-    paddingBottom: theme.spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E7',
-  },
-  cancelButton: {
-    padding: theme.spacing.sm,
-  },
-  cancelButtonText: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.primary,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  title: {
-    fontSize: theme.fontSize.headline,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  placeholder: {
-    width: 60, // Same as cancel button to center title
+  scrollView: {
+    flex: 1,
   },
   content: {
-    flex: 1,
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.xl,
+    paddingHorizontal: 16,
+    paddingTop: 24,
+    paddingBottom: 32,
   },
   formSection: {
-    marginBottom: theme.spacing.xl,
+    marginBottom: 24,
   },
   label: {
-    fontSize: theme.fontSize.body,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.md,
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.color.text,
+    marginBottom: 8,
     fontFamily: theme.typography.fontFamily.primary,
   },
   input: {
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.borderRadius.small,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.primary,
+    backgroundColor: theme.color.cardBg,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: theme.color.text,
     fontFamily: theme.typography.fontFamily.primary,
     borderWidth: 1,
-    borderColor: '#E5E5E7',
-    ...theme.shadows.card,
+    borderColor: theme.color.border,
+    minHeight: 44,
   },
   rateInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.borderRadius.small,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
+    backgroundColor: theme.color.cardBg,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderWidth: 1,
-    borderColor: '#E5E5E7',
-    ...theme.shadows.card,
+    borderColor: theme.color.border,
+    minHeight: 44,
   },
   dollarSign: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.secondary,
+    fontSize: 16,
+    color: theme.color.textSecondary,
     fontFamily: theme.typography.fontFamily.primary,
   },
   rateInput: {
     flex: 1,
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.primary,
+    fontSize: 16,
+    color: theme.color.text,
     fontFamily: theme.typography.fontFamily.primary,
-    marginLeft: theme.spacing.xs,
+    marginLeft: 4,
   },
   perHour: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.secondary,
+    fontSize: 16,
+    color: theme.color.textSecondary,
     fontFamily: theme.typography.fontFamily.primary,
-  },
-  buttonContainer: {
-    marginTop: theme.spacing.xxl,
-  },
-  saveButton: {
-    width: '100%',
   },
 });
