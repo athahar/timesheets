@@ -295,7 +295,9 @@ export class DirectSupabaseService {
   async endSession(sessionId: string): Promise<Session> {
     try {
       if (__DEV__) {
-        console.log('🛑 endSession called with sessionId:', sessionId);
+        if (__DEV__) {
+          console.log('🛑 endSession called with sessionId:', sessionId);
+        }
       }
       const endTime = new Date();
 

@@ -38,11 +38,15 @@ interface ServiceProvider {
 
 export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps> = ({ navigation }) => {
   if (__DEV__) {
-    console.log('🚀 ServiceProviderListScreen: Component mounting...');
+    if (__DEV__) {
+      console.log('🚀 ServiceProviderListScreen: Component mounting...');
+    }
   }
   const { userProfile, signOut } = useAuth();
   if (__DEV__) {
-    console.log('👤 ServiceProviderListScreen: userProfile:', userProfile?.name, userProfile?.role);
+    if (__DEV__) {
+      console.log('👤 ServiceProviderListScreen: userProfile:', userProfile?.name, userProfile?.role);
+    }
   }
 
   const [serviceProviders, setServiceProviders] = useState<ServiceProvider[]>([]);
@@ -52,10 +56,14 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
 
   const loadServiceProviders = async () => {
     if (__DEV__) {
-      console.log('🔄 ServiceProviderList: Starting to load providers...');
+      if (__DEV__) {
+        console.log('🔄 ServiceProviderList: Starting to load providers...');
+      }
     }
     if (__DEV__) {
-      console.log('🔄 ServiceProviderList: userProfile:', userProfile);
+      if (__DEV__) {
+        console.log('🔄 ServiceProviderList: userProfile:', userProfile);
+      }
     }
     try {
       let providersData: ServiceProvider[] = [];
@@ -65,7 +73,9 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
         // Authenticated user - load providers based on relationships
         user = userProfile.name;
         if (__DEV__) {
-          console.log('📊 Auth user - loading relationship-based providers for:', user);
+          if (__DEV__) {
+            console.log('📊 Auth user - loading relationship-based providers for:', user);
+          }
         }
 
         try {
@@ -95,7 +105,9 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
             } else {
               // Convert Supabase format to ServiceProvider format and load real session data
               if (__DEV__) {
-                console.log('💰 ServiceProviderList: Loading provider summaries for', relatedProviders.length, 'providers...');
+                if (__DEV__) {
+                  console.log('💰 ServiceProviderList: Loading provider summaries for', relatedProviders.length, 'providers...');
+                }
               }
 
               const providersWithSummary = await Promise.allSettled(
@@ -123,7 +135,9 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
                     };
                   } catch (error) {
                     if (__DEV__) {
-                      console.warn('⚠️ Failed to load summary for provider:', provider.name, error.message);
+                      if (__DEV__) {
+                        console.warn('⚠️ Failed to load summary for provider:', provider.name, error.message);
+                      }
                     }
                     // Return provider with default summary
                     return {
@@ -157,7 +171,9 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
             }
           } else {
             if (__DEV__) {
-              console.log('📊 No relationships found - empty provider list');
+              if (__DEV__) {
+                console.log('📊 No relationships found - empty provider list');
+              }
             }
             providersData = [];
           }
@@ -173,7 +189,9 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
         ]);
         providersData = providers;
         if (__DEV__) {
-          console.log('📊 Non-auth user - loading from localStorage:', providersData.length, 'providers');
+          if (__DEV__) {
+            console.log('📊 Non-auth user - loading from localStorage:', providersData.length, 'providers');
+          }
         }
       }
 
@@ -183,11 +201,15 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
 
       if (__DEV__) {
 
-        console.log('📊 ServiceProviderListScreen: Loaded', providersData.length, 'providers');
+        if (__DEV__) {
+          console.log('📊 ServiceProviderListScreen: Loaded', providersData.length, 'providers');
+        }
 
       }
       if (__DEV__) {
-        console.log('✅ ServiceProviderList: Loading complete!');
+        if (__DEV__) {
+          console.log('✅ ServiceProviderList: Loading complete!');
+        }
       }
     } catch (error) {
       console.error('Error loading service providers:', error);
@@ -200,10 +222,14 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
   useFocusEffect(
     useCallback(() => {
       if (__DEV__) {
-        console.log('🎯 ServiceProviderListScreen: useFocusEffect triggered');
+        if (__DEV__) {
+          console.log('🎯 ServiceProviderListScreen: useFocusEffect triggered');
+        }
       }
       if (__DEV__) {
-        console.log('🔧 ServiceProviderListScreen: userProfile available:', !!userProfile);
+        if (__DEV__) {
+          console.log('🔧 ServiceProviderListScreen: userProfile available:', !!userProfile);
+        }
       }
 
       // Only load providers if we have a userProfile
@@ -212,7 +238,9 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
         loadServiceProviders();
       } else {
         if (__DEV__) {
-          console.log('⏳ ServiceProviderListScreen: Waiting for userProfile...');
+          if (__DEV__) {
+            console.log('⏳ ServiceProviderListScreen: Waiting for userProfile...');
+          }
         }
         setLoading(false); // Stop loading state if no profile yet
       }
@@ -226,7 +254,9 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
 
   const handleProviderPress = (provider: ServiceProvider) => {
     if (__DEV__) {
-      console.log('🎯 ServiceProviderListScreen: Provider pressed:', provider.name);
+      if (__DEV__) {
+        console.log('🎯 ServiceProviderListScreen: Provider pressed:', provider.name);
+      }
     }
     navigation.navigate('ServiceProviderSummary', { providerId: provider.id, providerName: provider.name });
   };

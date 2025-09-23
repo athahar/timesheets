@@ -79,7 +79,9 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
 
       if (__DEV__) {
 
-        console.log('✅ Client and invite created:', newClient);
+        if (__DEV__) {
+          console.log('✅ Client and invite created:', newClient);
+        }
 
       }
 

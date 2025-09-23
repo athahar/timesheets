@@ -1408,13 +1408,17 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
       // Clear the main SyncQueue
       await syncQueue.clearQueue();
       if (__DEV__) {
-        console.log('✅ Cleared main SyncQueue');
+        if (__DEV__) {
+          console.log('✅ Cleared main SyncQueue');
+        }
       }
 
       // Clear the HybridStorage offline queue
       await this.setToAsyncStorage(HYBRID_KEYS.OFFLINE_QUEUE, []);
       if (__DEV__) {
-        console.log('✅ Cleared offline queue');
+        if (__DEV__) {
+          console.log('✅ Cleared offline queue');
+        }
       }
 
       // Clear all possible sync-related storage keys (including legacy ones)
@@ -1439,11 +1443,15 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
         try {
           await AsyncStorage.removeItem(key);
           if (__DEV__) {
-            console.log(`✅ Cleared storage key: ${key}`);
+            if (__DEV__) {
+              console.log(`✅ Cleared storage key: ${key}`);
+            }
           }
         } catch (error) {
           if (__DEV__) {
-            console.warn(`⚠️ Could not clear key ${key}:`, error);
+            if (__DEV__) {
+              console.warn(`⚠️ Could not clear key ${key}:`, error);
+            }
           }
         }
       }
@@ -1453,7 +1461,9 @@ export class HybridStorageService implements DatabaseInterface, LegacyClientOper
 
       if (__DEV__) {
 
-        console.log('✅ HybridStorage: Comprehensive sync queue cleanup completed');
+        if (__DEV__) {
+          console.log('✅ HybridStorage: Comprehensive sync queue cleanup completed');
+        }
 
       }
 

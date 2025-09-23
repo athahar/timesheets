@@ -47,7 +47,9 @@ export class ConflictResolver {
     strategy: ConflictResolutionStrategy = 'last-modified-wins'
   ): ConflictResolution<T> {
     if (__DEV__) {
-      console.log(`🔍 ConflictResolver: Resolving ${conflict.conflictType} conflict for ${conflict.id} using ${strategy}`);
+      if (__DEV__) {
+        console.log(`🔍 ConflictResolver: Resolving ${conflict.conflictType} conflict for ${conflict.id} using ${strategy}`);
+      }
     }
 
     switch (strategy) {

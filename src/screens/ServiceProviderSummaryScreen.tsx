@@ -85,45 +85,63 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
             // Use same data loading as provider side for consistency
             userSessions = await getSessionsByClient(clientRecord.id);
             if (__DEV__) {
-              console.log('🔧 Using direct session lookup for consistency. ClientId:', clientRecord.id);
-              console.log('🔧 Found sessions:', userSessions.length);
+                    if (__DEV__) {
+                console.log('🔧 Using direct session lookup for consistency. ClientId:', clientRecord.id);
+                console.log('🔧 Found sessions:', userSessions.length);
+              }
             }
           }
         }
       } catch (error) {
-        console.warn('⚠️ Direct session lookup failed, falling back to original method');
+        if (__DEV__) {
+          if (__DEV__) {
+            console.warn('⚠️ Direct session lookup failed, falling back to original method');
+          }
+        }
         userSessions = await getClientSessionsForProvider(user || '', providerId);
       }
       if (__DEV__) {
-        console.log('📊 Sessions received:', userSessions.length, 'sessions');
+        if (__DEV__) {
+          console.log('📊 Sessions received:', userSessions.length, 'sessions');
+        }
       }
 
       // Get activities for this client - need to use the client record ID, not auth user ID
       const activitiesData = await getActivities();
       if (__DEV__) {
-        console.log('🔍 All activities:', activitiesData.length);
+        if (__DEV__) {
+          console.log('🔍 All activities:', activitiesData.length);
+        }
       }
 
       // Get the client record ID from the first session (since we know sessions are filtered correctly)
       const clientRecordId = userSessions.length > 0 ? userSessions[0].clientId : null;
       if (__DEV__) {
-        console.log('🔍 Looking for activities with clientId:', clientRecordId);
+        if (__DEV__) {
+          console.log('🔍 Looking for activities with clientId:', clientRecordId);
+        }
       }
 
       const clientActivities = activitiesData.filter(a => {
         if (__DEV__) {
-          console.log('🔍 Activity:', a.id, 'clientId:', a.clientId, 'type:', a.type);
+          if (__DEV__) {
+            console.log('🔍 Activity:', a.id, 'clientId:', a.clientId, 'type:', a.type);
+          }
         }
         return a.clientId === clientRecordId;
       });
       if (__DEV__) {
-        console.log('🔍 Filtered client activities:', clientActivities.length);
+        if (__DEV__) {
+          console.log('🔍 Filtered client activities:', clientActivities.length);
+        }
       }
       setActivities(clientActivities);
 
       // Get money state from client perspective (includes requested amounts)
       if (__DEV__) {
-        console.log('💰 Getting client money state for clientId:', clientRecordId);
+        if (__DEV__) {
+          console.log('💰 Getting client money state for clientId:', clientRecordId);
+        }
       }
 
       let moneyState = { balanceDueCents: 0, unpaidDurationSec: 0, hasActiveSession: false };
@@ -131,10 +149,16 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
         try {
           moneyState = await getClientMoneyState(clientRecordId, providerId);
           if (__DEV__) {
-            console.log('💰 Client money state:', moneyState);
+            if (__DEV__) {
+              console.log('💰 Client money state:', moneyState);
+            }
           }
         } catch (error) {
-          console.warn('⚠️ Error getting client money state:', error);
+          if (__DEV__) {
+            if (__DEV__) {
+              console.warn('⚠️ Error getting client money state:', error);
+            }
+          }
         }
       }
 
@@ -148,7 +172,9 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
       setHasActiveSession(moneyState.hasActiveSession);
 
       if (__DEV__) {
-        console.log('💰 Final balance due:', balanceDue, 'unpaid hours:', unpaidHoursTotal);
+        if (__DEV__) {
+          console.log('💰 Final balance due:', balanceDue, 'unpaid hours:', unpaidHoursTotal);
+        }
       }
     } catch (error) {
       console.error('Error loading provider summary:', error);

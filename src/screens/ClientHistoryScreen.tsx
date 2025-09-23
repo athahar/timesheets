@@ -116,13 +116,15 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       setMoneyState(clientMoneyState);
 
       if (__DEV__) {
-        console.debug('[moneyState]', clientId, clientMoneyState);
-        console.debug('[pendingRequest]', pendingRequest);
-        console.debug('[Request Button Logic] totalUnpaidBalance:', totalUnpaidBalance, 'pendingRequest:', !!pendingRequest, 'moneyState.lastPendingRequest:', !!clientMoneyState?.lastPendingRequest);
-        // Debug SQL verification
-        console.debug('[SQL Debug] Use these queries to verify:');
-        console.debug(`SELECT * FROM trackpay_requests WHERE client_id = '${clientId}' AND status='pending' ORDER BY created_at DESC LIMIT 1;`);
-        console.debug(`SELECT status, COUNT(*), SUM(amount) AS total FROM trackpay_sessions WHERE client_id='${clientId}' AND status IN ('unpaid','requested') GROUP BY status;`);
+        if (__DEV__) {
+          console.debug('[moneyState]', clientId, clientMoneyState);
+          console.debug('[pendingRequest]', pendingRequest);
+          console.debug('[Request Button Logic] totalUnpaidBalance:', totalUnpaidBalance, 'pendingRequest:', !!pendingRequest, 'moneyState.lastPendingRequest:', !!clientMoneyState?.lastPendingRequest);
+          // Debug SQL verification
+          console.debug('[SQL Debug] Use these queries to verify:');
+          console.debug(`SELECT * FROM trackpay_requests WHERE client_id = '${clientId}' AND status='pending' ORDER BY created_at DESC LIMIT 1;`);
+          console.debug(`SELECT status, COUNT(*), SUM(amount) AS total FROM trackpay_sessions WHERE client_id='${clientId}' AND status IN ('unpaid','requested') GROUP BY status;`);
+        }
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -225,7 +227,9 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
     // Pre-check: Ensure no pending request exists (idempotency guard)
     if (pendingRequest || moneyState?.lastPendingRequest) {
       if (__DEV__) {
-        console.log('❌ Request blocked - pending request already exists:', pendingRequest?.id || moneyState?.lastPendingRequest?.id);
+        if (__DEV__) {
+          console.log('❌ Request blocked - pending request already exists:', pendingRequest?.id || moneyState?.lastPendingRequest?.id);
+        }
       }
       return;
     }
@@ -248,7 +252,9 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       const currentPendingRequest = await getPendingPaymentRequest(clientId);
       if (currentPendingRequest) {
         if (__DEV__) {
-          console.log('❌ Request blocked - pending request created during confirmation:', currentPendingRequest.id);
+          if (__DEV__) {
+            console.log('❌ Request blocked - pending request created during confirmation:', currentPendingRequest.id);
+          }
         }
         showError('A payment request for this client is already pending.');
         setShowConfirmModal(false);
@@ -272,7 +278,9 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       // Generate batch ID for tracking
       const batchId = generateBatchId();
       if (__DEV__) {
-        console.log('🔄 Creating payment request with batch ID:', batchId, 'for sessions:', unpaidSessions.map(s => s.id));
+        if (__DEV__) {
+          console.log('🔄 Creating payment request with batch ID:', batchId, 'for sessions:', unpaidSessions.map(s => s.id));
+        }
       }
 
       // Create the payment request (this will mark sessions as 'requested')
@@ -291,7 +299,9 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       });
 
       if (__DEV__) {
-        console.log('✅ Payment request created successfully');
+        if (__DEV__) {
+          console.log('✅ Payment request created successfully');
+        }
       }
 
       // Refresh data to show the new pending request
@@ -367,7 +377,9 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
             const unpaidUnrequestedCents = Math.round((totalUnpaidBalance - requestedBalance) * 100);
 
             if (__DEV__) {
-              console.debug('[Button Logic] totalUnpaidBalance:', totalUnpaidBalance, 'hasPendingRequest:', hasPendingRequest, 'unpaidUnrequestedCents:', unpaidUnrequestedCents);
+              if (__DEV__) {
+                console.debug('[Button Logic] totalUnpaidBalance:', totalUnpaidBalance, 'hasPendingRequest:', hasPendingRequest, 'unpaidUnrequestedCents:', unpaidUnrequestedCents);
+              }
             }
 
             // Case 1: Show Request button (enabled) - now on separate line

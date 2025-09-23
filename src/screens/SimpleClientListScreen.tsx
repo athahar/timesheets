@@ -67,11 +67,15 @@ const pillColors = {
 
 export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }) => {
   if (__DEV__) {
-    console.log('🚀 SimpleClientListScreen: Component mounting...');
+    if (__DEV__) {
+      console.log('🚀 SimpleClientListScreen: Component mounting...');
+    }
   }
   const { userProfile, signOut } = useAuth();
   if (__DEV__) {
-    console.log('👤 SimpleClientListScreen: userProfile:', userProfile?.name, userProfile?.role);
+    if (__DEV__) {
+      console.log('👤 SimpleClientListScreen: userProfile:', userProfile?.name, userProfile?.role);
+    }
   }
   const [clients, setClients] = useState<ClientWithSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,7 +95,9 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
 
   const loadClients = async () => {
     if (__DEV__) {
-      console.log('🔄 ClientList: loadClients function called!');
+      if (__DEV__) {
+        console.log('🔄 ClientList: loadClients function called!');
+      }
     }
     try {
       let clientsData: Client[] = [];
@@ -100,7 +106,9 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
       if (userProfile) {
         user = userProfile.name;
         if (__DEV__) {
-          console.log('📊 Auth user - loading relationship-based clients for:', user);
+          if (__DEV__) {
+            console.log('📊 Auth user - loading relationship-based clients for:', user);
+          }
         }
 
         try {
@@ -134,12 +142,16 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
                 claimedStatus: client.claimed_status || 'claimed'
               }));
               if (__DEV__) {
-                console.log('✅ Loaded', clientsData.length, 'related clients');
+                if (__DEV__) {
+                  console.log('✅ Loaded', clientsData.length, 'related clients');
+                }
               }
             }
           } else {
             if (__DEV__) {
-              console.log('📊 No relationships found - empty client list');
+              if (__DEV__) {
+                console.log('📊 No relationships found - empty client list');
+              }
             }
             clientsData = [];
           }
@@ -155,12 +167,16 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
         clientsData = allClientsData;
         user = currentUser;
         if (__DEV__) {
-          console.log('📊 Non-auth user - loading from localStorage:', clientsData.length, 'clients');
+          if (__DEV__) {
+            console.log('📊 Non-auth user - loading from localStorage:', clientsData.length, 'clients');
+          }
         }
       }
 
       if (__DEV__) {
-        console.log('💰 ClientList: Loading client summaries for', clientsData.length, 'clients...');
+        if (__DEV__) {
+          console.log('💰 ClientList: Loading client summaries for', clientsData.length, 'clients...');
+        }
       }
 
       // Load summaries and check for active sessions
@@ -193,7 +209,9 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
             };
           } catch (error) {
             if (__DEV__) {
-              console.warn('⚠️ Failed to load summary for client:', client.name, error.message);
+              if (__DEV__) {
+                console.warn('⚠️ Failed to load summary for client:', client.name, error.message);
+              }
             }
             return {
               ...client,
@@ -230,7 +248,9 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
 
       if (__DEV__) { console.log('📊 SimpleClientListScreen: Loaded', sortedClients.length, 'clients:', sortedClients.map(c => ({ id: c.id, name: c.name }))); }
       if (__DEV__) {
-        console.log('👤 Current user set to:', userName, 'with role:', userProfile?.role);
+        if (__DEV__) {
+          console.log('👤 Current user set to:', userName, 'with role:', userProfile?.role);
+        }
       }
     } catch (error) {
       console.error('Error loading clients:', error);
@@ -243,14 +263,22 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
   useFocusEffect(
     useCallback(() => {
       if (__DEV__) {
-        console.log('🎯 SimpleClientListScreen: useFocusEffect triggered');
+        if (__DEV__) {
+          console.log('🎯 SimpleClientListScreen: useFocusEffect triggered');
+        }
       }
       if (userProfile) {
-        console.log('🔧 SimpleClientListScreen: About to call loadClients...');
+        if (__DEV__) {
+          if (__DEV__) {
+            console.log('🔧 SimpleClientListScreen: About to call loadClients...');
+          }
+        }
         loadClients();
       } else {
         if (__DEV__) {
-          console.log('⏳ SimpleClientListScreen: Waiting for userProfile...');
+          if (__DEV__) {
+            console.log('⏳ SimpleClientListScreen: Waiting for userProfile...');
+          }
         }
         setLoading(false);
       }
@@ -264,7 +292,9 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
 
   const handleClientPress = (client: Client) => {
     if (__DEV__) {
-      console.log('🎯 SimpleClientListScreen: Client pressed:', client.name, 'ID:', client.id);
+      if (__DEV__) {
+        console.log('🎯 SimpleClientListScreen: Client pressed:', client.name, 'ID:', client.id);
+      }
     }
     navigation.navigate('ClientHistory', { clientId: client.id });
   };
