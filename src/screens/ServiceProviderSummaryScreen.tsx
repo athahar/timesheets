@@ -6,10 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  Dimensions,
+  Pressable,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Session, ActivityItem } from '../types';
-import { Button } from '../components/Button';
 import { StatusPill } from '../components/StatusPill';
 import { MarkAsPaidModal } from '../components/MarkAsPaidModal';
 import { theme } from '../styles/theme';
@@ -17,7 +18,12 @@ import {
   getCurrentUser,
   getClientSessionsForProvider,
   getActivities,
+  getClientMoneyState,
+  getPendingPaymentRequest,
+  getSessionsByClient,
 } from '../services/storageService';
+import { supabase } from '../services/supabase';
+import { formatDate } from '../utils/formatters';
 
 interface ServiceProviderSummaryScreenProps {
   route: {
@@ -41,6 +47,8 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
   const [loading, setLoading] = useState(true);
   const [showMarkAsPaidModal, setShowMarkAsPaidModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<string>('');
+  const [screenWidth, setScreenWidth] = useState(Dimensions.get('window').width);
+  const [hasActiveSession, setHasActiveSession] = useState(false);
 
   const loadData = async () => {
     try {
@@ -58,18 +66,35 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
       if (__DEV__) {
         console.log('📊 Fetching sessions for user:', user, 'with provider:', providerId);
       }
-      const userSessions = await getClientSessionsForProvider(user || '', providerId);
-      if (__DEV__) {
-        console.log('📊 Sessions received:', userSessions.length, 'sessions');
+
+      // TEMP FIX: Use direct session lookup to match provider-side data
+      // TODO: Fix getClientSessionsForProvider to return consistent data
+      let userSessions = [];
+      try {
+        // Get current user's client record ID from auth
+        const currentUser = await getCurrentUser();
+        if (currentUser) {
+          const { data: clientRecord } = await supabase.from('trackpay_users')
+            .select('id')
+            .eq('auth_user_id', currentUser.id)
+            .eq('role', 'client')
+            .single();
+
+          if (clientRecord) {
+            // Use same data loading as provider side for consistency
+            userSessions = await getSessionsByClient(clientRecord.id);
+            if (__DEV__) {
+              console.log('🔧 Using direct session lookup for consistency. ClientId:', clientRecord.id);
+              console.log('🔧 Found sessions:', userSessions.length);
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Direct session lookup failed, falling back to original method');
+        userSessions = await getClientSessionsForProvider(user || '', providerId);
       }
       if (__DEV__) {
-        console.log('📊 Session details:', userSessions.map(s => ({
-          id: s.id.substring(0, 8) + '...',
-          clientId: s.clientId?.substring(0, 8) + '...',
-          providerId: s.providerId?.substring(0, 8) + '...',
-          status: s.status,
-          amount: s.amount
-        })));
+        console.log('📊 Sessions received:', userSessions.length, 'sessions');
       }
 
       // Get activities for this client - need to use the client record ID, not auth user ID
@@ -95,23 +120,35 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
       }
       setActivities(clientActivities);
 
-      // Calculate unpaid amounts
-      const unpaidSessions = userSessions.filter(session =>
-        session.status === 'unpaid' || session.status === 'requested'
-      );
+      // Get money state from client perspective (includes requested amounts)
       if (__DEV__) {
-        console.log('💰 Unpaid sessions:', unpaidSessions.length);
+        console.log('💰 Getting client money state for clientId:', clientRecordId);
       }
 
-      const unpaidHoursTotal = unpaidSessions.reduce((total, session) => total + (session.duration || 0), 0);
-      const unpaidBalanceTotal = unpaidSessions.reduce((total, session) => total + (session.amount || 0), 0);
-      if (__DEV__) {
-        console.log('💰 Totals - Hours:', unpaidHoursTotal, 'Balance:', unpaidBalanceTotal);
+      let moneyState = { balanceDueCents: 0, unpaidDurationSec: 0, hasActiveSession: false };
+      if (clientRecordId) {
+        try {
+          moneyState = await getClientMoneyState(clientRecordId, providerId);
+          if (__DEV__) {
+            console.log('💰 Client money state:', moneyState);
+          }
+        } catch (error) {
+          console.warn('⚠️ Error getting client money state:', error);
+        }
       }
+
+      // Convert cents to dollars and seconds to hours
+      const balanceDue = moneyState.balanceDueCents / 100;
+      const unpaidHoursTotal = moneyState.unpaidDurationSec / 3600;
 
       setSessions(userSessions);
       setUnpaidHours(unpaidHoursTotal);
-      setUnpaidBalance(unpaidBalanceTotal);
+      setUnpaidBalance(balanceDue);
+      setHasActiveSession(moneyState.hasActiveSession);
+
+      if (__DEV__) {
+        console.log('💰 Final balance due:', balanceDue, 'unpaid hours:', unpaidHoursTotal);
+      }
     } catch (error) {
       console.error('Error loading provider summary:', error);
     } finally {
@@ -124,6 +161,15 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
       loadData();
     }, [providerId])
   );
+
+  // Listen for screen dimension changes
+  React.useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setScreenWidth(window.width);
+    });
+
+    return () => subscription?.remove();
+  }, []);
 
   const handleMarkAsPaid = () => {
     setShowMarkAsPaidModal(true);
@@ -149,6 +195,33 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
     return minutes > 0 ? `${hours}hr ${minutes}min` : `${hours}hr`;
   };
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  };
+
+  const formatTimeRange = (startTime: string, endTime: string) => {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const startStr = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+    const endStr = end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+    return `${startStr}–${endStr}`;
+  };
+
+  const formatDuration = (startTime: string, endTime: string) => {
+    const durationMs = new Date(endTime).getTime() - new Date(startTime).getTime();
+    const hours = Math.floor(durationMs / (1000 * 60 * 60));
+    const minutes = Math.round((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}hr${minutes > 0 ? ` ${minutes}min` : ''}`;
+  };
+
+  // Check if screen is wide enough for inline layout
+  const isWideLayout = screenWidth >= 380;
+
   // Combine sessions and payment activities into unified timeline - memoized for performance
   const timelineItems = useMemo(() => {
     const items = [
@@ -161,9 +234,9 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
       })),
       // Map payment activities to timeline items
       ...activities
-        .filter(a => a.type === 'payment_completed')
+        .filter(a => a.type === 'payment_completed' || a.type === 'payment_request_created')
         .map(activity => ({
-          type: 'payment' as const,
+          type: activity.type === 'payment_completed' ? 'payment' as const : 'payment_request' as const,
           id: activity.id,
           timestamp: activity.data.paymentDate ? new Date(activity.data.paymentDate) : activity.timestamp,
           data: activity
@@ -176,9 +249,23 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
     return items;
   }, [sessions, activities]);
 
-  const formatCurrency = (amount: number) => {
-    return `$${amount.toFixed(2)}`;
-  };
+  // Group timeline items by day for cleaner presentation
+  const groupedTimeline = useMemo(() => {
+    const groups: { [key: string]: typeof timelineItems } = {};
+
+    timelineItems.slice(0, 20).forEach(item => {
+      const date = new Date(item.timestamp);
+      // Use same date formatting as provider side for consistency
+      const dayKey = formatDate(date).replace(/\s/g, '-'); // Convert "Sep 23, 2025" to "Sep-23,-2025"
+
+      if (!groups[dayKey]) {
+        groups[dayKey] = [];
+      }
+      groups[dayKey].push(item);
+    });
+
+    return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
+  }, [timelineItems]);
 
   if (loading) {
     return (
@@ -209,35 +296,33 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Key Stats */}
-        <View style={styles.statsGrid}>
-          <View style={[styles.statCard, theme.shadows.card]}>
-            <Text style={styles.statLabel}>Unpaid Amount</Text>
-            <Text style={styles.statUnpaid}>
-              {formatCurrency(unpaidBalance)}
-            </Text>
-          </View>
+        {/* Summary Card - Responsive like provider side */}
+        <View style={styles.summaryCard}>
+          <View style={[styles.summaryRow, isWideLayout && styles.summaryCompactRow]}>
+            <View style={styles.summaryLeft}>
+              <Text style={styles.summaryLabel}>Balance due: </Text>
+              <Text style={styles.summaryAmount}>{formatCurrency(unpaidBalance)}</Text>
+              {unpaidBalance > 0 && (
+                <Text style={styles.summaryHours}> [{formatHours(unpaidHours)}]</Text>
+              )}
+            </View>
 
-          <View style={[styles.statCard, theme.shadows.card]}>
-            <Text style={styles.statLabel}>Unpaid Hours</Text>
-            <Text style={styles.statUnpaidHours}>
-              {formatHours(unpaidHours)}
-            </Text>
+            {unpaidBalance > 0 ? (
+              <View style={styles.summaryRight}>
+                <Pressable
+                  style={styles.recordPaymentButton}
+                  onPress={() => setShowMarkAsPaidModal(true)}
+                >
+                  <Text style={styles.recordPaymentButtonText}>Record Payment</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={styles.paidUpPill}>
+                <Text style={styles.paidUpText}>All paid up</Text>
+              </View>
+            )}
           </View>
         </View>
-
-        {/* Mark as Paid Button */}
-        {unpaidBalance > 0 && (
-          <View style={styles.actionButtonContainer}>
-            <Button
-              title={`Mark ${formatCurrency(unpaidBalance)} as Paid`}
-              onPress={handleMarkAsPaid}
-              variant="success"
-              size="lg"
-              style={styles.markAsPaidButton}
-            />
-          </View>
-        )}
 
         {/* Activity Timeline */}
         <View style={styles.timelineSection}>
@@ -251,69 +336,110 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
               </Text>
             </View>
           ) : (
-            timelineItems.slice(0, 20).map((item, index) => (
-              <View key={item.id} style={styles.timelineItem}>
-                {item.type === 'session' ? (
-                  // Work Session Line
-                  <View style={styles.timelineLine}>
-                    <Text style={styles.timelineIcon}>🕒</Text>
-                    <View style={styles.timelineContent}>
-                      <Text style={styles.timelineMainText}>
-                        Work: {new Date(item.data.startTime).toLocaleDateString('en-US', {
-                          month: '2-digit',
-                          day: '2-digit',
-                          year: 'numeric'
-                        })}
-                      </Text>
-                      <Text style={styles.timelineSubText}>
-                        {item.data.endTime
-                          ? (() => {
-                              const durationMs = new Date(item.data.endTime).getTime() - new Date(item.data.startTime).getTime();
-                              const hours = Math.floor(durationMs / (1000 * 60 * 60));
-                              const minutes = Math.round((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-                              const startTime = new Date(item.data.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                              const endTime = new Date(item.data.endTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                              return `${hours}hr${minutes > 0 ? ` ${minutes}min` : ''} (${startTime}-${endTime})`;
-                            })()
-                          : 'Active Session - In Progress'
-                        }
-                      </Text>
-                    </View>
-                    <View style={styles.timelineRight}>
-                      <Text style={styles.timelineAmount}>
-                        {item.data.endTime ? formatCurrency(item.data.amount || 0) : 'Active'}
-                      </Text>
-                      <StatusPill
-                        status={item.data.status as 'paid' | 'unpaid' | 'requested'}
-                        size="sm"
-                      />
-                    </View>
+            groupedTimeline.map(([dayKey, dayItems]) => {
+              // Parse back from formatted date key (e.g., "Sep-23,-2025")
+              const formattedDate = dayKey.replace(/-/g, ' '); // Convert back to "Sep 23, 2025"
+              const date = new Date(formattedDate);
+              const isToday = date.toDateString() === new Date().toDateString();
+              const isYesterday = date.toDateString() === new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();
+
+              let dayLabel;
+              if (isToday) {
+                dayLabel = 'Today';
+              } else if (isYesterday) {
+                dayLabel = 'Yesterday';
+              } else {
+                // Use consistent formatting with provider side
+                dayLabel = formatDate(date);
+              }
+
+              return (
+                <View key={dayKey}>
+                  <View style={styles.dayHeader}>
+                    <Text style={styles.dayHeaderText}>{dayLabel}</Text>
                   </View>
-                ) : (
-                  // Payment Line
-                  <View style={styles.timelineLine}>
-                    <Text style={styles.timelineIcon}>💰</Text>
-                    <View style={styles.timelineContent}>
-                      <Text style={styles.timelineMainText}>
-                        Payment Sent
-                      </Text>
-                      <Text style={styles.timelineSubText}>
-                        {new Date(item.timestamp).toLocaleDateString('en-US', {
-                          month: '2-digit',
-                          day: '2-digit',
-                          year: 'numeric'
-                        })} {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''}
-                      </Text>
+
+                  {dayItems.map((item, index) => (
+                    <View key={item.id} style={styles.timelineItem}>
+                      {item.type === 'session' ? (
+                        // Work Session Line - Simplified
+                        <View style={styles.timelineLine}>
+                          <Text style={styles.timelineIcon}>🕒</Text>
+                          <View style={styles.timelineContent}>
+                            <Text style={styles.timelineMainText}>
+                              Work session
+                            </Text>
+                            <Text style={styles.timelineSubText}>
+                              {item.data.endTime
+                                ? (() => {
+                                    const durationMs = new Date(item.data.endTime).getTime() - new Date(item.data.startTime).getTime();
+                                    const hours = Math.floor(durationMs / (1000 * 60 * 60));
+                                    const minutes = Math.round((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+                                    const startTime = new Date(item.data.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                                    const endTime = new Date(item.data.endTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                                    return `${hours}hr${minutes > 0 ? ` ${minutes}min` : ''} • ${startTime}-${endTime}`;
+                                  })()
+                                : (() => {
+                                    const startTime = new Date(item.data.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                                    return `Active session • Started at ${startTime}`;
+                                  })()
+                              }
+                            </Text>
+                          </View>
+                          <View style={styles.timelineRight}>
+                            <Text style={styles.timelineAmount}>
+                              {item.data.endTime ? formatCurrency(item.data.amount || 0) : ''}
+                            </Text>
+                            {item.data.endTime && item.data.status !== 'requested' && (
+                              <StatusPill
+                                status={item.data.status as 'paid' | 'unpaid'}
+                                size="sm"
+                              />
+                            )}
+                          </View>
+                        </View>
+                      ) : item.type === 'payment' ? (
+                        // Payment Line - Simplified
+                        <View style={styles.timelineLine}>
+                          <Text style={styles.timelineIcon}>💰</Text>
+                          <View style={styles.timelineContent}>
+                            <Text style={styles.timelineMainText}>
+                              Payment sent
+                            </Text>
+                            <Text style={styles.timelineSubText}>
+                              {formatCurrency(item.data.data.amount || 0)} • {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''}
+                            </Text>
+                          </View>
+                          <View style={styles.timelineRight}>
+                            <Text style={styles.timelineAmount}>
+                              {item.data.data.method}
+                            </Text>
+                          </View>
+                        </View>
+                      ) : (
+                        // Payment Request Line - New for client view
+                        <View style={styles.timelineLine}>
+                          <Text style={styles.timelineIcon}>📋</Text>
+                          <View style={styles.timelineContent}>
+                            <Text style={styles.timelineMainText}>
+                              Payment requested
+                            </Text>
+                            <Text style={styles.timelineSubText}>
+                              {formatCurrency(item.data.data.amount || 0)} • {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''}
+                            </Text>
+                          </View>
+                          <View style={styles.timelineRight}>
+                            <Text style={styles.timelineAmount}>
+                              Pending
+                            </Text>
+                          </View>
+                        </View>
+                      )}
                     </View>
-                    <View style={styles.timelineRight}>
-                      <Text style={styles.timelineAmount}>
-                        {formatCurrency(item.data.data.amount || 0)} ({item.data.data.method})
-                      </Text>
-                    </View>
-                  </View>
-                )}
-              </View>
-            ))
+                  ))}
+                </View>
+              );
+            })
           )}
         </View>
       </ScrollView>
@@ -334,7 +460,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: '#F8F9FB',
   },
   loadingContainer: {
     flex: 1,
@@ -342,148 +468,239 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.secondary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: 16,
+    color: '#6B7280',
+    fontFamily: 'System',
   },
   header: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.xl,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 32,
   },
   backButton: {
-    marginBottom: theme.spacing.lg,
+    marginBottom: 16,
   },
   backButtonText: {
-    fontSize: theme.fontSize.headline,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.primary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#22C55E',
+    fontFamily: 'System',
   },
   providerName: {
-    fontSize: theme.fontSize.title,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.display,
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#111827',
+    fontFamily: 'System',
   },
   subtitle: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
+    fontSize: 13,
+    color: '#6B7280',
     marginTop: 4,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontFamily: 'System',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.xxl,
+    paddingHorizontal: 16,
+    paddingBottom: 48,
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: theme.spacing.md,
-    marginBottom: theme.spacing.xl,
+    gap: 12,
+    marginBottom: 32,
   },
   statCard: {
     flex: 1,
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.borderRadius.card,
-    padding: theme.spacing.lg,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 16,
     minWidth: '47%',
   },
   statLabel: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
-    marginBottom: theme.spacing.sm,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: 13,
+    color: '#6B7280',
+    marginBottom: 8,
+    fontFamily: 'System',
   },
   statUnpaid: {
-    fontSize: theme.fontSize.title,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.warning,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#EF4444',
+    fontFamily: 'System',
+    fontVariant: ['tabular-nums'],
   },
   statUnpaidHours: {
-    fontSize: theme.fontSize.title,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.warning,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#EF4444',
+    fontFamily: 'System',
   },
   actionButtonContainer: {
-    marginBottom: theme.spacing.xl,
+    marginBottom: 32,
   },
   markAsPaidButton: {
     width: '100%',
   },
   timelineSection: {
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.borderRadius.card,
-    padding: theme.spacing.lg,
-    ...theme.shadows.card,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 16,
   },
   timelineTitle: {
-    fontSize: theme.fontSize.headline,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.lg,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 16,
+    fontFamily: 'System',
   },
   emptyState: {
-    padding: theme.spacing.xl,
+    padding: 32,
     alignItems: 'center',
   },
   emptyStateText: {
-    fontSize: theme.fontSize.body,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.secondary,
-    marginBottom: theme.spacing.sm,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#6B7280',
+    marginBottom: 8,
+    fontFamily: 'System',
   },
   emptyStateSubtext: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
+    fontSize: 13,
+    color: '#6B7280',
     textAlign: 'center',
-    fontFamily: theme.typography.fontFamily.primary,
+    fontFamily: 'System',
   },
   timelineItem: {
-    marginBottom: theme.spacing.md,
+    marginBottom: 12,
   },
   timelineLine: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: 8,
   },
   timelineIcon: {
     fontSize: 20,
-    marginRight: theme.spacing.md,
+    marginRight: 12,
     width: 24,
     textAlign: 'center',
   },
   timelineContent: {
     flex: 1,
-    marginRight: theme.spacing.md,
+    marginRight: 12,
   },
   timelineMainText: {
-    fontSize: theme.fontSize.body,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#111827',
+    fontFamily: 'System',
     marginBottom: 2,
   },
   timelineSubText: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: 13,
+    color: '#6B7280',
+    fontFamily: 'System',
   },
   timelineRight: {
     alignItems: 'flex-end',
-    gap: theme.spacing.xs,
+    gap: 4,
   },
   timelineAmount: {
-    fontSize: theme.fontSize.body,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    fontFamily: 'System',
+    fontVariant: ['tabular-nums'],
+  },
+  dayHeader: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    marginBottom: 8,
+  },
+  dayHeaderText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    fontFamily: 'System',
+  },
+  // Summary card styles - matching provider design
+  summaryCard: {
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 16,
+    backgroundColor: '#FFF',
+    gap: 8,
+    marginBottom: 32,
+  },
+  summaryRow: {
+    flexDirection: 'column',
+    gap: 16,
+  },
+  summaryCompactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  summaryLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  summaryLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#374151',
+    fontFamily: 'System',
+  },
+  summaryAmount: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#EF4444',
+    fontFamily: 'System',
+    fontVariant: ['tabular-nums'],
+  },
+  summaryHours: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#6B7280',
+    fontFamily: 'System',
+  },
+  summaryRight: {
+    alignItems: 'flex-end',
+  },
+  recordPaymentButton: {
+    backgroundColor: '#22C55E',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  recordPaymentButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'System',
+  },
+  paidUpPill: {
+    backgroundColor: '#D1FAE5',
+    borderWidth: 1,
+    borderColor: '#22C55E',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  paidUpText: {
+    color: '#22C55E',
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'System',
   },
 });
