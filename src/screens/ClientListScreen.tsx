@@ -10,10 +10,13 @@ import {
   RefreshControl,
   TouchableOpacity,
   StyleSheet,
+  ScrollView,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { Feather } from '@expo/vector-icons';
 import { Client } from '../types';
 import { Button } from '../components/Button';
+import { HowItWorksModal } from '../components/HowItWorksModal';
 import {
   getClients,
   addClient,
@@ -35,6 +38,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [newClientName, setNewClientName] = useState('');
   const [newClientRate, setNewClientRate] = useState('');
 
@@ -106,81 +110,27 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const renderClientCard = ({ item }: { item: ClientWithSummary }) => (
     <TouchableOpacity
       onPress={() => handleClientPress(item)}
-      style={{
-        backgroundColor: theme.colors.card,
-        borderRadius: theme.borderRadius.card,
-        padding: theme.spacing.lg,
-        marginBottom: theme.spacing.md,
-        borderWidth: 1,
-        borderColor: theme.colors.border,
-        ...theme.shadows.card,
-      }}
+      style={styles.clientCard}
     >
-      <View style={{
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: theme.spacing.md,
-      }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{
-            fontSize: theme.fontSize.headline,
-            fontWeight: theme.fontWeight.semibold,
-            color: theme.colors.text.primary,
-            marginBottom: 4,
-          }}>
-            {item.name}
-          </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{
-              fontSize: theme.fontSize.body,
-              fontWeight: theme.fontWeight.medium,
-              color: theme.colors.money[500],
-            }}>
-              ${item.hourlyRate}
-            </Text>
-            <Text style={{
-              fontSize: theme.fontSize.callout,
-              color: theme.colors.text.secondary,
-              marginLeft: 4,
-            }}>
-              /hour
-            </Text>
+      <View style={styles.clientCardHeader}>
+        <View style={styles.clientInfo}>
+          <Text style={styles.clientName}>{item.name}</Text>
+          <View style={styles.rateRow}>
+            <Text style={styles.rateAmount}>${item.hourlyRate}</Text>
+            <Text style={styles.rateLabel}>/hour</Text>
           </View>
         </View>
 
-        <View style={{ alignItems: 'flex-end' }}>
+        <View style={styles.clientStatus}>
           {item.unpaidBalance > 0 ? (
-            <View style={{
-              backgroundColor: theme.colors.warning[50],
-              borderWidth: 1,
-              borderColor: theme.colors.warning[100],
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: 8,
-            }}>
-              <Text style={{
-                fontSize: theme.fontSize.callout,
-                fontWeight: theme.fontWeight.semibold,
-                color: theme.colors.warning[600],
-              }}>
+            <View style={[styles.statusPill, styles.duePill]}>
+              <Text style={[styles.statusPillText, styles.duePillText]}>
                 ${item.unpaidBalance.toFixed(0)}
               </Text>
             </View>
           ) : (
-            <View style={{
-              backgroundColor: theme.colors.money[50],
-              borderWidth: 1,
-              borderColor: theme.colors.money[100],
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: 8,
-            }}>
-              <Text style={{
-                fontSize: theme.fontSize.footnote,
-                fontWeight: theme.fontWeight.medium,
-                color: theme.colors.money[600],
-              }}>
+            <View style={[styles.statusPill, styles.paidPill]}>
+              <Text style={[styles.statusPillText, styles.paidPillText]}>
                 Paid up
               </Text>
             </View>
@@ -189,18 +139,8 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
       </View>
 
       {item.unpaidHours > 0 && (
-        <View style={{
-          backgroundColor: theme.colors.warning[50],
-          borderWidth: 1,
-          borderColor: theme.colors.warning[100],
-          borderRadius: 8,
-          padding: 12,
-        }}>
-          <Text style={{
-            fontSize: theme.fontSize.callout,
-            fontWeight: theme.fontWeight.medium,
-            color: theme.colors.warning[600],
-          }}>
+        <View style={styles.unpaidHoursCard}>
+          <Text style={styles.unpaidHoursText}>
             ⏱️ {item.unpaidHours.toFixed(1)} unpaid hours
           </Text>
         </View>
@@ -209,133 +149,138 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   );
 
   const totalUnpaid = clients.reduce((sum, client) => sum + client.unpaidBalance, 0);
+  const showOutstanding = clients.length > 0 || totalUnpaid > 0;
+  const isZeroState = clients.length === 0;
 
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      {/* Header */}
-      <View style={{
-        paddingHorizontal: theme.spacing.lg,
-        paddingTop: theme.spacing.lg,
-        paddingBottom: theme.spacing.md,
-      }}>
-        <View style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          marginBottom: theme.spacing.lg,
-        }}>
-          <Text style={{
-            fontSize: 32,
-            fontWeight: '700',
-            color: theme.colors.text.primary,
-            flex: 1,
-          }}>
-            Clients
-          </Text>
-          <View style={{
-            backgroundColor: 'rgba(0, 122, 255, 0.15)',
-            paddingHorizontal: 12,
-            paddingVertical: 4,
-            borderRadius: 16,
-          }}>
-            <Text style={{
-              fontSize: theme.fontSize.footnote,
-              fontWeight: theme.fontWeight.medium,
-              color: theme.colors.primary,
-            }}>
-              {clients.length}
+  const renderHeader = () => (
+    <View style={styles.header}>
+      <View style={styles.headerRow}>
+        <Text style={styles.headerTitle}>TrackPay</Text>
+        {!isZeroState && (
+          <TouchableOpacity
+            onPress={() => setShowAddModal(true)}
+            style={styles.addClientButton}
+          >
+            <Feather name="plus" size={16} color={theme.color.brand} />
+            <Text style={styles.addClientButtonText}>Add Client</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {showOutstanding && (
+        <View style={styles.outstandingCard}>
+          <View style={styles.outstandingContent}>
+            <Text style={styles.outstandingLabel}>Total Outstanding</Text>
+            <View style={styles.outstandingRow}>
+              <Text style={styles.outstandingAmount}>
+                ${totalUnpaid.toFixed(2)}
+              </Text>
+              <View style={[
+                styles.statusPill,
+                totalUnpaid > 0 ? styles.duePill : styles.paidPill,
+              ]}>
+                <Text style={[
+                  styles.statusPillText,
+                  totalUnpaid > 0 ? styles.duePillText : styles.paidPillText,
+                ]}>
+                  {totalUnpaid > 0 ? `Due $${totalUnpaid.toFixed(0)}` : 'Paid up'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+
+  const renderZeroState = () => (
+    <ScrollView
+      style={styles.zeroStateContainer}
+      contentContainerStyle={styles.zeroStateContent}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Hero Card */}
+      <View style={styles.heroCard}>
+        <Text style={styles.heroTitle}>Let's set you up</Text>
+        <Text style={styles.heroSubtitle}>
+          Track hours, request payment, and invite clients to a shared workspace.
+        </Text>
+
+        <View style={styles.heroActions}>
+          <Button
+            title="Add Client"
+            onPress={() => setShowAddModal(true)}
+            variant="primary"
+            size="lg"
+            style={styles.heroPrimaryButton}
+          />
+
+          <TouchableOpacity
+            onPress={() => setShowHowItWorks(true)}
+            style={styles.heroSecondaryButton}
+          >
+            <Text style={styles.heroSecondaryButtonText}>How it works</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* How it works steps */}
+      <View style={styles.stepsCard}>
+        <View style={styles.step}>
+          <View style={styles.stepIcon}>
+            <Feather name="user-plus" size={28} color={theme.color.text} />
+          </View>
+          <View style={styles.stepContent}>
+            <Text style={styles.stepTitle}>Add a client</Text>
+            <Text style={styles.stepDescription}>Name and hourly rate. That's it.</Text>
+          </View>
+        </View>
+
+        <View style={styles.step}>
+          <View style={styles.stepIcon}>
+            <Feather name="clock" size={28} color={theme.color.text} />
+          </View>
+          <View style={styles.stepContent}>
+            <Text style={styles.stepTitle}>Track hours</Text>
+            <Text style={styles.stepDescription}>
+              Start and stop sessions with precision timing.
             </Text>
           </View>
         </View>
 
-        {totalUnpaid > 0 && (
-          <View style={{
-            backgroundColor: theme.colors.warning[50],
-            borderWidth: 1,
-            borderColor: theme.colors.warning[100],
-            borderRadius: theme.borderRadius.card,
-            padding: theme.spacing.lg,
-            marginBottom: theme.spacing.lg,
-          }}>
-            <View style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{
-                  fontSize: theme.fontSize.callout,
-                  color: theme.colors.text.secondary,
-                  marginBottom: 4,
-                }}>
-                  💰 Total Outstanding
-                </Text>
-                <Text style={{
-                  fontSize: 24,
-                  fontWeight: theme.fontWeight.bold,
-                  color: theme.colors.warning[600],
-                }}>
-                  ${totalUnpaid.toFixed(2)}
-                </Text>
-              </View>
-              <View style={{
-                backgroundColor: theme.colors.warning[100],
-                width: 48,
-                height: 48,
-                borderRadius: 24,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-                <Text style={{ fontSize: 18 }}>📊</Text>
-              </View>
-            </View>
+        <View style={styles.step}>
+          <View style={styles.stepIcon}>
+            <Feather name="send" size={28} color={theme.color.text} />
           </View>
-        )}
+          <View style={styles.stepContent}>
+            <Text style={styles.stepTitle}>Invite & request payment</Text>
+            <Text style={styles.stepDescription}>
+              Share your workspace, send requests, get notified when they confirm.
+            </Text>
+          </View>
+        </View>
       </View>
+    </ScrollView>
+  );
 
-      {/* Client List */}
-      <FlatList
-        data={clients}
-        renderItem={renderClientCard}
-        keyExtractor={(item) => item.id}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-        contentContainerStyle={{ padding: 24, paddingTop: 0 }}
-        ListEmptyComponent={
-          <View style={{
-            flex: 1,
-            justifyContent: 'center',
-            alignItems: 'center',
-            paddingVertical: 80,
-          }}>
-            <Text style={{
-              fontSize: theme.fontSize.body,
-              color: theme.colors.text.secondary,
-              marginBottom: 16,
-            }}>
-              No clients yet
-            </Text>
-            <Text style={{
-              fontSize: theme.fontSize.callout,
-              color: theme.colors.text.secondary,
-              textAlign: 'center',
-            }}>
-              Add your first client to start tracking time
-            </Text>
-          </View>
-        }
-        ListFooterComponent={
-          <View style={{ marginTop: 24 }}>
-            <Button
-              title="Add New Client"
-              onPress={() => setShowAddModal(true)}
-              variant="primary"
-              size="lg"
-            />
-          </View>
-        }
-        showsVerticalScrollIndicator={false}
-      />
+  return (
+    <SafeAreaView style={styles.container}>
+      {renderHeader()}
+
+      {isZeroState ? (
+        renderZeroState()
+      ) : (
+        <FlatList
+          data={clients}
+          renderItem={renderClientCard}
+          keyExtractor={(item) => item.id}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          }
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       {/* Add Client Modal */}
       <Modal
@@ -344,122 +289,56 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
         presentationStyle="pageSheet"
         onRequestClose={() => setShowAddModal(false)}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
-          <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 24 }}>
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalContent}>
             {/* Modal Header */}
-            <View style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 32,
-            }}>
-              <Text style={{
-                fontSize: theme.fontSize.title,
-                fontWeight: theme.fontWeight.bold,
-                color: theme.colors.text.primary,
-              }}>
-                Add New Client
-              </Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add New Client</Text>
               <TouchableOpacity
                 onPress={() => setShowAddModal(false)}
-                style={{ paddingHorizontal: 16, paddingVertical: 8 }}
+                style={styles.modalCloseButton}
               >
-                <Text style={{
-                  color: theme.colors.primary,
-                  fontSize: theme.fontSize.headline,
-                  fontWeight: theme.fontWeight.medium,
-                }}>
-                  Cancel
-                </Text>
+                <Text style={styles.modalCloseText}>Cancel</Text>
               </TouchableOpacity>
             </View>
 
             {/* Form */}
-            <View>
-              <View style={{ marginBottom: 24 }}>
-                <Text style={{
-                  fontSize: theme.fontSize.callout,
-                  fontWeight: theme.fontWeight.medium,
-                  color: theme.colors.text.primary,
-                  marginBottom: 12,
-                }}>
-                  Client Name
-                </Text>
-                <View style={{
-                  backgroundColor: theme.colors.card,
-                  borderRadius: theme.borderRadius.medium,
-                  borderWidth: 1,
-                  borderColor: '#E5E7EB',
-                }}>
+            <View style={styles.form}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Client Name</Text>
+                <View style={styles.inputContainer}>
                   <TextInput
                     value={newClientName}
                     onChangeText={setNewClientName}
                     placeholder="Enter client name"
-                    placeholderTextColor="#86868B"
-                    style={{
-                      paddingHorizontal: 16,
-                      paddingVertical: 16,
-                      fontSize: theme.fontSize.body,
-                      color: theme.colors.text.primary,
-                      fontFamily: '-apple-system',
-                    }}
+                    placeholderTextColor={theme.color.textSecondary}
+                    style={styles.input}
                     autoCapitalize="words"
                   />
                 </View>
               </View>
 
-              <View style={{ marginBottom: 24 }}>
-                <Text style={{
-                  fontSize: theme.fontSize.callout,
-                  fontWeight: theme.fontWeight.medium,
-                  color: theme.colors.text.primary,
-                  marginBottom: 12,
-                }}>
-                  Hourly Rate
-                </Text>
-                <View style={{
-                  backgroundColor: theme.colors.card,
-                  borderRadius: theme.borderRadius.medium,
-                  borderWidth: 1,
-                  borderColor: '#E5E7EB',
-                }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={{
-                      fontSize: theme.fontSize.body,
-                      color: theme.colors.text.secondary,
-                      paddingLeft: 16,
-                    }}>
-                      $
-                    </Text>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Hourly Rate</Text>
+                <View style={styles.inputContainer}>
+                  <View style={styles.rateInputRow}>
+                    <Text style={styles.ratePrefix}>$</Text>
                     <TextInput
                       value={newClientRate}
                       onChangeText={setNewClientRate}
                       placeholder="45"
-                      placeholderTextColor="#86868B"
+                      placeholderTextColor={theme.color.textSecondary}
                       keyboardType="numeric"
-                      style={{
-                        flex: 1,
-                        paddingHorizontal: 8,
-                        paddingVertical: 16,
-                        fontSize: theme.fontSize.body,
-                        color: theme.colors.text.primary,
-                        fontFamily: '-apple-system',
-                      }}
+                      style={styles.rateInput}
                     />
-                    <Text style={{
-                      fontSize: theme.fontSize.body,
-                      color: theme.colors.text.secondary,
-                      paddingRight: 16,
-                    }}>
-                      /hour
-                    </Text>
+                    <Text style={styles.rateSuffix}>/hour</Text>
                   </View>
                 </View>
               </View>
             </View>
 
             {/* Add Button */}
-            <View style={{ marginTop: 48 }}>
+            <View style={styles.modalFooter}>
               <Button
                 title="Add Client"
                 onPress={handleAddClient}
@@ -470,6 +349,359 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
           </View>
         </SafeAreaView>
       </Modal>
+
+      {/* How It Works Modal */}
+      <HowItWorksModal
+        visible={showHowItWorks}
+        onClose={() => setShowHowItWorks(false)}
+      />
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.color.appBg,
+  },
+
+  // Header Styles
+  header: {
+    paddingHorizontal: theme.space.x16,
+    paddingTop: theme.space.x16,
+    paddingBottom: theme.space.x16,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.space.x16,
+  },
+  headerTitle: {
+    fontSize: theme.font.large,
+    fontWeight: '700',
+    color: theme.color.text,
+    fontFamily: theme.typography.fontFamily.display,
+  },
+  addClientButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.color.cardBg,
+    borderRadius: theme.radius.button,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    paddingHorizontal: theme.space.x12,
+    paddingVertical: theme.space.x8,
+    minHeight: 44,
+  },
+  addClientButtonText: {
+    fontSize: theme.font.body,
+    fontWeight: '600',
+    color: theme.color.brand,
+    fontFamily: theme.typography.fontFamily.primary,
+    marginLeft: theme.space.x4,
+  },
+
+  // Outstanding Card
+  outstandingCard: {
+    backgroundColor: theme.color.cardBg,
+    borderRadius: theme.radius.card,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    padding: theme.space.x16,
+  },
+  outstandingContent: {
+    flexDirection: 'column',
+  },
+  outstandingLabel: {
+    fontSize: theme.font.body,
+    fontWeight: '400',
+    color: theme.color.textSecondary,
+    fontFamily: theme.typography.fontFamily.primary,
+    marginBottom: theme.space.x8,
+  },
+  outstandingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  outstandingAmount: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.color.text,
+    fontFamily: theme.typography.fontFamily.primary,
+    fontVariant: ['tabular-nums'],
+  },
+  statusPill: {
+    paddingHorizontal: theme.space.x12,
+    paddingVertical: theme.space.x4,
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+  },
+  paidPill: {
+    backgroundColor: theme.color.pillPaidBg,
+    borderColor: theme.color.pillPaidBg,
+  },
+  duePill: {
+    backgroundColor: theme.color.pillDueBg,
+    borderColor: theme.color.pillDueBg,
+  },
+  statusPillText: {
+    fontSize: theme.font.small,
+    fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  paidPillText: {
+    color: theme.color.pillPaidText,
+  },
+  duePillText: {
+    color: theme.color.pillDueText,
+  },
+
+  // Zero State
+  zeroStateContainer: {
+    flex: 1,
+  },
+  zeroStateContent: {
+    paddingHorizontal: theme.space.x16,
+    paddingBottom: theme.space.x32,
+  },
+
+  // Hero Card
+  heroCard: {
+    backgroundColor: theme.color.cardBg,
+    borderRadius: theme.radius.card,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    padding: theme.space.x16,
+    marginBottom: theme.space.x16,
+  },
+  heroTitle: {
+    fontSize: theme.font.title,
+    fontWeight: '700',
+    color: theme.color.text,
+    fontFamily: theme.typography.fontFamily.display,
+    marginBottom: theme.space.x8,
+  },
+  heroSubtitle: {
+    fontSize: theme.font.body,
+    fontWeight: '400',
+    color: theme.color.textSecondary,
+    fontFamily: theme.typography.fontFamily.primary,
+    lineHeight: 22,
+    marginBottom: theme.space.x24,
+  },
+  heroActions: {
+    gap: theme.space.x12,
+  },
+  heroPrimaryButton: {
+    height: 48,
+  },
+  heroSecondaryButton: {
+    alignSelf: 'center',
+    paddingVertical: theme.space.x12,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  heroSecondaryButtonText: {
+    fontSize: theme.font.body,
+    fontWeight: '600',
+    color: theme.color.brand,
+    fontFamily: theme.typography.fontFamily.primary,
+    textAlign: 'center',
+  },
+
+  // Steps Card
+  stepsCard: {
+    backgroundColor: theme.color.cardBg,
+    borderRadius: theme.radius.card,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    padding: theme.space.x16,
+  },
+  step: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: theme.space.x8,
+    minHeight: 72,
+  },
+  stepIcon: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: theme.space.x16,
+  },
+  stepContent: {
+    flex: 1,
+  },
+  stepTitle: {
+    fontSize: theme.font.body,
+    fontWeight: '600',
+    color: theme.color.text,
+    fontFamily: theme.typography.fontFamily.primary,
+    marginBottom: 2,
+  },
+  stepDescription: {
+    fontSize: theme.font.small,
+    fontWeight: '400',
+    color: theme.color.textSecondary,
+    fontFamily: theme.typography.fontFamily.primary,
+    lineHeight: 18,
+  },
+
+  // List Content (when not zero state)
+  listContent: {
+    padding: theme.space.x16,
+    paddingTop: 0,
+  },
+
+  // Client Card
+  clientCard: {
+    backgroundColor: theme.color.cardBg,
+    borderRadius: theme.radius.card,
+    padding: theme.space.x16,
+    marginBottom: theme.space.x12,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+  },
+  clientCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: theme.space.x12,
+  },
+  clientInfo: {
+    flex: 1,
+  },
+  clientName: {
+    fontSize: theme.font.body,
+    fontWeight: '600',
+    color: theme.color.text,
+    fontFamily: theme.typography.fontFamily.primary,
+    marginBottom: 4,
+  },
+  rateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  rateAmount: {
+    fontSize: theme.font.body,
+    fontWeight: '600',
+    color: theme.color.money,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  rateLabel: {
+    fontSize: theme.font.small,
+    color: theme.color.textSecondary,
+    fontFamily: theme.typography.fontFamily.primary,
+    marginLeft: 4,
+  },
+  clientStatus: {
+    alignItems: 'flex-end',
+  },
+  unpaidHoursCard: {
+    backgroundColor: theme.color.pillDueBg,
+    borderWidth: 1,
+    borderColor: theme.color.pillDueBg,
+    borderRadius: theme.space.x8,
+    padding: theme.space.x12,
+  },
+  unpaidHoursText: {
+    fontSize: theme.font.small,
+    fontWeight: '600',
+    color: theme.color.pillDueText,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+
+  // Modal Styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: theme.color.appBg,
+  },
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: theme.space.x16,
+    paddingTop: theme.space.x16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.space.x32,
+  },
+  modalTitle: {
+    fontSize: theme.font.title,
+    fontWeight: '700',
+    color: theme.color.text,
+    fontFamily: theme.typography.fontFamily.display,
+  },
+  modalCloseButton: {
+    paddingHorizontal: theme.space.x16,
+    paddingVertical: theme.space.x8,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  modalCloseText: {
+    color: theme.color.brand,
+    fontSize: theme.font.body,
+    fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+
+  // Form Styles
+  form: {
+    flex: 1,
+  },
+  inputGroup: {
+    marginBottom: theme.space.x24,
+  },
+  inputLabel: {
+    fontSize: theme.font.body,
+    fontWeight: '600',
+    color: theme.color.text,
+    fontFamily: theme.typography.fontFamily.primary,
+    marginBottom: theme.space.x8,
+  },
+  inputContainer: {
+    backgroundColor: theme.color.cardBg,
+    borderRadius: theme.radius.input,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+  },
+  input: {
+    paddingHorizontal: theme.space.x16,
+    paddingVertical: theme.space.x16,
+    fontSize: theme.font.body,
+    color: theme.color.text,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  rateInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ratePrefix: {
+    fontSize: theme.font.body,
+    color: theme.color.textSecondary,
+    paddingLeft: theme.space.x16,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  rateInput: {
+    flex: 1,
+    paddingHorizontal: theme.space.x8,
+    paddingVertical: theme.space.x16,
+    fontSize: theme.font.body,
+    color: theme.color.text,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  rateSuffix: {
+    fontSize: theme.font.body,
+    color: theme.color.textSecondary,
+    paddingRight: theme.space.x16,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  modalFooter: {
+    paddingTop: theme.space.x24,
+    paddingBottom: theme.space.x16,
+  },
+});
