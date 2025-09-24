@@ -13,6 +13,16 @@ A two-sided time tracking and payment request app built with Expo (React Native)
 - **RESEARCH DEPENDENCIES**: Understand all dependencies and potential side effects before implementing
 - **NO EXCUSES**: If you don't test it properly and it breaks, it's YOUR fault - research dependencies upfront
 
+### ❌ CRITICAL: NEVER MAKE PERFORMANCE OPTIMIZATIONS WITHOUT VERIFICATION
+- **NEVER** implement performance optimizations without testing them first
+- **ALWAYS** verify TypeScript compilation passes after making changes
+- **ALWAYS** test that the app actually runs before claiming improvements
+- **VERIFY** that optimizations provide actual measurable benefits
+- **TEST** all functionality still works after optimization changes
+- **MEASURE** performance before and after to validate improvements
+- **NO PERFORMANCE CLAIMS** without proof that changes actually work
+- This includes: memoization, lazy loading, query optimization, bundle changes
+
 ### Testing Strategy
 - **Visual Testing**: Compare screenshots against mockups/designs
 - **Functional Testing**: Test time tracking, payments, navigation flows

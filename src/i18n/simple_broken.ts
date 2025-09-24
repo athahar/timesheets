@@ -220,7 +220,7 @@ const translations = {
     'login.errors.passwordRequired': 'Por favor ingresa tu contraseña',
     'login.errors.failed': 'Inicio de Sesión Fallido',
     'login.errors.error': 'Error',
-    'login.errors.unexpected': 'Ocurrió un error inesperado. Por favor intenta de nuevo.'
+    'login.errors.unexpected': 'Ocurrió un error inesperado. Por favor intenta de nuevo.',
 
     'forgotPassword.title': 'Restablecer Contraseña',
     'forgotPassword.subtitle': 'Te enviaremos un enlace de restablecimiento',
@@ -243,7 +243,7 @@ const translations = {
     'forgotPassword.errors.emailInvalid': 'Por favor ingresa un correo electrónico válido',
     'forgotPassword.errors.resetFailed': 'Restablecimiento Fallido',
     'forgotPassword.errors.error': 'Error',
-    'forgotPassword.errors.unexpected': 'Ocurrió un error inesperado. Por favor intenta de nuevo.'
+    'forgotPassword.errors.unexpected': 'Ocurrió un error inesperado. Por favor intenta de nuevo.',
 
     'inviteClaim.title': 'Reclamar Tu Invitación',
     'inviteClaim.subtitle': 'Ingresa tu código de invitación para comenzar',

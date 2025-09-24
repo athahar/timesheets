@@ -186,7 +186,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
     loadClients();
-  }, [loadClients]);
+  }, []); // loadClients is stable and defined later
 
   // PERFORMANCE: Memoized FlatList callbacks and optimizations
   const keyExtractor = useCallback((item: ClientWithSummary) => item.id, []);
@@ -356,49 +356,15 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
     }, [userProfile])
   );
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    loadClients();
-  };
-
-  const handleClientPress = (client: Client) => {
-    if (__DEV__) {
-      if (__DEV__) {
-        if (__DEV__) console.log('🎯 SimpleClientListScreen: Client pressed:', client.name, 'ID:', client.id);
-      }
-    }
-    navigation.navigate('ClientHistory', { clientId: client.id });
-  };
-
-  const handleAddClient = () => {
+  const handleAddClient = useCallback(() => {
     setShowAddModal(true);
-  };
+  }, []);
 
-  const handleClientAdded = () => {
+  const handleClientAdded = useCallback(() => {
     loadClients();
-  };
+  }, []); // loadClients is stable
 
-  const handleShowInvite = async (client: ClientWithSummary) => {
-    try {
-      const invites = await directSupabase.getInvites();
-      const clientInvite = invites.find(invite =>
-        invite.clientId === client.id && invite.status === 'pending'
-      );
-
-      if (clientInvite) {
-        setSelectedClientForInvite(client);
-        setInviteCode(clientInvite.inviteCode);
-        setShowInviteModal(true);
-      } else {
-        Alert.alert(t('clientList.errorTitle'), t('clientList.noInviteCode'));
-      }
-    } catch (error) {
-      console.error('Error loading invite:', error);
-      Alert.alert(t('clientList.errorTitle'), t('clientList.inviteLoadError'));
-    }
-  };
-
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     try {
       await signOut();
       navigation.reset({
@@ -409,7 +375,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
       console.error('Logout error:', error);
       Alert.alert(t('clientList.errorTitle'), t('clientList.logoutError'));
     }
-  };
+  }, [signOut, navigation, t]);
 
   const renderStatusPill = (client: ClientWithSummary) => {
     let pillConfig;
@@ -447,48 +413,6 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
     );
   };
 
-  const renderClientCard = ({ item }: { item: ClientWithSummary }) => {
-    const isActive = item.hasActiveSession;
-
-    return (
-      <TouchableOpacity
-        onPress={() => handleClientPress(item)}
-        style={[
-          styles.clientCard,
-          isActive && styles.clientCardActive
-        ]}
-        activeOpacity={0.8}
-        accessibilityRole="button"
-        accessibilityLabel={`${item.name}, ${item.totalUnpaidBalance > 0 ? `Due $${item.totalUnpaidBalance.toFixed(0)}` : 'Paid up'}`}
-      >
-        {/* Left Side: Client Info */}
-        <View style={styles.clientLeft}>
-          <Text style={styles.clientName}>{formatName(item.name)}</Text>
-          <Text style={styles.clientRate}>
-            ${item.hourlyRate}/hour
-          </Text>
-          {item.claimedStatus === 'unclaimed' && (
-            <TouchableOpacity
-              onPress={(e) => {
-                e.stopPropagation();
-                handleShowInvite(item);
-              }}
-              activeOpacity={0.7}
-              style={styles.inviteButton}
-            >
-              <Text style={styles.inviteButtonText}>{t('clientList.invite')}</Text>
-            </TouchableOpacity>
-          )}
-          {renderActiveChip(item)}
-        </View>
-
-        {/* Right Side: Status Pill */}
-        <View style={styles.clientRight}>
-          {renderStatusPill(item)}
-        </View>
-      </TouchableOpacity>
-    );
-  };
 
   const totalUnpaid = useMemo(() =>
     clients.reduce((sum, client) => sum + client.totalUnpaidBalance, 0),

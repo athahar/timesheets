@@ -18,12 +18,12 @@ import { SimpleClientListScreen } from '../screens/SimpleClientListScreen';
 import { ClientHistoryScreen } from '../screens/ClientHistoryScreen';
 import { StyledSessionTrackingScreen } from '../screens/StyledSessionTrackingScreen';
 
-// PERFORMANCE: Lazy load non-critical screens
-const AccountSelectionScreen = React.lazy(() => import('../screens/AccountSelectionScreen').then(m => ({ default: m.AccountSelectionScreen })));
-const ClientProfileScreen = React.lazy(() => import('../screens/ClientProfileScreen').then(m => ({ default: m.ClientProfileScreen })));
-const ServiceProviderListScreen = React.lazy(() => import('../screens/ServiceProviderListScreen').then(m => ({ default: m.ServiceProviderListScreen })));
-const ServiceProviderSummaryScreen = React.lazy(() => import('../screens/ServiceProviderSummaryScreen').then(m => ({ default: m.ServiceProviderSummaryScreen })));
-const SettingsScreen = React.lazy(() => import('../screens/SettingsScreen').then(m => ({ default: m.SettingsScreen })));
+// App Screens - Non-critical (temporarily restored - lazy loading needs proper Suspense setup)
+import { AccountSelectionScreen } from '../screens/AccountSelectionScreen';
+import { ClientProfileScreen } from '../screens/ClientProfileScreen';
+import { ServiceProviderListScreen } from '../screens/ServiceProviderListScreen';
+import { ServiceProviderSummaryScreen } from '../screens/ServiceProviderSummaryScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
 
 // Components
 import { SimplifiedSyncStatus } from '../components/SimplifiedSyncStatus';
