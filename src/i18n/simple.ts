@@ -212,6 +212,13 @@ const translations = {
     'clientHistory.yesterday': 'Yesterday',
     'clientHistory.paymentRequestedActivity': 'Payment requested',
 
+    // Empty state messages
+    'emptyState.noWork': 'No work yet',
+    'emptyState.workWillAppear': 'Work sessions and payments will appear here.',
+    'emptyState.startFirst': 'Start your first session',
+    'emptyState.noSessions': 'No sessions yet',
+    'emptyState.firstSessionHint': 'Start your first session to see it here',
+
     // StyledSessionTrackingScreen
     'sessionTracking.loading': 'Loading...',
     'sessionTracking.clientNotFound': 'Client not found',
@@ -619,6 +626,13 @@ const translations = {
     'clientHistory.yesterday': 'Ayer',
     'clientHistory.paymentRequestedActivity': 'Pago solicitado',
 
+    // Empty state messages (Spanish)
+    'emptyState.noWork': 'Sin trabajo aún',
+    'emptyState.workWillAppear': 'Las sesiones de trabajo y pagos aparecerán aquí.',
+    'emptyState.startFirst': 'Inicia tu primera sesión',
+    'emptyState.noSessions': 'Sin sesiones aún',
+    'emptyState.firstSessionHint': 'Inicia tu primera sesión para verla aquí',
+
     // StyledSessionTrackingScreen (Spanish)
     'sessionTracking.loading': 'Cargando...',
     'sessionTracking.clientNotFound': 'Cliente no encontrado',
@@ -834,11 +848,11 @@ export const initSimpleI18n = async (): Promise<void> => {
     }
 
     if (__DEV__) {
-      console.log(`✅ Simple i18n initialized with language: ${currentLanguage}`);
+      if (__DEV__) console.log(`✅ Simple i18n initialized with language: ${currentLanguage}`);
     }
   } catch (error) {
     if (__DEV__) {
-      console.warn('Simple i18n initialization failed, using English:', error);
+      if (__DEV__) console.warn('Simple i18n initialization failed, using English:', error);
     }
     currentLanguage = 'en-US';
   }
@@ -861,7 +875,7 @@ export const simpleT = (key: string, variables?: Record<string, string | number>
     return translation;
   } catch (error) {
     if (__DEV__) {
-      console.warn('Translation error:', error);
+      if (__DEV__) console.warn('Translation error:', error);
     }
     return key;
   }
@@ -878,12 +892,12 @@ export const changeLanguageSimple = async (language: string): Promise<void> => {
       await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, language);
 
       if (__DEV__) {
-        console.log(`✅ Simple language changed to: ${language}`);
+        if (__DEV__) console.log(`✅ Simple language changed to: ${language}`);
       }
     }
   } catch (error) {
     if (__DEV__) {
-      console.warn('Failed to change simple language:', error);
+      if (__DEV__) console.warn('Failed to change simple language:', error);
     }
   }
 };

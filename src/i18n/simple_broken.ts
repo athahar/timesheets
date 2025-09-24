@@ -286,11 +286,11 @@ export const initSimpleI18n = async (): Promise<void> => {
     }
 
     if (__DEV__) {
-      console.log(`✅ Simple i18n initialized with language: ${currentLanguage}`);
+      if (__DEV__) console.log(`✅ Simple i18n initialized with language: ${currentLanguage}`);
     }
   } catch (error) {
     if (__DEV__) {
-      console.warn('Simple i18n initialization failed, using English:', error);
+      if (__DEV__) console.warn('Simple i18n initialization failed, using English:', error);
     }
     currentLanguage = 'en-US';
   }
@@ -303,7 +303,7 @@ export const simpleT = (key: string): string => {
     return langTranslations[key as keyof typeof langTranslations] || key;
   } catch (error) {
     if (__DEV__) {
-      console.warn('Translation error:', error);
+      if (__DEV__) console.warn('Translation error:', error);
     }
     return key;
   }
@@ -320,12 +320,12 @@ export const changeLanguageSimple = async (language: string): Promise<void> => {
       await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, language);
 
       if (__DEV__) {
-        console.log(`✅ Simple language changed to: ${language}`);
+        if (__DEV__) console.log(`✅ Simple language changed to: ${language}`);
       }
     }
   } catch (error) {
     if (__DEV__) {
-      console.warn('Failed to change simple language:', error);
+      if (__DEV__) console.warn('Failed to change simple language:', error);
     }
   }
 };

@@ -179,7 +179,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
               await new Promise(resolve => setTimeout(resolve, 1000));
               await reloadUserProfile(data.user.id);
             } catch (profileError) {
-              if (__DEV__) { console.log('Profile reload error (non-critical):', profileError); }
+              if (__DEV__) { if (__DEV__) console.log('Profile reload error (non-critical):', profileError); }
             }
           }
 

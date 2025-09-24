@@ -33,7 +33,7 @@ export const AccountSelectionScreen: React.FC<AccountSelectionScreenProps> = ({
     const loadAccounts = async () => {
       try {
         if (!userProfile) {
-          if (__DEV__) { console.log('No user profile available yet, waiting...'); }
+          if (__DEV__) { if (__DEV__) console.log('No user profile available yet, waiting...'); }
           // Keep loading state true while waiting for user profile
           return;
         }

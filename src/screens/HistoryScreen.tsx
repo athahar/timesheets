@@ -186,9 +186,9 @@ export const HistoryScreen: React.FC = () => {
         contentContainerStyle={{ padding: 24, paddingTop: 0 }}
         ListEmptyComponent={
           <View className="flex-1 justify-center items-center py-20">
-            <Text className="text-text-secondary text-body mb-4">No sessions yet</Text>
+            <Text className="text-text-secondary text-body mb-4">{t('emptyState.noSessions')}</Text>
             <Text className="text-text-secondary text-callout text-center">
-              Start your first session to see it here
+              {t('emptyState.firstSessionHint')}
             </Text>
           </View>
         }

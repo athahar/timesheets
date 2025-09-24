@@ -10,7 +10,7 @@ try {
   esUS = require('./resources/es-US.json');
 } catch (error) {
   if (__DEV__) {
-    console.warn('Translation files not found, using fallback', error);
+    if (__DEV__) console.warn('Translation files not found, using fallback', error);
   }
 }
 
@@ -19,7 +19,7 @@ const LANGUAGE_STORAGE_KEY = 'user_language';
 // Missing key dev logger (Apple compliant - only in dev mode)
 const missingKeyHandler = (lng: string[], ns: string, key: string) => {
   if (__DEV__) {
-    console.warn(`🌐 Missing translation key: ${key} for language: ${lng[0]}`);
+    if (__DEV__) console.warn(`🌐 Missing translation key: ${key} for language: ${lng[0]}`);
   }
   return key; // Fallback to key itself
 };
@@ -54,7 +54,7 @@ const initI18n = async () => {
       }
     } catch (error) {
       if (__DEV__) {
-        console.warn('Expo Localization not available, using default language', error);
+        if (__DEV__) console.warn('Expo Localization not available, using default language', error);
       }
     }
   }
@@ -87,7 +87,7 @@ const initI18n = async () => {
     });
 
   if (__DEV__) {
-    console.log(`🌐 i18n initialized with language: ${initialLanguage}`);
+    if (__DEV__) console.log(`🌐 i18n initialized with language: ${initialLanguage}`);
   }
 
   return i18n;
@@ -100,7 +100,7 @@ export const changeLanguage = async (language: string) => {
     await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, language);
 
     if (__DEV__) {
-      console.log(`🌐 Language changed to: ${language}`);
+      if (__DEV__) console.log(`🌐 Language changed to: ${language}`);
     }
   } catch (error) {
     if (__DEV__) {
@@ -115,7 +115,7 @@ export const getCurrentLanguage = (): string => {
     return i18n.language || 'en-US';
   } catch (error) {
     if (__DEV__) {
-      console.warn('i18n not initialized yet, using default language');
+      if (__DEV__) console.warn('i18n not initialized yet, using default language');
     }
     return 'en-US';
   }

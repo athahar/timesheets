@@ -13,15 +13,17 @@ import { RegisterScreen } from '../screens/RegisterScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
 import { InviteClaimScreen } from '../screens/InviteClaimScreen';
 
-// App Screens
-import { AccountSelectionScreen } from '../screens/AccountSelectionScreen';
+// App Screens - Critical path (preloaded)
 import { SimpleClientListScreen } from '../screens/SimpleClientListScreen';
 import { ClientHistoryScreen } from '../screens/ClientHistoryScreen';
 import { StyledSessionTrackingScreen } from '../screens/StyledSessionTrackingScreen';
-import { ClientProfileScreen } from '../screens/ClientProfileScreen';
-import { ServiceProviderListScreen } from '../screens/ServiceProviderListScreen';
-import { ServiceProviderSummaryScreen } from '../screens/ServiceProviderSummaryScreen';
-import { SettingsScreen } from '../screens/SettingsScreen';
+
+// PERFORMANCE: Lazy load non-critical screens
+const AccountSelectionScreen = React.lazy(() => import('../screens/AccountSelectionScreen').then(m => ({ default: m.AccountSelectionScreen })));
+const ClientProfileScreen = React.lazy(() => import('../screens/ClientProfileScreen').then(m => ({ default: m.ClientProfileScreen })));
+const ServiceProviderListScreen = React.lazy(() => import('../screens/ServiceProviderListScreen').then(m => ({ default: m.ServiceProviderListScreen })));
+const ServiceProviderSummaryScreen = React.lazy(() => import('../screens/ServiceProviderSummaryScreen').then(m => ({ default: m.ServiceProviderSummaryScreen })));
+const SettingsScreen = React.lazy(() => import('../screens/SettingsScreen').then(m => ({ default: m.SettingsScreen })));
 
 // Components
 import { SimplifiedSyncStatus } from '../components/SimplifiedSyncStatus';

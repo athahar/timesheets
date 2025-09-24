@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -31,16 +31,84 @@ import {
   getClientMoneyState,
 } from '../services/storageService';
 import { simpleT } from '../i18n/simple';
+import { debug, mark, stop } from '../utils/debug';
+import { getClientsMoneyState } from '../services/aggregate';
+import { formatName, formatTimer, useCurrencyFormatter } from '../utils/formatters';
 
-// Helper function to format names in proper sentence case
-const formatName = (name: string): string => {
-  if (!name) return '';
-  return name
-    .toLowerCase()
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-};
+// PERFORMANCE: Memoized ClientCard component to prevent unnecessary re-renders
+const ClientCard = React.memo<{
+  client: ClientWithSummary;
+  pillColors: any;
+  onPress: (client: ClientWithSummary) => void;
+  onInvite: (client: ClientWithSummary) => void;
+  t: any;
+}>(({ client, pillColors, onPress, onInvite, t }) => {
+  const isActive = client.hasActiveSession;
+
+  const renderStatusPill = useCallback(() => {
+    let pillConfig;
+    if (client.totalUnpaidBalance > 0) {
+      if (client.paymentStatus === 'requested') {
+        pillConfig = pillColors.requested;
+      } else {
+        pillConfig = pillColors.due(client.totalUnpaidBalance.toFixed(0));
+      }
+    } else {
+      pillConfig = pillColors.paid;
+    }
+
+    return (
+      <View style={[styles.pill, { backgroundColor: pillConfig.bg }]}>
+        <Text style={[styles.pillText, { color: pillConfig.text }]}>
+          {pillConfig.label}
+        </Text>
+      </View>
+    );
+  }, [client.totalUnpaidBalance, client.paymentStatus, pillColors]);
+
+  const renderActiveChip = useCallback(() => {
+    if (!client.hasActiveSession) return null;
+    const activeConfig = pillColors.active(formatTimer(client.activeSessionTime || 0));
+    return (
+      <View style={[styles.pill, styles.activeMeta, { backgroundColor: activeConfig.bg }]}>
+        <Text style={[styles.pillText, { color: activeConfig.text }]}>
+          {activeConfig.label}
+        </Text>
+      </View>
+    );
+  }, [client.hasActiveSession, client.activeSessionTime, pillColors]);
+
+  return (
+    <TouchableOpacity
+      onPress={() => onPress(client)}
+      style={[styles.clientCard, isActive && styles.clientCardActive]}
+      activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={`${client.name}, ${client.totalUnpaidBalance > 0 ? `Due $${client.totalUnpaidBalance.toFixed(0)}` : 'Paid up'}`}
+    >
+      <View style={styles.clientLeft}>
+        <Text style={styles.clientName}>{formatName(client.name)}</Text>
+        <Text style={styles.clientRate}>${client.hourlyRate}/hour</Text>
+        {client.claimedStatus === 'unclaimed' && (
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation();
+              onInvite(client);
+            }}
+            activeOpacity={0.7}
+            style={styles.inviteButton}
+          >
+            <Text style={styles.inviteButtonText}>{t('clientList.invite')}</Text>
+          </TouchableOpacity>
+        )}
+        {renderActiveChip()}
+      </View>
+      <View style={styles.clientRight}>
+        {renderStatusPill()}
+      </View>
+    </TouchableOpacity>
+  );
+});
 
 interface ClientListScreenProps {
   navigation: any;
@@ -68,19 +136,18 @@ const getPillColors = (t: typeof simpleT) => ({
 });
 
 export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }) => {
-  if (__DEV__) {
-    if (__DEV__) {
-      console.log('🚀 SimpleClientListScreen: Component mounting...');
-    }
-  }
+  debug('🚀 SimpleClientListScreen: Component mounting...');
+  mark('clients:firstPaint');
   const { userProfile, signOut } = useAuth();
   const t = simpleT;
-  const pillColors = getPillColors(t);
-  if (__DEV__) {
-    if (__DEV__) {
-      console.log('👤 SimpleClientListScreen: userProfile:', userProfile?.name, userProfile?.role);
-    }
-  }
+
+  // PERFORMANCE: Memoize pill colors to prevent recreation on every render
+  const pillColors = useMemo(() => getPillColors(t), [t]);
+
+  // PERFORMANCE: Memoize currency formatter
+  const currencyFormatter = useCurrencyFormatter();
+
+  debug('👤 SimpleClientListScreen: userProfile:', userProfile?.name, userProfile?.role);
   const [clients, setClients] = useState<ClientWithSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -90,19 +157,59 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
 
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
+  // PERFORMANCE: Memoized callbacks to prevent child re-renders
+  const handleClientPress = useCallback((client: ClientWithSummary) => {
+    debug('🎯 SimpleClientListScreen: Client pressed:', client.name, 'ID:', client.id);
+    navigation.navigate('ClientHistory', { clientId: client.id });
+  }, [navigation]);
 
-  const loadClients = async () => {
-    if (__DEV__) {
-      if (__DEV__) {
-        console.log('🔄 ClientList: loadClients function called!');
+  const handleShowInvite = useCallback(async (client: ClientWithSummary) => {
+    try {
+      const invites = await directSupabase.getInvites();
+      const clientInvite = invites.find(invite =>
+        invite.clientId === client.id && invite.status === 'pending'
+      );
+
+      if (clientInvite) {
+        setSelectedClientForInvite(client);
+        setInviteCode(clientInvite.inviteCode);
+        setShowInviteModal(true);
+      } else {
+        Alert.alert(t('clientList.errorTitle'), t('clientList.noInviteCode'));
       }
+    } catch (error) {
+      console.error('Error loading invite:', error);
+      Alert.alert(t('clientList.errorTitle'), t('clientList.inviteLoadError'));
     }
+  }, [t]);
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadClients();
+  }, [loadClients]);
+
+  // PERFORMANCE: Memoized FlatList callbacks and optimizations
+  const keyExtractor = useCallback((item: ClientWithSummary) => item.id, []);
+
+  const renderClient = useCallback(({ item }: { item: ClientWithSummary }) => (
+    <ClientCard
+      client={item}
+      pillColors={pillColors}
+      onPress={handleClientPress}
+      onInvite={handleShowInvite}
+      t={t}
+    />
+  ), [pillColors, handleClientPress, handleShowInvite, t]);
+
+  // PERFORMANCE: Consistent item height for FlatList optimization
+  const getItemLayout = useCallback((_: any, index: number) => ({
+    length: 92, // Estimated height of ClientCard
+    offset: 92 * index,
+    index,
+  }), []);
+
+  const loadClients = useCallback(async () => {
+    debug('🔄 ClientList: loadClients function called!');
     try {
       let clientsData: Client[] = [];
       let user = '';
@@ -111,7 +218,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
         user = userProfile.name;
         if (__DEV__) {
           if (__DEV__) {
-            console.log('📊 Auth user - loading relationship-based clients for:', user);
+            if (__DEV__) console.log('📊 Auth user - loading relationship-based clients for:', user);
           }
         }
 
@@ -125,7 +232,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
             console.error('❌ Error loading relationships:', relError);
             clientsData = [];
           } else if (relationships && relationships.length > 0) {
-            if (__DEV__) { console.log('📊 Found', relationships.length, 'relationships'); }
+            if (__DEV__) { if (__DEV__) console.log('📊 Found', relationships.length, 'relationships'); }
 
             const clientIds = relationships.map(rel => rel.client_id);
             const { data: relatedClients, error: clientError } = await supabase
@@ -147,14 +254,14 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
               }));
               if (__DEV__) {
                 if (__DEV__) {
-                  console.log('✅ Loaded', clientsData.length, 'related clients');
+                  if (__DEV__) console.log('✅ Loaded', clientsData.length, 'related clients');
                 }
               }
             }
           } else {
             if (__DEV__) {
               if (__DEV__) {
-                console.log('📊 No relationships found - empty client list');
+                if (__DEV__) console.log('📊 No relationships found - empty client list');
               }
             }
             clientsData = [];
@@ -172,75 +279,39 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
         user = currentUser;
         if (__DEV__) {
           if (__DEV__) {
-            console.log('📊 Non-auth user - loading from localStorage:', clientsData.length, 'clients');
+            if (__DEV__) console.log('📊 Non-auth user - loading from localStorage:', clientsData.length, 'clients');
           }
         }
       }
 
-      if (__DEV__) {
-        if (__DEV__) {
-          console.log('💰 ClientList: Loading client summaries for', clientsData.length, 'clients...');
-        }
-      }
+      debug('💰 ClientList: Loading client summaries for', clientsData.length, 'clients...');
+      mark('clients:summaries');
 
-      // Load summaries and check for active sessions
-      const clientsWithSummary = await Promise.allSettled(
-        clientsData.map(async (client) => {
-          try {
-            const [summary, activeSession] = await Promise.all([
-              Promise.race([
-                getClientSummary(client.id),
-                new Promise((_, reject) =>
-                  setTimeout(() => reject(new Error('Summary timeout')), 2000)
-                )
-              ]),
-              getActiveSession(client.id).catch(() => null)
-            ]);
+      // PERFORMANCE: Batch all client money state queries instead of N+1
+      const clientIds = clientsData.map(client => client.id);
+      const moneyStates = await getClientsMoneyState(clientIds);
 
-            return {
-              ...client,
-              unpaidHours: summary.unpaidHours,
-              requestedHours: summary.requestedHours,
-              unpaidBalance: summary.unpaidBalance,
-              requestedBalance: summary.requestedBalance,
-              totalUnpaidBalance: summary.totalUnpaidBalance,
-              hasUnpaidSessions: summary.hasUnpaidSessions,
-              hasRequestedSessions: summary.hasRequestedSessions,
-              paymentStatus: summary.paymentStatus,
-              hasActiveSession: !!activeSession,
-              activeSessionTime: activeSession ?
-                (Date.now() - new Date(activeSession.startTime).getTime()) / 1000 : 0,
-            };
-          } catch (error) {
-            if (__DEV__) {
-              if (__DEV__) {
-                console.warn('⚠️ Failed to load summary for client:', client.name, error.message);
-              }
-            }
-            return {
-              ...client,
-              unpaidHours: 0,
-              requestedHours: 0,
-              unpaidBalance: 0,
-              requestedBalance: 0,
-              totalUnpaidBalance: 0,
-              hasUnpaidSessions: false,
-              hasRequestedSessions: false,
-              paymentStatus: 'paid' as const,
-              hasActiveSession: false,
-              activeSessionTime: 0,
-            };
-          }
-        })
-      );
+      stop('clients:summaries');
 
-      const successfulClients = clientsWithSummary
-        .filter((result): result is PromiseFulfilledResult<ClientWithSummary> =>
-          result.status === 'fulfilled'
-        )
-        .map(result => result.value);
+      // Merge client data with batched money states
+      const clientsWithSummary = clientsData.map(client => {
+        const moneyState = moneyStates.find(state => state.clientId === client.id);
+        return {
+          ...client,
+          unpaidHours: moneyState?.unpaidHours || 0,
+          requestedHours: moneyState?.requestedHours || 0,
+          unpaidBalance: moneyState?.unpaidBalance || 0,
+          requestedBalance: moneyState?.requestedBalance || 0,
+          totalUnpaidBalance: moneyState?.totalUnpaidBalance || 0,
+          hasUnpaidSessions: moneyState?.hasUnpaidSessions || false,
+          hasRequestedSessions: moneyState?.hasRequestedSessions || false,
+          paymentStatus: moneyState?.paymentStatus || 'paid' as const,
+          hasActiveSession: moneyState?.hasActiveSession || false,
+          activeSessionTime: moneyState?.activeSessionTime || 0,
+        };
+      });
 
-      const sortedClients = successfulClients.sort((a, b) => a.name.localeCompare(b.name));
+      const sortedClients = clientsWithSummary.sort((a, b) => a.name.localeCompare(b.name));
       setClients(sortedClients);
       const userName = userProfile?.name || user || 'Provider';
       setCurrentUser(userName);
@@ -250,38 +321,34 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
         await setUserRole(userProfile.role);
       }
 
-      if (__DEV__) { console.log('📊 SimpleClientListScreen: Loaded', sortedClients.length, 'clients:', sortedClients.map(c => ({ id: c.id, name: c.name }))); }
-      if (__DEV__) {
-        if (__DEV__) {
-          console.log('👤 Current user set to:', userName, 'with role:', userProfile?.role);
-        }
-      }
+      debug('📊 SimpleClientListScreen: Loaded', sortedClients.length, 'clients');
+      debug('👤 Current user set to:', userName, 'with role:', userProfile?.role);
     } catch (error) {
       console.error('Error loading clients:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [userProfile]);
 
   useFocusEffect(
     useCallback(() => {
       if (__DEV__) {
         if (__DEV__) {
-          console.log('🎯 SimpleClientListScreen: useFocusEffect triggered');
+          if (__DEV__) console.log('🎯 SimpleClientListScreen: useFocusEffect triggered');
         }
       }
       if (userProfile) {
         if (__DEV__) {
           if (__DEV__) {
-            console.log('🔧 SimpleClientListScreen: About to call loadClients...');
+            if (__DEV__) console.log('🔧 SimpleClientListScreen: About to call loadClients...');
           }
         }
         loadClients();
       } else {
         if (__DEV__) {
           if (__DEV__) {
-            console.log('⏳ SimpleClientListScreen: Waiting for userProfile...');
+            if (__DEV__) console.log('⏳ SimpleClientListScreen: Waiting for userProfile...');
           }
         }
         setLoading(false);
@@ -297,7 +364,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
   const handleClientPress = (client: Client) => {
     if (__DEV__) {
       if (__DEV__) {
-        console.log('🎯 SimpleClientListScreen: Client pressed:', client.name, 'ID:', client.id);
+        if (__DEV__) console.log('🎯 SimpleClientListScreen: Client pressed:', client.name, 'ID:', client.id);
       }
     }
     navigation.navigate('ClientHistory', { clientId: client.id });
@@ -423,7 +490,17 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
     );
   };
 
-  const totalUnpaid = clients.reduce((sum, client) => sum + client.totalUnpaidBalance, 0);
+  const totalUnpaid = useMemo(() =>
+    clients.reduce((sum, client) => sum + client.totalUnpaidBalance, 0),
+    [clients]
+  );
+
+  // PERFORMANCE: Mark first paint completion when data is ready
+  useEffect(() => {
+    if (!loading && userProfile && clients.length >= 0) {
+      stop('clients:firstPaint');
+    }
+  }, [loading, userProfile, clients.length]);
 
   if (loading || !userProfile) {
     return (
@@ -527,16 +604,23 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
           </View>
         )}
 
-        {/* Client List */}
+        {/* PERFORMANCE: Optimized FlatList */}
         <FlatList
           data={clients}
-          renderItem={renderClientCard}
-          keyExtractor={(item) => item.id}
+          renderItem={renderClient}
+          keyExtractor={keyExtractor}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
           }
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={null}
+          // Performance optimizations
+          initialNumToRender={8}
+          windowSize={5}
+          maxToRenderPerBatch={8}
+          removeClippedSubviews={true}
+          updateCellsBatchingPeriod={100}
+          getItemLayout={getItemLayout}
         />
       </View>
 

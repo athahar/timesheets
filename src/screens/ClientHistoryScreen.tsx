@@ -119,13 +119,13 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
 
       if (__DEV__) {
         if (__DEV__) {
-          console.debug('[moneyState]', clientId, clientMoneyState);
-          console.debug('[pendingRequest]', pendingRequest);
-          console.debug('[Request Button Logic] totalUnpaidBalance:', totalUnpaidBalance, 'pendingRequest:', !!pendingRequest, 'moneyState.lastPendingRequest:', !!clientMoneyState?.lastPendingRequest);
+          if (__DEV__) console.debug('[moneyState]', clientId, clientMoneyState);
+          if (__DEV__) console.debug('[pendingRequest]', pendingRequest);
+          if (__DEV__) console.debug('[Request Button Logic] totalUnpaidBalance:', totalUnpaidBalance, 'pendingRequest:', !!pendingRequest, 'moneyState.lastPendingRequest:', !!clientMoneyState?.lastPendingRequest);
           // Debug SQL verification
-          console.debug('[SQL Debug] Use these queries to verify:');
-          console.debug(`SELECT * FROM trackpay_requests WHERE client_id = '${clientId}' AND status='pending' ORDER BY created_at DESC LIMIT 1;`);
-          console.debug(`SELECT status, COUNT(*), SUM(amount) AS total FROM trackpay_sessions WHERE client_id='${clientId}' AND status IN ('unpaid','requested') GROUP BY status;`);
+          if (__DEV__) console.debug('[SQL Debug] Use these queries to verify:');
+          if (__DEV__) console.debug(`SELECT * FROM trackpay_requests WHERE client_id = '${clientId}' AND status='pending' ORDER BY created_at DESC LIMIT 1;`);
+          if (__DEV__) console.debug(`SELECT status, COUNT(*), SUM(amount) AS total FROM trackpay_sessions WHERE client_id='${clientId}' AND status IN ('unpaid','requested') GROUP BY status;`);
         }
       }
     } catch (error) {
@@ -230,7 +230,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
     if (pendingRequest || moneyState?.lastPendingRequest) {
       if (__DEV__) {
         if (__DEV__) {
-          console.log('❌ Request blocked - pending request already exists:', pendingRequest?.id || moneyState?.lastPendingRequest?.id);
+          if (__DEV__) console.log('❌ Request blocked - pending request already exists:', pendingRequest?.id || moneyState?.lastPendingRequest?.id);
         }
       }
       return;
@@ -255,7 +255,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       if (currentPendingRequest) {
         if (__DEV__) {
           if (__DEV__) {
-            console.log('❌ Request blocked - pending request created during confirmation:', currentPendingRequest.id);
+            if (__DEV__) console.log('❌ Request blocked - pending request created during confirmation:', currentPendingRequest.id);
           }
         }
         showError(t('clientHistory.pendingRequestExists'));
@@ -281,7 +281,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       const batchId = generateBatchId();
       if (__DEV__) {
         if (__DEV__) {
-          console.log('🔄 Creating payment request with batch ID:', batchId, 'for sessions:', unpaidSessions.map(s => s.id));
+          if (__DEV__) console.log('🔄 Creating payment request with batch ID:', batchId, 'for sessions:', unpaidSessions.map(s => s.id));
         }
       }
 
@@ -302,7 +302,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
 
       if (__DEV__) {
         if (__DEV__) {
-          console.log('✅ Payment request created successfully');
+          if (__DEV__) console.log('✅ Payment request created successfully');
         }
       }
 
@@ -380,7 +380,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
 
             if (__DEV__) {
               if (__DEV__) {
-                console.debug('[Button Logic] totalUnpaidBalance:', totalUnpaidBalance, 'hasPendingRequest:', hasPendingRequest, 'unpaidUnrequestedCents:', unpaidUnrequestedCents);
+                if (__DEV__) console.debug('[Button Logic] totalUnpaidBalance:', totalUnpaidBalance, 'hasPendingRequest:', hasPendingRequest, 'unpaidUnrequestedCents:', unpaidUnrequestedCents);
               }
             }
 
@@ -492,13 +492,13 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
 
           {timelineItems.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No work yet</Text>
+              <Text style={styles.emptyStateText}>{t('emptyState.noWork')}</Text>
               <Text style={styles.emptyStateSubtext}>
-                Work sessions and payments will appear here.
+                {t('emptyState.workWillAppear')}
               </Text>
               <View style={styles.emptyStateActions}>
                 <TouchableOpacity onPress={handleStartSession} style={styles.inlineLink}>
-                  <Text style={styles.inlineLinkText}>Start your first session</Text>
+                  <Text style={styles.inlineLinkText}>{t('emptyState.startFirst')}</Text>
                 </TouchableOpacity>
               </View>
             </View>

@@ -50,7 +50,7 @@ export class DirectSupabaseService {
         .limit(1);
 
       if (providers && providers.length > 0) {
-        if (__DEV__) { console.warn('⚠️ Using first available provider as fallback'); }
+        if (__DEV__) { if (__DEV__) console.warn('⚠️ Using first available provider as fallback'); }
         return providers[0].id;
       }
 
@@ -108,7 +108,7 @@ export class DirectSupabaseService {
 
     if (__DEV__) {
 
-      if (__DEV__) { console.log('✅ Unclaimed client created in Supabase:', clientId); }
+      if (__DEV__) { if (__DEV__) console.log('✅ Unclaimed client created in Supabase:', clientId); }
 
     }
 
@@ -129,7 +129,7 @@ export class DirectSupabaseService {
 
       if (__DEV__) {
 
-        if (__DEV__) { console.log('✅ Client-provider relationship created'); }
+        if (__DEV__) { if (__DEV__) console.log('✅ Client-provider relationship created'); }
 
       }
     } catch (error) {
@@ -143,7 +143,7 @@ export class DirectSupabaseService {
       const invite = await this.createInviteForClient(clientId, providerId);
       inviteCode = invite.inviteCode;
       if (__DEV__) {
-        if (__DEV__) { console.log('✅ Invite created for client:', inviteCode); }
+        if (__DEV__) { if (__DEV__) console.log('✅ Invite created for client:', inviteCode); }
       }
     } catch (error) {
       console.error('⚠️ Warning: Could not create invite for client:', error);
@@ -161,7 +161,7 @@ export class DirectSupabaseService {
 
   async updateClient(id: string, name: string, hourlyRate: number, email?: string): Promise<Client> {
     if (__DEV__) {
-      if (__DEV__) { console.log('📝 DirectSupabase: Updating client', { id, name, hourlyRate, email }); }
+      if (__DEV__) { if (__DEV__) console.log('📝 DirectSupabase: Updating client', { id, name, hourlyRate, email }); }
     }
 
     const { data, error } = await supabase
@@ -186,7 +186,7 @@ export class DirectSupabaseService {
 
     if (__DEV__) {
 
-      if (__DEV__) { console.log('✅ Client updated in Supabase:', data); }
+      if (__DEV__) { if (__DEV__) console.log('✅ Client updated in Supabase:', data); }
 
     }
 
@@ -267,7 +267,7 @@ export class DirectSupabaseService {
 
       if (__DEV__) {
 
-        if (__DEV__) { console.log('✅ Session saved to Supabase:', sessionId); }
+        if (__DEV__) { if (__DEV__) console.log('✅ Session saved to Supabase:', sessionId); }
 
       }
 
@@ -296,7 +296,7 @@ export class DirectSupabaseService {
     try {
       if (__DEV__) {
         if (__DEV__) {
-          console.log('🛑 endSession called with sessionId:', sessionId);
+          if (__DEV__) console.log('🛑 endSession called with sessionId:', sessionId);
         }
       }
       const endTime = new Date();
@@ -310,7 +310,7 @@ export class DirectSupabaseService {
 
       if (__DEV__) {
 
-        if (__DEV__) { console.log('📊 Session fetch result:', { session, fetchError }); }
+        if (__DEV__) { if (__DEV__) console.log('📊 Session fetch result:', { session, fetchError }); }
 
       }
 
@@ -325,7 +325,7 @@ export class DirectSupabaseService {
 
       if (__DEV__) {
 
-        if (__DEV__) { console.log('💰 Calculated duration and amount:', { durationMinutes, durationHours, amount }); }
+        if (__DEV__) { if (__DEV__) console.log('💰 Calculated duration and amount:', { durationMinutes, durationHours, amount }); }
 
       }
 
@@ -348,7 +348,7 @@ export class DirectSupabaseService {
 
       if (__DEV__) {
 
-        if (__DEV__) { console.log('✅ Session ended successfully - updated to unpaid status:', sessionId); }
+        if (__DEV__) { if (__DEV__) console.log('✅ Session ended successfully - updated to unpaid status:', sessionId); }
 
       }
 
@@ -397,7 +397,7 @@ export class DirectSupabaseService {
 
       if (__DEV__) {
 
-        if (__DEV__) { console.log('✅ Session statuses updated to requested'); }
+        if (__DEV__) { if (__DEV__) console.log('✅ Session statuses updated to requested'); }
 
       }
 
@@ -455,7 +455,7 @@ export class DirectSupabaseService {
 
       if (__DEV__) {
 
-        if (__DEV__) { console.log('✅ Payment saved to Supabase:', paymentId); }
+        if (__DEV__) { if (__DEV__) console.log('✅ Payment saved to Supabase:', paymentId); }
 
       }
 
@@ -472,14 +472,14 @@ export class DirectSupabaseService {
 
       if (__DEV__) {
 
-        if (__DEV__) { console.log('✅ Session statuses updated to paid'); }
+        if (__DEV__) { if (__DEV__) console.log('✅ Session statuses updated to paid'); }
 
       }
 
       // Create detailed payment activity
       const paymentDate = new Date().toISOString();
       if (__DEV__) {
-        if (__DEV__) { console.log('💳 Creating payment activity...', {
+        if (__DEV__) { if (__DEV__) console.log('💳 Creating payment activity...', {
         type: 'payment_completed',
         clientId,
         paymentId,
@@ -505,7 +505,7 @@ export class DirectSupabaseService {
           }
         });
         if (__DEV__) {
-          if (__DEV__) { console.log('✅ Payment activity created successfully'); }
+          if (__DEV__) { if (__DEV__) console.log('✅ Payment activity created successfully'); }
         }
       } catch (activityError) {
         console.error('❌ Failed to create payment activity:', activityError);
@@ -532,12 +532,12 @@ export class DirectSupabaseService {
     try {
       const activityId = generateUUID();
       if (__DEV__) {
-        if (__DEV__) { console.log('🔍 Getting provider ID for activity...'); }
+        if (__DEV__) { if (__DEV__) console.log('🔍 Getting provider ID for activity...'); }
       }
       const providerId = await this.getCurrentProviderId();
       const timestamp = new Date();
 
-      if (__DEV__) { console.log('📝 Inserting activity to database:', {
+      if (__DEV__) { if (__DEV__) console.log('📝 Inserting activity to database:', {
         id: activityId,
         type: activity.type,
         provider_id: providerId,
@@ -573,7 +573,7 @@ export class DirectSupabaseService {
 
       if (__DEV__) {
 
-        if (__DEV__) { console.log('✅ Activity saved to Supabase:', activityId); }
+        if (__DEV__) { if (__DEV__) console.log('✅ Activity saved to Supabase:', activityId); }
 
       }
 
@@ -670,7 +670,7 @@ export class DirectSupabaseService {
 
     if (__DEV__) {
 
-      if (__DEV__) { console.log('✅ Invite created for client:', inviteCode); }
+      if (__DEV__) { if (__DEV__) console.log('✅ Invite created for client:', inviteCode); }
 
     }
 
@@ -862,7 +862,7 @@ export class DirectSupabaseService {
 
     if (__DEV__) {
 
-      if (__DEV__) { console.log('✅ Invite claimed - client record updated'); }
+      if (__DEV__) { if (__DEV__) console.log('✅ Invite claimed - client record updated'); }
 
     }
 
@@ -885,7 +885,7 @@ export class DirectSupabaseService {
 
     if (__DEV__) {
 
-      if (__DEV__) { console.log('✅ Invite expired'); }
+      if (__DEV__) { if (__DEV__) console.log('✅ Invite expired'); }
 
     }
   }
@@ -904,7 +904,7 @@ export class DirectSupabaseService {
 
     if (__DEV__) {
 
-      if (__DEV__) { console.log('✅ Old invites expired'); }
+      if (__DEV__) { if (__DEV__) console.log('✅ Old invites expired'); }
 
     }
   }
@@ -994,7 +994,7 @@ export const directSupabase = new DirectSupabaseService();
 export const createMissingPaymentActivities = async () => {
   try {
     if (__DEV__) {
-      if (__DEV__) { console.log('🔍 Fetching existing payments...'); }
+      if (__DEV__) { if (__DEV__) console.log('🔍 Fetching existing payments...'); }
     }
 
     // Get all payments
@@ -1010,7 +1010,7 @@ export const createMissingPaymentActivities = async () => {
 
     if (__DEV__) {
 
-      if (__DEV__) { console.log(`📊 Found ${payments.length} payments`); }
+      if (__DEV__) { if (__DEV__) console.log(`📊 Found ${payments.length} payments`); }
 
     }
 
@@ -1027,7 +1027,7 @@ export const createMissingPaymentActivities = async () => {
 
     if (__DEV__) {
 
-      if (__DEV__) { console.log(`📋 Found ${activities.length} existing payment activities`); }
+      if (__DEV__) { if (__DEV__) console.log(`📋 Found ${activities.length} existing payment activities`); }
 
     }
 
@@ -1037,13 +1037,13 @@ export const createMissingPaymentActivities = async () => {
 
     if (__DEV__) {
 
-      if (__DEV__) { console.log(`🔍 Missing payment activities for ${missingPayments.length} payments`); }
+      if (__DEV__) { if (__DEV__) console.log(`🔍 Missing payment activities for ${missingPayments.length} payments`); }
 
     }
 
     // Create missing activities
     for (const payment of missingPayments) {
-      if (__DEV__) { console.log(`💳 Creating activity for payment ${payment.id.substring(0, 8)}...`); }
+      if (__DEV__) { if (__DEV__) console.log(`💳 Creating activity for payment ${payment.id.substring(0, 8)}...`); }
 
       const activityId = generateUUID();
       const activityData = {
@@ -1071,13 +1071,13 @@ export const createMissingPaymentActivities = async () => {
       if (insertError) {
         console.error(`❌ Error creating activity for payment ${payment.id}:`, insertError);
       } else {
-        if (__DEV__) { console.log(`✅ Created activity ${activityId} for payment ${payment.id.substring(0, 8)}`); }
+        if (__DEV__) { if (__DEV__) console.log(`✅ Created activity ${activityId} for payment ${payment.id.substring(0, 8)}`); }
       }
     }
 
     if (__DEV__) {
 
-      if (__DEV__) { console.log('🎉 Finished creating missing payment activities'); }
+      if (__DEV__) { if (__DEV__) console.log('🎉 Finished creating missing payment activities'); }
 
     }
     return true;

@@ -24,7 +24,7 @@ interface AddClientModalProps {
   onClientAdded: () => void;
 }
 
-export const AddClientModal: React.FC<AddClientModalProps> = ({
+export const AddClientModal = React.memo<AddClientModalProps>(({
   visible,
   onClose,
   onClientAdded,
@@ -88,7 +88,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
       );
       if (__DEV__) {
         if (__DEV__) {
-          console.log('✅ Client created with invite:', newClient);
+          if (__DEV__) console.log('✅ Client created with invite:', newClient);
         }
       }
 
@@ -216,7 +216,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
       </View>
     </Modal>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

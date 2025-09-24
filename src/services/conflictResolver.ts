@@ -48,7 +48,7 @@ export class ConflictResolver {
   ): ConflictResolution<T> {
     if (__DEV__) {
       if (__DEV__) {
-        console.log(`🔍 ConflictResolver: Resolving ${conflict.conflictType} conflict for ${conflict.id} using ${strategy}`);
+        if (__DEV__) console.log(`🔍 ConflictResolver: Resolving ${conflict.conflictType} conflict for ${conflict.id} using ${strategy}`);
       }
     }
 
@@ -65,7 +65,7 @@ export class ConflictResolver {
         return this.resolveManual(conflict);
       default:
         if (__DEV__) {
-          if (__DEV__) { console.warn(`⚠️ ConflictResolver: Unknown strategy ${strategy}, defaulting to last-modified-wins`); }
+          if (__DEV__) { if (__DEV__) console.warn(`⚠️ ConflictResolver: Unknown strategy ${strategy}, defaulting to last-modified-wins`); }
         }
         return this.resolveLastModifiedWins(conflict);
     }
@@ -294,7 +294,7 @@ export class ConflictResolver {
     strategy: ConflictResolutionStrategy = 'last-modified-wins'
   ): Promise<ConflictResolution<T>[]> {
     if (__DEV__) {
-      if (__DEV__) { console.log(`🔍 ConflictResolver: Resolving ${conflicts.length} conflicts using ${strategy}`); }
+      if (__DEV__) { if (__DEV__) console.log(`🔍 ConflictResolver: Resolving ${conflicts.length} conflicts using ${strategy}`); }
     }
 
     const resolutions = conflicts.map(conflict =>
@@ -303,7 +303,7 @@ export class ConflictResolver {
 
     const manualCount = resolutions.filter(r => r.requiresUserInput).length;
     if (manualCount > 0) {
-      if (__DEV__) { console.warn(`⚠️ ConflictResolver: ${manualCount} conflicts require manual resolution`); }
+      if (__DEV__) { if (__DEV__) console.warn(`⚠️ ConflictResolver: ${manualCount} conflicts require manual resolution`); }
     }
 
     return resolutions;

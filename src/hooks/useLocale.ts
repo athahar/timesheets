@@ -17,7 +17,7 @@ export const useLocale = (): UseLocaleReturn => {
         await changeLanguage(language);
       } catch (error) {
         if (__DEV__) {
-          console.warn('Failed to change language:', error);
+          if (__DEV__) console.warn('Failed to change language:', error);
         }
       }
     };
@@ -31,7 +31,7 @@ export const useLocale = (): UseLocaleReturn => {
         return t(key, options);
       } catch (error) {
         if (__DEV__) {
-          console.warn('Translation error:', error);
+          if (__DEV__) console.warn('Translation error:', error);
         }
         return key;
       }
@@ -45,7 +45,7 @@ export const useLocale = (): UseLocaleReturn => {
     };
   } catch (error) {
     if (__DEV__) {
-      console.warn('useLocale hook initialization failed, using fallbacks:', error);
+      if (__DEV__) console.warn('useLocale hook initialization failed, using fallbacks:', error);
     }
 
     // Complete fallback implementation

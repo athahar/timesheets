@@ -35,11 +35,11 @@ const setStorageData = async <T>(key: string, data: T[]): Promise<void> => {
 // Client functions
 export const getClients = async (): Promise<Client[]> => {
   if (__DEV__) {
-    console.log('📊 Storage: getClients called');
+    if (__DEV__) console.log('📊 Storage: getClients called');
   }
   const clients = await getStorageData<Client>(KEYS.CLIENTS);
   if (__DEV__) {
-    console.log('📊 Storage: Loaded clients from storage:', clients.length, 'clients');
+    if (__DEV__) console.log('📊 Storage: Loaded clients from storage:', clients.length, 'clients');
   }
   return clients;
 };
@@ -60,27 +60,27 @@ export const addClient = async (name: string, hourlyRate: number): Promise<Clien
   clients.push(newClient);
   await setStorageData(KEYS.CLIENTS, clients);
   if (__DEV__) {
-    if (__DEV__) { console.log('✅ Storage: Created client with unique ID:', newClient.id, 'for', newClient.name); }
+    if (__DEV__) { if (__DEV__) console.log('✅ Storage: Created client with unique ID:', newClient.id, 'for', newClient.name); }
   }
   return newClient;
 };
 
 export const getClientById = async (id: string): Promise<Client | null> => {
   if (__DEV__) {
-    if (__DEV__) { console.log('🔍 Storage: getClientById called with ID:', id); }
+    if (__DEV__) { if (__DEV__) console.log('🔍 Storage: getClientById called with ID:', id); }
   }
   const clients = await getClients();
-  if (__DEV__) { console.log('📋 Storage: Available clients:', clients.map(c => ({ id: c.id, name: c.name }))); }
+  if (__DEV__) { if (__DEV__) console.log('📋 Storage: Available clients:', clients.map(c => ({ id: c.id, name: c.name }))); }
   const foundClient = clients.find(client => client.id === id) || null;
   if (__DEV__) {
-    if (__DEV__) { console.log('🎯 Storage: Found client:', foundClient ? foundClient.name : 'NOT FOUND'); }
+    if (__DEV__) { if (__DEV__) console.log('🎯 Storage: Found client:', foundClient ? foundClient.name : 'NOT FOUND'); }
   }
   return foundClient;
 };
 
 export const updateClient = async (id: string, name: string, hourlyRate: number): Promise<void> => {
   if (__DEV__) {
-    if (__DEV__) { console.log('✏️ Storage: updateClient called with ID:', id, 'name:', name, 'rate:', hourlyRate); }
+    if (__DEV__) { if (__DEV__) console.log('✏️ Storage: updateClient called with ID:', id, 'name:', name, 'rate:', hourlyRate); }
   }
   const clients = await getClients();
   const clientIndex = clients.findIndex(client => client.id === id);
@@ -97,7 +97,7 @@ export const updateClient = async (id: string, name: string, hourlyRate: number)
 
   await setStorageData(KEYS.CLIENTS, clients);
   if (__DEV__) {
-    if (__DEV__) { console.log('✅ Storage: Client updated successfully'); }
+    if (__DEV__) { if (__DEV__) console.log('✅ Storage: Client updated successfully'); }
   }
 };
 
@@ -364,18 +364,18 @@ export const getClientSessionsForProvider = async (clientName: string, providerI
 // Seed data function
 export const initializeWithSeedData = async (): Promise<void> => {
   if (__DEV__) {
-    if (__DEV__) { console.log('🌱 Storage: Initializing seed data...'); }
+    if (__DEV__) { if (__DEV__) console.log('🌱 Storage: Initializing seed data...'); }
   }
   const clients = await getClients();
   if (__DEV__) {
-    if (__DEV__) { console.log('🌱 Storage: Current clients count:', clients.length); }
+    if (__DEV__) { if (__DEV__) console.log('🌱 Storage: Current clients count:', clients.length); }
   }
   if (clients.length > 0) {
-    if (__DEV__) { console.log('🌱 Storage: Seed data already exists, skipping initialization'); }
+    if (__DEV__) { if (__DEV__) console.log('🌱 Storage: Seed data already exists, skipping initialization'); }
     return; // Already has data
   }
   if (__DEV__) {
-    if (__DEV__) { console.log('🌱 Storage: No existing data, creating seed data...'); }
+    if (__DEV__) { if (__DEV__) console.log('🌱 Storage: No existing data, creating seed data...'); }
   }
 
   // Add sample clients with delay to prevent ID collision
@@ -479,18 +479,18 @@ export const initializeWithSeedData = async (): Promise<void> => {
 
   if (__DEV__) {
 
-    if (__DEV__) { console.log('✅ Storage: Seed data initialization completed successfully!'); }
+    if (__DEV__) { if (__DEV__) console.log('✅ Storage: Seed data initialization completed successfully!'); }
 
   }
   if (__DEV__) {
-    if (__DEV__) { console.log('✅ Storage: Created clients:', [client1.name, client2.name, client3.name, client4.name]); }
+    if (__DEV__) { if (__DEV__) console.log('✅ Storage: Created clients:', [client1.name, client2.name, client3.name, client4.name]); }
   }
 };
 
 // Function to force clear all data and reinitialize
 export const clearAllDataAndReinitialize = async (): Promise<void> => {
   if (__DEV__) {
-    if (__DEV__) { console.log('🧹 Storage: Clearing all data and reinitializing...'); }
+    if (__DEV__) { if (__DEV__) console.log('🧹 Storage: Clearing all data and reinitializing...'); }
   }
 
   // Clear all storage
@@ -506,7 +506,7 @@ export const clearAllDataAndReinitialize = async (): Promise<void> => {
 
   if (__DEV__) {
 
-    if (__DEV__) { console.log('🧹 Storage: All data cleared, reinitializing...'); }
+    if (__DEV__) { if (__DEV__) console.log('🧹 Storage: All data cleared, reinitializing...'); }
 
   }
 
@@ -515,7 +515,7 @@ export const clearAllDataAndReinitialize = async (): Promise<void> => {
 
   if (__DEV__) {
 
-    if (__DEV__) { console.log('✅ Storage: Data cleared and reinitialized successfully!'); }
+    if (__DEV__) { if (__DEV__) console.log('✅ Storage: Data cleared and reinitialized successfully!'); }
 
   }
 };

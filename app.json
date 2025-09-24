@@ -2,7 +2,7 @@
   "expo": {
     "name": "TrackPay",
     "slug": "trackpay",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/app-icon.png",
     "userInterfaceStyle": "light",
@@ -18,7 +18,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.trackpay.track",
-      "buildNumber": "5",
+      "buildNumber": "6",
       "infoPlist": {
         "NSCameraUsageDescription": "TrackPay uses camera for profile photos and document scanning",
         "NSPhotoLibraryUsageDescription": "TrackPay accesses photo library for profile photos",

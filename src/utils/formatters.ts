@@ -2,6 +2,30 @@
  * Formatting utilities for TrackPay
  * Provides consistent, locale-aware formatting for currency, time, and dates
  */
+import { useMemo } from 'react';
+
+// PERFORMANCE: Memoized formatter hook
+export const useCurrencyFormatter = (locale: string = 'en-US') => {
+  return useMemo(
+    () => new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
+    }),
+    [locale]
+  );
+};
+
+// Helper function to format names in proper sentence case (moved outside render)
+export const formatName = (name: string): string => {
+  if (!name) return '';
+  return name
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
 
 /**
  * Format currency with locale support and tabular numerals

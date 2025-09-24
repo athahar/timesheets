@@ -191,7 +191,7 @@ export const getServiceProvidersForClient = (clientName: string) => {
 export const getClientSessionsForProvider = async (clientUserId: string, providerId: string) => {
   if (__DEV__) {
     if (__DEV__) {
-      console.log('🔍 getClientSessionsForProvider called with:', { clientUserId, providerId });
+      if (__DEV__) console.log('🔍 getClientSessionsForProvider called with:', { clientUserId, providerId });
     }
   }
 
@@ -199,11 +199,11 @@ export const getClientSessionsForProvider = async (clientUserId: string, provide
   const currentUser = await getCurrentUser();
   if (__DEV__) {
     if (__DEV__) {
-      console.log('👤 getCurrentUser result:', currentUser);
+      if (__DEV__) console.log('👤 getCurrentUser result:', currentUser);
     }
   }
   if (!currentUser) {
-    if (__DEV__) { console.log('❌ No current user found'); }
+    if (__DEV__) { if (__DEV__) console.log('❌ No current user found'); }
     return [];
   }
 
@@ -217,38 +217,38 @@ export const getClientSessionsForProvider = async (clientUserId: string, provide
 
   if (__DEV__) {
 
-    if (__DEV__) { console.log('📋 Client record lookup:', { clientRecord, clientError }); }
+    if (__DEV__) { if (__DEV__) console.log('📋 Client record lookup:', { clientRecord, clientError }); }
 
   }
   if (!clientRecord) {
-    if (__DEV__) { console.log('❌ No client record found for user:', currentUser.id); }
+    if (__DEV__) { if (__DEV__) console.log('❌ No client record found for user:', currentUser.id); }
     return [];
   }
 
   // Get sessions where this client worked with this provider
   if (__DEV__) {
     if (__DEV__) {
-      console.log('📊 Fetching all sessions...');
+      if (__DEV__) console.log('📊 Fetching all sessions...');
     }
   }
   const sessions = await directSupabase.getSessions();
   if (__DEV__) {
     if (__DEV__) {
-      console.log('📊 Total sessions fetched:', sessions.length);
+      if (__DEV__) console.log('📊 Total sessions fetched:', sessions.length);
     }
   }
 
   if (__DEV__) {
 
     if (__DEV__) {
-      console.log('🔎 Filtering sessions for clientId:', clientRecord.id, 'providerId:', providerId);
+      if (__DEV__) console.log('🔎 Filtering sessions for clientId:', clientRecord.id, 'providerId:', providerId);
     }
 
   }
   const filteredSessions = sessions.filter(session => {
     const matches = session.clientId === clientRecord.id && session.providerId === providerId;
     if (__DEV__) {
-      console.log('🔎 Session check:', {
+      if (__DEV__) console.log('🔎 Session check:', {
         sessionId: session.id.substring(0, 8) + '...',
         sessionClientId: session.clientId?.substring(0, 8) + '...',
         sessionProviderId: session.providerId?.substring(0, 8) + '...',
@@ -263,7 +263,7 @@ export const getClientSessionsForProvider = async (clientUserId: string, provide
   if (__DEV__) {
 
     if (__DEV__) {
-      console.log('✅ Filtered sessions result:', filteredSessions.length, 'sessions');
+      if (__DEV__) console.log('✅ Filtered sessions result:', filteredSessions.length, 'sessions');
     }
 
   }
@@ -355,7 +355,7 @@ export const debugInfo = async () => {
   const health = await healthCheck();
   if (__DEV__) {
     if (__DEV__) {
-      console.log('🔍 TrackPay Direct Supabase Debug Info:', health);
+      if (__DEV__) console.log('🔍 TrackPay Direct Supabase Debug Info:', health);
     }
   }
   return health;

@@ -10,7 +10,7 @@ interface ClientCardProps {
   onPress: () => void;
 }
 
-export const ClientCard: React.FC<ClientCardProps> = ({
+export const ClientCard = React.memo<ClientCardProps>(({
   client,
   unpaidHours,
   unpaidBalance,
@@ -50,4 +50,4 @@ export const ClientCard: React.FC<ClientCardProps> = ({
       </View>
     </TouchableOpacity>
   );
-};
+});

@@ -110,7 +110,7 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
       if (__DEV__) {
 
         if (__DEV__) {
-          console.log('🔄 MarkAsPaidModal: Recording payment', {
+          if (__DEV__) console.log('🔄 MarkAsPaidModal: Recording payment', {
             clientId,
             sessionIds,
             amount,
@@ -124,14 +124,14 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
       if (__DEV__) {
 
         if (__DEV__) {
-          console.log('💰 MarkAsPaidModal: Calling markPaid...');
+          if (__DEV__) console.log('💰 MarkAsPaidModal: Calling markPaid...');
         }
 
       }
       await markPaid(clientId, sessionIds, amount, paymentMethod);
       if (__DEV__) {
         if (__DEV__) {
-          console.log('✅ MarkAsPaidModal: Payment successful, closing modal');
+          if (__DEV__) console.log('✅ MarkAsPaidModal: Payment successful, closing modal');
         }
       }
 

@@ -344,7 +344,7 @@ if (process.env.EXPO_PUBLIC_ENV === 'development' && typeof window !== 'undefine
   (window as any).getCurrentUser = getCurrentUser;
   if (__DEV__) {
     if (__DEV__) {
-      console.log('🔧 Development mode: Supabase client exposed globally for debugging');
+      if (__DEV__) console.log('🔧 Development mode: Supabase client exposed globally for debugging');
     }
   }
 }

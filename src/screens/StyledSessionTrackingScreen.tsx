@@ -13,7 +13,8 @@ import { Client, Session } from '../types';
 import { Button } from '../components/Button';
 import { theme } from '../styles/theme';
 import { simpleT } from '../i18n/simple';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, formatTimer } from '../utils/formatters';
+import { debug } from '../utils/debug';
 import {
   getClientById,
   getActiveSession,
@@ -92,17 +93,30 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
     }, [clientId])
   );
 
-  // Timer effect for active session
+  // PERFORMANCE: Optimized timer with proper cleanup
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (activeSession) {
-      interval = setInterval(() => {
-        const elapsed = (Date.now() - new Date(activeSession.startTime).getTime()) / 1000;
-        setSessionTime(elapsed);
-      }, 1000);
+    if (!activeSession) {
+      setSessionTime(0);
+      return;
     }
-    return () => clearInterval(interval);
-  }, [activeSession]);
+
+    // Start with current elapsed time
+    const elapsed = (Date.now() - new Date(activeSession.startTime).getTime()) / 1000;
+    setSessionTime(elapsed);
+
+    // Set up interval for updates
+    const timer = setInterval(() => {
+      const newElapsed = (Date.now() - new Date(activeSession.startTime).getTime()) / 1000;
+      setSessionTime(newElapsed);
+    }, 1000);
+
+    debug('⏱️ Timer started for session:', activeSession.id.substring(0, 8));
+
+    return () => {
+      clearInterval(timer);
+      debug('⏱️ Timer cleaned up for session');
+    };
+  }, [!!activeSession]); // Use boolean to avoid unnecessary effect runs
 
   const handleStartSession = async () => {
     try {

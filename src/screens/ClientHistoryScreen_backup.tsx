@@ -235,7 +235,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
     // Pre-check: Ensure no pending request exists (idempotency guard)
     if (pendingRequest) {
       if (__DEV__) {
-        console.log('❌ Request blocked - pending request already exists:', pendingRequest.id);
+        if (__DEV__) console.log('❌ Request blocked - pending request already exists:', pendingRequest.id);
       }
       return;
     }
@@ -258,7 +258,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       const currentPendingRequest = await getPendingPaymentRequest(clientId);
       if (currentPendingRequest) {
         if (__DEV__) {
-          console.log('❌ Request blocked - pending request created during confirmation:', currentPendingRequest.id);
+          if (__DEV__) console.log('❌ Request blocked - pending request created during confirmation:', currentPendingRequest.id);
         }
         showError('A payment request for this client is already pending.');
         setShowConfirmModal(false);
@@ -278,14 +278,14 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       // Generate batch ID for tracking
       const batchId = generateBatchId();
       if (__DEV__) {
-        console.log('🔄 Creating payment request with batch ID:', batchId);
+        if (__DEV__) console.log('🔄 Creating payment request with batch ID:', batchId);
       }
 
       // Create the payment request
       await requestPayment(clientId, unpaidSessions.map(s => s.id));
 
       if (__DEV__) {
-        console.log('✅ Payment request created successfully');
+        if (__DEV__) console.log('✅ Payment request created successfully');
       }
 
       // Refresh data to show the new pending request

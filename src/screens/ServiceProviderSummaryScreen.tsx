@@ -55,18 +55,18 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
   const loadData = async () => {
     try {
       if (__DEV__) {
-        console.log('🔍 ServiceProviderSummaryScreen: Loading data for providerId:', providerId);
+        if (__DEV__) console.log('🔍 ServiceProviderSummaryScreen: Loading data for providerId:', providerId);
       }
 
       const user = await getCurrentUser();
       if (__DEV__) {
-        console.log('👤 Current user:', user);
+        if (__DEV__) console.log('👤 Current user:', user);
       }
       setCurrentUser(user || 'Client');
 
       // Get sessions for this client with the provider
       if (__DEV__) {
-        console.log('📊 Fetching sessions for user:', user, 'with provider:', providerId);
+        if (__DEV__) console.log('📊 Fetching sessions for user:', user, 'with provider:', providerId);
       }
 
       // TEMP FIX: Use direct session lookup to match provider-side data
@@ -87,8 +87,8 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
             userSessions = await getSessionsByClient(clientRecord.id);
             if (__DEV__) {
                     if (__DEV__) {
-                console.log('🔧 Using direct session lookup for consistency. ClientId:', clientRecord.id);
-                console.log('🔧 Found sessions:', userSessions.length);
+                if (__DEV__) console.log('🔧 Using direct session lookup for consistency. ClientId:', clientRecord.id);
+                if (__DEV__) console.log('🔧 Found sessions:', userSessions.length);
               }
             }
           }
@@ -96,14 +96,14 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
       } catch (error) {
         if (__DEV__) {
           if (__DEV__) {
-            console.warn('⚠️ Direct session lookup failed, falling back to original method');
+            if (__DEV__) console.warn('⚠️ Direct session lookup failed, falling back to original method');
           }
         }
         userSessions = await getClientSessionsForProvider(user || '', providerId);
       }
       if (__DEV__) {
         if (__DEV__) {
-          console.log('📊 Sessions received:', userSessions.length, 'sessions');
+          if (__DEV__) console.log('📊 Sessions received:', userSessions.length, 'sessions');
         }
       }
 
@@ -111,7 +111,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
       const activitiesData = await getActivities();
       if (__DEV__) {
         if (__DEV__) {
-          console.log('🔍 All activities:', activitiesData.length);
+          if (__DEV__) console.log('🔍 All activities:', activitiesData.length);
         }
       }
 
@@ -119,21 +119,21 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
       const clientRecordId = userSessions.length > 0 ? userSessions[0].clientId : null;
       if (__DEV__) {
         if (__DEV__) {
-          console.log('🔍 Looking for activities with clientId:', clientRecordId);
+          if (__DEV__) console.log('🔍 Looking for activities with clientId:', clientRecordId);
         }
       }
 
       const clientActivities = activitiesData.filter(a => {
         if (__DEV__) {
           if (__DEV__) {
-            console.log('🔍 Activity:', a.id, 'clientId:', a.clientId, 'type:', a.type);
+            if (__DEV__) console.log('🔍 Activity:', a.id, 'clientId:', a.clientId, 'type:', a.type);
           }
         }
         return a.clientId === clientRecordId;
       });
       if (__DEV__) {
         if (__DEV__) {
-          console.log('🔍 Filtered client activities:', clientActivities.length);
+          if (__DEV__) console.log('🔍 Filtered client activities:', clientActivities.length);
         }
       }
       setActivities(clientActivities);
@@ -141,7 +141,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
       // Get money state from client perspective (includes requested amounts)
       if (__DEV__) {
         if (__DEV__) {
-          console.log('💰 Getting client money state for clientId:', clientRecordId);
+          if (__DEV__) console.log('💰 Getting client money state for clientId:', clientRecordId);
         }
       }
 
@@ -151,13 +151,13 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
           moneyState = await getClientMoneyState(clientRecordId, providerId);
           if (__DEV__) {
             if (__DEV__) {
-              console.log('💰 Client money state:', moneyState);
+              if (__DEV__) console.log('💰 Client money state:', moneyState);
             }
           }
         } catch (error) {
           if (__DEV__) {
             if (__DEV__) {
-              console.warn('⚠️ Error getting client money state:', error);
+              if (__DEV__) console.warn('⚠️ Error getting client money state:', error);
             }
           }
         }
@@ -174,7 +174,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
 
       if (__DEV__) {
         if (__DEV__) {
-          console.log('💰 Final balance due:', balanceDue, 'unpaid hours:', unpaidHoursTotal);
+          if (__DEV__) console.log('💰 Final balance due:', balanceDue, 'unpaid hours:', unpaidHoursTotal);
         }
       }
     } catch (error) {
@@ -278,7 +278,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
 
       // Check if date is valid before formatting
       if (isNaN(date.getTime())) {
-        if (__DEV__) { console.warn('Invalid timestamp in timeline item:', item.timestamp); }
+        if (__DEV__) { if (__DEV__) console.warn('Invalid timestamp in timeline item:', item.timestamp); }
         return; // Skip this item
       }
 

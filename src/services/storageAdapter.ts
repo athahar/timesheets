@@ -235,7 +235,7 @@ export class StorageAdapter {
 
   // Logging helpers for debugging
   logOperation(operation: string, data?: any) {
-    if (__DEV__) { console.log(`🔄 StorageAdapter: ${operation}`, data ? JSON.stringify(data, null, 2) : ''); }
+    if (__DEV__) { if (__DEV__) console.log(`🔄 StorageAdapter: ${operation}`, data ? JSON.stringify(data, null, 2) : ''); }
   }
 
   logError(operation: string, error: any) {
@@ -272,7 +272,7 @@ export class StorageAdapter {
       if (backup.version === '1.0' && backup.data) {
         await this.importLegacyData(backup.data);
         if (__DEV__) {
-          if (__DEV__) { console.log('✅ StorageAdapter: Backup restored successfully'); }
+          if (__DEV__) { if (__DEV__) console.log('✅ StorageAdapter: Backup restored successfully'); }
         }
       } else {
         throw new Error('Invalid backup format');
