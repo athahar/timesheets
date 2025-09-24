@@ -17,6 +17,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/Button';
 import { StickyCTA } from '../components/StickyCTA';
 import { directSupabase } from '../services/storageService';
+import { simpleT, getCurrentLanguageSimple } from '../i18n/simple';
 
 interface RegisterScreenProps {
   navigation: any;
@@ -31,6 +32,9 @@ interface RegisterScreenProps {
 }
 
 export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, route }) => {
+  // Translation function
+  const t = simpleT;
+
   // Extract invite parameters
   const inviteParams = route?.params;
   const isInviteFlow = !!inviteParams?.inviteCode;
@@ -66,32 +70,32 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
     const newErrors: {displayName?: string; email?: string; password?: string; confirmPassword?: string; role?: string} = {};
 
     if (!displayName.trim()) {
-      newErrors.displayName = 'Please enter your full name';
+      newErrors.displayName = t('register.errors.displayNameRequired');
     }
 
     if (!email.trim()) {
-      newErrors.email = 'Please enter your email address';
+      newErrors.email = t('register.errors.emailRequired');
     } else {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email.trim())) {
-        newErrors.email = 'Please enter a valid email address';
+        newErrors.email = t('register.errors.emailInvalid');
       }
     }
 
     if (!password) {
-      newErrors.password = 'Please enter a password';
+      newErrors.password = t('register.errors.passwordRequired');
     } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters long';
+      newErrors.password = t('register.errors.passwordTooShort');
     }
 
     if (!confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password';
+      newErrors.confirmPassword = t('register.errors.confirmPasswordRequired');
     } else if (password !== confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+      newErrors.confirmPassword = t('register.errors.passwordMismatch');
     }
 
     if (!role) {
-      newErrors.role = 'Please select your account type';
+      newErrors.role = t('register.errors.roleRequired');
     }
 
     setErrors(newErrors);
@@ -141,7 +145,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
       const { data, error } = await signUp(email, password, displayName, role!, isInviteFlow);
 
       if (error) {
-        Alert.alert('Registration Failed', error);
+        Alert.alert(t('register.errors.failed'), error);
       } else {
         // Set registration success flag to trigger auth state monitoring
         setRegistrationSuccess(true);
@@ -157,15 +161,15 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
 
             // Show success message but don't navigate manually - let auth state handle it
             Alert.alert(
-              'Welcome!',
-              `Your account has been created and you've successfully joined ${inviteParams.inviterName}'s workspace!`
+              t('register.success.welcome'),
+              t('register.success.joinedWorkspace').replace('{{inviterName}}', inviteParams.inviterName)
             );
           } catch (inviteError) {
             console.error('Error claiming invite after registration:', inviteError);
             // Still show success - the user can claim the invite later
             Alert.alert(
-              'Account Created',
-              'Your account has been created successfully! Please use your invite code again to join the workspace.'
+              t('register.success.accountCreated'),
+              t('register.success.useInviteAgain')
             );
           }
         } else {
@@ -182,13 +186,13 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
           // Show success message without navigation
           // The auth state monitoring will handle navigation automatically
           Alert.alert(
-            'Welcome!',
-            'Your account has been created successfully! You can now start using TrackPay.'
+            t('register.success.welcome'),
+            t('register.success.canStartUsing')
           );
         }
       }
     } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      Alert.alert(t('register.errors.error'), t('register.errors.unexpected'));
     } finally {
       setIsLoading(false);
     }
@@ -211,20 +215,20 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
                 <Feather name="chevron-left" size={24} color={theme.color.text} />
               </TouchableOpacity>
               <View style={styles.headerContent}>
-                <Text style={styles.title}>Create Account</Text>
-                <Text style={styles.subtitle}>Track your time and get paid faster</Text>
+                <Text style={styles.title}>{t('register.title')}</Text>
+                <Text style={styles.subtitle}>{t('register.subtitle')}</Text>
               </View>
             </View>
 
             {/* Form */}
             <View style={styles.form}>
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Full Name</Text>
+                <Text style={styles.label}>{t('register.fullName')}</Text>
                 <TextInput
                   style={[styles.input, errors.displayName && styles.inputError]}
                   value={displayName}
                   onChangeText={handleDisplayNameChange}
-                  placeholder="Enter your full name"
+                  placeholder={t('register.fullNamePlaceholder')}
                   placeholderTextColor={theme.color.textSecondary}
                   autoComplete="name"
                 />
@@ -232,12 +236,12 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Email</Text>
+                <Text style={styles.label}>{t('register.email')}</Text>
                 <TextInput
                   style={[styles.input, errors.email && styles.inputError]}
                   value={email}
                   onChangeText={handleEmailChange}
-                  placeholder="your@email.com"
+                  placeholder={t('register.emailPlaceholder')}
                   placeholderTextColor={theme.color.textSecondary}
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -248,12 +252,12 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Password</Text>
+                <Text style={styles.label}>{t('register.password')}</Text>
                 <TextInput
                   style={[styles.input, errors.password && styles.inputError]}
                   value={password}
                   onChangeText={handlePasswordChange}
-                  placeholder="Create a secure password"
+                  placeholder={t('register.passwordPlaceholder')}
                   placeholderTextColor={theme.color.textSecondary}
                   secureTextEntry
                   autoComplete="password-new"
@@ -262,12 +266,12 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Confirm Password</Text>
+                <Text style={styles.label}>{t('register.confirmPassword')}</Text>
                 <TextInput
                   style={[styles.input, errors.confirmPassword && styles.inputError]}
                   value={confirmPassword}
                   onChangeText={handleConfirmPasswordChange}
-                  placeholder="Confirm your password"
+                  placeholder={t('register.confirmPasswordPlaceholder')}
                   placeholderTextColor={theme.color.textSecondary}
                   secureTextEntry
                   autoComplete="password-new"
@@ -278,19 +282,19 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
               {/* Account Type Selection */}
               {isInviteFlow ? (
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Account Type</Text>
+                  <Text style={styles.label}>{t('register.accountType')}</Text>
                   <View style={styles.inviteRoleInfo}>
                     <Text style={styles.inviteRoleText}>
-                      {role === 'client' ? 'Client' : 'Service Provider'}
+                      {role === 'client' ? t('register.roleClient') : t('register.roleProvider')}
                     </Text>
                     <Text style={styles.inviteRoleDescription}>
-                      You're joining as a {role} (invited by {inviteParams?.inviterName})
+                      {t('register.inviteJoiningAs').replace('{{role}}', role === 'client' ? t('register.roleClient').toLowerCase() : t('register.roleProvider').toLowerCase()).replace('{{inviterName}}', inviteParams?.inviterName || '')}
                     </Text>
                   </View>
                 </View>
               ) : (
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Account Type</Text>
+                  <Text style={styles.label}>{t('register.accountType')}</Text>
                   <View style={styles.roleSelection}>
                     <TouchableOpacity
                       style={[
@@ -299,9 +303,9 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
                       ]}
                       onPress={() => handleRoleChange('provider')}
                     >
-                      <Text style={styles.roleTitle}>Service Provider</Text>
+                      <Text style={styles.roleTitle}>{t('register.roleProvider')}</Text>
                       <Text style={styles.roleDescription}>
-                        Baby-sitter, house cleaner, tutor, and more
+                        {t('register.roleProviderDescription')}
                       </Text>
                     </TouchableOpacity>
 
@@ -312,9 +316,9 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
                       ]}
                       onPress={() => handleRoleChange('client')}
                     >
-                      <Text style={styles.roleTitle}>Client</Text>
+                      <Text style={styles.roleTitle}>{t('register.roleClient')}</Text>
                       <Text style={styles.roleDescription}>
-                        Hire providers and view their work
+                        {t('register.roleClientDescription')}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -324,9 +328,9 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
 
               {/* Footer */}
               <View style={styles.footer}>
-                <Text style={styles.footerText}>Already have an account? </Text>
+                <Text style={styles.footerText}>{t('register.hasAccount')} </Text>
                 <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                  <Text style={styles.footerLink}>Sign In</Text>
+                  <Text style={styles.footerLink}>{t('register.signIn')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -337,7 +341,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
       {/* Sticky bottom CTA */}
       <StickyCTA
         primaryButton={{
-          title: isLoading ? "Creating Account..." : "Create Account",
+          title: isLoading ? t('register.creating') : t('register.createButton'),
           onPress: handleSignUp,
           disabled: isLoading,
           loading: isLoading,

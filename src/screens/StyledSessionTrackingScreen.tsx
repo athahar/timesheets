@@ -12,6 +12,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Client, Session } from '../types';
 import { Button } from '../components/Button';
 import { theme } from '../styles/theme';
+import { simpleT } from '../i18n/simple';
+import { formatCurrency } from '../utils/formatters';
 import {
   getClientById,
   getActiveSession,
@@ -45,6 +47,7 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
   route,
   navigation,
 }) => {
+  const t = simpleT;
   const { clientId } = route.params;
   const [client, setClient] = useState<Client | null>(null);
   const [activeSession, setActiveSession] = useState<Session | null>(null);
@@ -57,7 +60,7 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
     try {
       const clientData = await getClientById(clientId);
       if (!clientData) {
-        Alert.alert('Error', 'Client not found');
+        Alert.alert(t('sessionTracking.errorTitle'), t('sessionTracking.clientNotFound'));
         navigation.goBack();
         return;
       }
@@ -77,7 +80,7 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
       }
     } catch (error) {
       console.error('Error loading data:', error);
-      Alert.alert('Error', 'Failed to load data');
+      Alert.alert(t('sessionTracking.errorTitle'), t('sessionTracking.loadError'));
     } finally {
       setLoading(false);
     }
@@ -108,7 +111,7 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
       setSessionTime(0);
     } catch (error) {
       console.error('Error starting session:', error);
-      Alert.alert('Error', 'Failed to start session');
+      Alert.alert(t('sessionTracking.errorTitle'), t('sessionTracking.startError'));
     }
   };
 
@@ -122,7 +125,7 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
       loadData(); // Refresh summary data
     } catch (error) {
       console.error('Error ending session:', error);
-      Alert.alert('Error', 'Failed to end session');
+      Alert.alert(t('sessionTracking.errorTitle'), t('sessionTracking.endError'));
     }
   };
 
@@ -132,15 +135,27 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
       const unpaidSessions = sessions.filter(session => session.status === 'unpaid');
 
       if (unpaidSessions.length === 0) {
-        Alert.alert('No Unpaid Sessions', 'There are no unpaid sessions for this client.');
+        Alert.alert(
+          t('requestPaymentModal.errors.noUnpaidSessions'),
+          t('requestPaymentModal.errors.noUnpaidSessions')
+        );
         return;
       }
 
       await requestPayment(clientId, unpaidSessions.map(s => s.id));
-      Alert.alert('Payment Requested', 'Payment request has been sent to the client.');
+      Alert.alert(
+        t('requestPaymentModal.title'),
+        t('requestPaymentModal.success.requested', {
+          amount: formatCurrency(unpaidBalance),
+          clientName: client?.name || ''
+        })
+      );
     } catch (error) {
       console.error('Error requesting payment:', error);
-      Alert.alert('Error', 'Failed to request payment');
+      Alert.alert(
+        t('requestPaymentModal.errors.failed'),
+        t('requestPaymentModal.errors.requestFailed')
+      );
     }
   };
 
@@ -155,7 +170,7 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
+          <Text style={styles.loadingText}>{t('sessionTracking.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -252,10 +267,10 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
               Current Session Value
             </Text>
             <Text style={styles.sessionValueAmount}>
-              ${((sessionTime / 3600) * client.hourlyRate).toFixed(2)}
+              {t('sessionTracking.totalEarned', { amount: formatCurrency(((sessionTime / 3600) * client.hourlyRate)) })}
             </Text>
             <Text style={styles.sessionValueDetail}>
-              {(sessionTime / 3600).toFixed(2)} hours × ${client.hourlyRate}/hr
+              {(sessionTime / 3600).toFixed(2)} hours × {t('sessionTracking.hourlyRate', { rate: client.hourlyRate })}
             </Text>
           </View>
         )}

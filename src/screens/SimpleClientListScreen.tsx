@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { Feather } from '@expo/vector-icons';
 import { Client } from '../types';
 import { Button } from '../components/Button';
 import { AddClientModal } from '../components/AddClientModal';
@@ -29,6 +30,7 @@ import {
   getActiveSession,
   getClientMoneyState,
 } from '../services/storageService';
+import { simpleT } from '../i18n/simple';
 
 // Helper function to format names in proper sentence case
 const formatName = (name: string): string => {
@@ -58,12 +60,12 @@ interface ClientWithSummary extends Client {
   activeSessionTime?: number;
 }
 
-const pillColors = {
-  paid:{ bg:theme.color.pillPaidBg, text:theme.color.pillPaidText, label:'Paid up' },
-  due:(amount:number)=>({ bg:theme.color.pillDueBg, text:theme.color.pillDueText, label:`Due $${amount}` }),
-  requested:{ bg:theme.color.pillReqBg, text:theme.color.pillReqText, label:'Requested' },
-  active:(timer:string)=>({ bg:theme.color.pillActiveBg, text:theme.color.pillActiveText, label:`Active • ${timer}` }),
-} as const;
+const getPillColors = (t: typeof simpleT) => ({
+  paid: { bg: theme.color.pillPaidBg, text: theme.color.pillPaidText, label: t('clientList.statusPaidUp') },
+  due: (amount: number) => ({ bg: theme.color.pillDueBg, text: theme.color.pillDueText, label: t('clientList.statusDue', { amount: amount.toString() }) }),
+  requested: { bg: theme.color.pillReqBg, text: theme.color.pillReqText, label: t('clientList.statusRequested') },
+  active: (timer: string) => ({ bg: theme.color.pillActiveBg, text: theme.color.pillActiveText, label: t('clientList.statusActive', { timer }) }),
+});
 
 export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }) => {
   if (__DEV__) {
@@ -72,6 +74,8 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
     }
   }
   const { userProfile, signOut } = useAuth();
+  const t = simpleT;
+  const pillColors = getPillColors(t);
   if (__DEV__) {
     if (__DEV__) {
       console.log('👤 SimpleClientListScreen: userProfile:', userProfile?.name, userProfile?.role);
@@ -319,11 +323,11 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
         setInviteCode(clientInvite.inviteCode);
         setShowInviteModal(true);
       } else {
-        Alert.alert('Error', 'No invite code found for this client');
+        Alert.alert(t('clientList.errorTitle'), t('clientList.noInviteCode'));
       }
     } catch (error) {
       console.error('Error loading invite:', error);
-      Alert.alert('Error', 'Failed to load invite code');
+      Alert.alert(t('clientList.errorTitle'), t('clientList.inviteLoadError'));
     }
   };
 
@@ -336,7 +340,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
       });
     } catch (error) {
       console.error('Logout error:', error);
-      Alert.alert('Error', 'Failed to logout. Please try again.');
+      Alert.alert(t('clientList.errorTitle'), t('clientList.logoutError'));
     }
   };
 
@@ -405,7 +409,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
               activeOpacity={0.7}
               style={styles.inviteButton}
             >
-              <Text style={styles.inviteButtonText}>Invite</Text>
+              <Text style={styles.inviteButtonText}>{t('clientList.invite')}</Text>
             </TouchableOpacity>
           )}
           {renderActiveChip(item)}
@@ -425,7 +429,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
+          <Text style={styles.loadingText}>{t('clientList.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -437,11 +441,19 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
       <View style={styles.topNav}>
         <Text style={styles.userName}>{currentUser}</Text>
         <View style={styles.navActions}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Settings')}
+            style={styles.settingsButton}
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+          >
+            <Feather name="settings" size={20} color={theme.color.text} />
+          </TouchableOpacity>
           <TouchableOpacity onPress={handleAddClient} style={styles.addButton}>
-            <Text style={styles.addButtonText}>+ Add Client</Text>
+            <Text style={styles.addButtonText}>+ {t('clientList.addClient')}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-            <Text style={styles.logoutText}>Logout</Text>
+            <Text style={styles.logoutText}>{t('clientList.logout')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -451,12 +463,12 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
         {clients.length > 0 && (
           totalUnpaid > 0 ? (
             <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>Total Outstanding</Text>
+              <Text style={styles.summaryLabel}>{t('clientList.totalOutstanding')}</Text>
               <Text style={styles.summaryAmount}>${totalUnpaid.toFixed(2)}</Text>
             </View>
           ) : (
             <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>Total Outstanding</Text>
+              <Text style={styles.summaryLabel}>{t('clientList.totalOutstanding')}</Text>
               <View style={styles.summaryZeroRow}>
                 <Text style={styles.summaryZeroAmount}>$0.00</Text>
                 <Text style={styles.summaryCheckmark}>✅</Text>
@@ -468,15 +480,15 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
         {/* Zero State - Single card with How it works + CTA */}
         {clients.length === 0 && (
           <View style={styles.zeroStateCard}>
-            <Text style={styles.sectionTitle}>How it works</Text>
+            <Text style={styles.sectionTitle}>{t('clientList.howItWorks')}</Text>
 
             <View style={styles.workflowStep}>
               <View style={styles.stepIconContainer}>
                 <Text style={styles.stepIcon}>👤</Text>
               </View>
               <View style={styles.stepContent}>
-                <Text style={styles.stepTitle}>Add a Client</Text>
-                <Text style={styles.stepDescription}>Name and hourly rate. That's it.</Text>
+                <Text style={styles.stepTitle}>{t('clientList.step1.title')}</Text>
+                <Text style={styles.stepDescription}>{t('clientList.step1.description')}</Text>
               </View>
             </View>
 
@@ -485,8 +497,8 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
                 <Text style={styles.stepIcon}>🕐</Text>
               </View>
               <View style={styles.stepContent}>
-                <Text style={styles.stepTitle}>Track Hours</Text>
-                <Text style={styles.stepDescription}>Start and stop sessions with precision timing.</Text>
+                <Text style={styles.stepTitle}>{t('clientList.step2.title')}</Text>
+                <Text style={styles.stepDescription}>{t('clientList.step2.description')}</Text>
               </View>
             </View>
 
@@ -495,21 +507,21 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
                 <Text style={styles.stepIcon}>📧</Text>
               </View>
               <View style={styles.stepContent}>
-                <Text style={styles.stepTitle}>Invite & Request Payment</Text>
-                <Text style={styles.stepDescription}>Share your workspace, send requests, get notified when they confirm.</Text>
+                <Text style={styles.stepTitle}>{t('clientList.step3.title')}</Text>
+                <Text style={styles.stepDescription}>{t('clientList.step3.description')}</Text>
               </View>
             </View>
 
             <View style={styles.ctaSection}>
-              <Text style={styles.ctaTitle}>Let's Set You Up</Text>
+              <Text style={styles.ctaTitle}>{t('clientList.cta.title')}</Text>
               <Text style={styles.ctaSubtitle}>
-                Track hours, request payment, and invite clients to a shared workspace.
+                {t('clientList.cta.subtitle')}
               </Text>
               <TouchableOpacity
                 style={styles.ctaPrimaryButton}
                 onPress={handleAddClient}
               >
-                <Text style={styles.ctaPrimaryButtonText}>Add Client</Text>
+                <Text style={styles.ctaPrimaryButtonText}>{t('clientList.cta.addClient')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -586,6 +598,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.space.x16,
+  },
+  settingsButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.color.cardBg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.color.border,
   },
   addButton: {
     height: 32,

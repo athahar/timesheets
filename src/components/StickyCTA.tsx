@@ -8,6 +8,7 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { simpleT } from '../i18n/simple';
 import { theme } from '../styles/theme';
 
 interface StickyCTAProps {
@@ -81,7 +82,7 @@ export const StickyCTA: React.FC<StickyCTAProps> = ({
               styles.primaryButtonText,
               primaryButton.disabled && styles.disabledButtonText,
             ]}>
-              {primaryButton.loading ? 'Loading...' : primaryButton.title}
+              {primaryButton.loading ? simpleT('confirmation.processing') : primaryButton.title}
             </Text>
           </TouchableOpacity>
         </View>
@@ -123,7 +124,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   primaryButtonWithSecondary: {
-    flex: 2,
+    flex: 1,
   },
   secondaryButton: {
     backgroundColor: 'transparent',

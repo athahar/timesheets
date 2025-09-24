@@ -16,6 +16,7 @@ import { IOSHeader } from './IOSHeader';
 import { addClient } from '../services/storageService';
 import { useAuth } from '../contexts/AuthContext';
 import { directSupabase } from '../services/storageService';
+import { simpleT } from '../i18n/simple';
 
 interface AddClientModalProps {
   visible: boolean;
@@ -41,19 +42,19 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
 
   const validateForm = () => {
     if (!name.trim()) {
-      Alert.alert('Validation Error', 'Please enter a client name');
+      Alert.alert(simpleT('addClient.errorTitle'), simpleT('addClient.nameRequired'));
       return false;
     }
 
     // Email validation (optional but if provided, must be valid)
     if (email.trim() && !isValidEmail(email.trim())) {
-      Alert.alert('Validation Error', 'Please enter a valid email address');
+      Alert.alert(simpleT('addClient.errorTitle'), simpleT('validation.emailInvalid'));
       return false;
     }
 
     const rate = parseFloat(hourlyRate);
     if (!hourlyRate || isNaN(rate) || rate <= 0) {
-      Alert.alert('Validation Error', 'Please enter a valid hourly rate');
+      Alert.alert(simpleT('addClient.errorTitle'), simpleT('addClient.rateInvalid'));
       return false;
     }
 
@@ -69,7 +70,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
     if (!validateForm()) return;
 
     if (!userProfile) {
-      Alert.alert('Error', 'User profile not found. Please try again.');
+      Alert.alert(simpleT('addClient.errorTitle'), 'User profile not found. Please try again.');
       return;
     }
 
@@ -100,10 +101,14 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
       onClose();
       onClientAdded();
 
-      Alert.alert('Success', `${trimmedName} has been added as a client${newClient.inviteCode ? ` with invite code: ${newClient.inviteCode}` : ''}`);
+      if (newClient.inviteCode) {
+        Alert.alert(simpleT('toast.success'), simpleT('addClient.successWithInvite', { clientName: trimmedName, inviteCode: newClient.inviteCode }));
+      } else {
+        Alert.alert(simpleT('toast.success'), simpleT('addClient.successMessage', { clientName: trimmedName }));
+      }
     } catch (error) {
       console.error('Error adding client:', error);
-      Alert.alert('Error', 'Failed to add client. Please try again.');
+      Alert.alert(simpleT('addClient.errorTitle'), simpleT('addClient.addError'));
     } finally {
       setLoading(false);
     }
@@ -127,9 +132,9 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
     >
       <View style={styles.container}>
         <IOSHeader
-          title="Add New Client"
+          title={simpleT('addClient.title')}
           leftAction={{
-            title: "Cancel",
+            title: simpleT('addClient.cancel'),
             onPress: handleCancel,
           }}
           backgroundColor={theme.color.cardBg}
@@ -143,13 +148,13 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
           contentInsetAdjustmentBehavior="automatic"
         >
           <View style={styles.formSection}>
-            <Text style={styles.label}>Client Name</Text>
+            <Text style={styles.label}>{simpleT('addClient.clientName')}</Text>
             <TextInput
               ref={nameRef}
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholder="Enter client name"
+              placeholder={simpleT('addClient.namePlaceholder')}
               placeholderTextColor={theme.color.textSecondary}
               autoFocus
               maxLength={50}
@@ -160,13 +165,13 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
           </View>
 
           <View style={styles.formSection}>
-            <Text style={styles.label}>Email (Optional)</Text>
+            <Text style={styles.label}>{simpleT('addClient.emailOptional')}</Text>
             <TextInput
               ref={emailRef}
               style={styles.input}
               value={email}
               onChangeText={setEmail}
-              placeholder="client@example.com"
+              placeholder={simpleT('addClient.emailPlaceholder')}
               placeholderTextColor={theme.color.textSecondary}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -179,7 +184,7 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
           </View>
 
           <View style={styles.formSection}>
-            <Text style={styles.label}>Hourly Rate</Text>
+            <Text style={styles.label}>{simpleT('addClient.hourlyRate')}</Text>
             <View style={styles.rateInputContainer}>
               <Text style={styles.dollarSign}>$</Text>
               <TextInput
@@ -187,21 +192,21 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({
                 style={styles.rateInput}
                 value={hourlyRate}
                 onChangeText={setHourlyRate}
-                placeholder="0.00"
+                placeholder={simpleT('addClient.ratePlaceholder')}
                 placeholderTextColor={theme.color.textSecondary}
                 keyboardType="decimal-pad"
                 maxLength={10}
                 returnKeyType="done"
                 onSubmitEditing={isFormValid ? handleSave : undefined}
               />
-              <Text style={styles.perHour}>/hour</Text>
+              <Text style={styles.perHour}>{simpleT('addClient.perHour')}</Text>
             </View>
           </View>
         </ScrollView>
 
         <StickyCTA
           primaryButton={{
-            title: loading ? "Adding..." : "Add Client",
+            title: loading ? simpleT('addClient.adding') : simpleT('addClient.addClient'),
             onPress: handleSave,
             disabled: !isFormValid,
             loading,

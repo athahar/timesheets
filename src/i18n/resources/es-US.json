@@ -1,0 +1,188 @@
+{
+  "lang.english": "English",
+  "lang.spanish": "Español",
+
+  "welcome.title": "Registra horas. Solicita pagos. Cóbalo más rápido.",
+  "welcome.subtitle": "Ideal para limpiadores, niñeras, paseadores de perros, tutores y otros servicios locales.",
+  "welcome.create": "Crear cuenta",
+  "welcome.signin": "Iniciar sesión",
+  "welcome.invite": "¿Tienes un código de invitación?",
+
+  "nav.back": "Atrás",
+  "nav.providers": "Proveedores",
+  "nav.clients": "Clientes",
+  "nav.workSummary": "Resumen de trabajo",
+
+  "summary.balanceDue": "Saldo pendiente: {{amount}} {{duration}}",
+  "summary.duration": "[{{hours}} h {{mins}} min]",
+  "summary.pendingMeta": "Solicitud de pago del {{date}} • {{amount}} pendiente",
+  "summary.activeHint": "El tiempo de la sesión activa no está incluido. Deben finalizarla para agregarlo.",
+  "summary.paidUp": "Al día",
+  "summary.request": "Solicitar {{amount}}",
+  "summary.recordPayment": "Registrar pago",
+
+  "timeline.activity": "Actividad",
+  "timeline.dayHeader.today": "Hoy",
+  "timeline.dayHeader.yesterday": "Ayer",
+
+  "timeline.workStarted": "Trabajo iniciado • {{date}} a las {{time}} (activa)",
+  "timeline.workDone": "{{range}} — {{duration}} — {{amount}}",
+  "timeline.moneyRequested": "Solicitud de pago — {{amount}} • {{count}} sesiones • {{date}}",
+  "timeline.paymentReceived": "Pago recibido — {{amount}}",
+  "timeline.paymentSent": "Pago enviado — {{amount}}",
+  "timeline.noActivity": "Aún no hay actividad",
+
+  "buttons.startSession": "Empezar sesión",
+  "buttons.endSession": "Finalizar sesión",
+  "buttons.markAsPaid": "Marcar como pagado",
+  "buttons.payFull": "Pagar todo {{amount}}",
+  "buttons.payRequested": "Pagar solicitado {{amount}}",
+
+  "forms.fullName": "Nombre completo",
+  "forms.email": "Correo electrónico",
+  "forms.password": "Contraseña",
+  "forms.confirmPassword": "Confirmar contraseña",
+  "forms.accountType": "Tipo de cuenta",
+  "forms.provider": "Proveedor de servicios",
+  "forms.client": "Cliente",
+  "forms.hourlyRate": "Tarifa por hora",
+  "forms.optional": "(opcional)",
+
+  "invite.title": "Únete a tu espacio de trabajo",
+  "invite.helper": "Ingresa el código de invitación que recibiste",
+  "invite.code": "Código de invitación",
+  "invite.copyCode": "Copiar código",
+  "invite.copyLink": "Copiar enlace",
+  "invite.join": "Unirse al espacio de trabajo",
+
+  "settings.title": "Ajustes",
+  "settings.sections.account": "Cuenta",
+  "settings.sections.preferences": "Preferencias",
+  "settings.sections.workspace": "Espacio de trabajo",
+  "settings.sections.help": "Ayuda y legal",
+  "settings.sections.danger": "Zona de riesgo",
+
+  "settings.profile": "Perfil",
+  "settings.name": "Nombre",
+  "settings.email": "Correo",
+  "settings.language": "Idioma",
+  "settings.lang.english": "English",
+  "settings.lang.spanish": "Español",
+
+  "settings.haptics": "Háptica",
+  "settings.textSize": "Tamaño de texto",
+  "settings.textSize.note": "Ajusta en Ajustes de iOS → Accesibilidad → Pantalla y tamaño de texto.",
+
+  "settings.workspaceName": "Nombre del espacio",
+  "settings.inviteClients": "Invitar clientes",
+
+  "settings.support": "Ayuda y soporte",
+  "settings.privacy": "Política de privacidad",
+  "settings.terms": "Términos del servicio",
+
+  "settings.signOut": "Cerrar sesión",
+  "settings.delete": "Eliminar cuenta",
+  "settings.delete.confirm": "Esto eliminará tu cuenta y datos de forma permanente. ¿Continuar?",
+
+  "status.due": "Adeuda {{amount}}",
+  "status.requested": "Solicitado",
+  "status.paidUp": "Al día",
+  "status.active": "Activa",
+
+  "toast.copied": "¡Copiado!",
+  "toast.success": "Éxito",
+  "toast.error": "Error",
+
+  "validation.required": "Este campo es obligatorio",
+  "validation.requiredField": "{{field}} es obligatorio",
+
+  "validation.email": "Por favor ingresa un correo electrónico válido",
+  "validation.emailInvalid": "El formato del correo electrónico no es válido",
+  "validation.emailExists": "Este correo electrónico ya está registrado",
+  "validation.emailNotFound": "No se encontró ninguna cuenta con este correo electrónico",
+
+  "validation.password": "La contraseña debe tener al menos 6 caracteres",
+  "validation.passwordTooShort": "La contraseña debe tener al menos {{min}} caracteres",
+  "validation.passwordTooWeak": "La contraseña debe contener al menos una letra mayúscula, una minúscula y un número",
+  "validation.passwordsDoNotMatch": "Las contraseñas no coinciden",
+  "validation.confirmPassword": "Las contraseñas no coinciden",
+  "validation.currentPasswordIncorrect": "La contraseña actual es incorrecta",
+
+  "validation.name": "Por favor ingresa un nombre válido",
+  "validation.nameRequired": "El nombre completo es obligatorio",
+  "validation.nameTooShort": "El nombre debe tener al menos 2 caracteres",
+  "validation.nameTooLong": "El nombre no puede exceder 50 caracteres",
+  "validation.nameInvalidChars": "El nombre solo puede contener letras, espacios, guiones y apostrofes",
+
+  "validation.hourlyRate": "Por favor ingresa una tarifa por hora válida",
+  "validation.hourlyRateRequired": "La tarifa por hora es obligatoria",
+  "validation.hourlyRateInvalid": "La tarifa por hora debe ser un número válido",
+  "validation.hourlyRateMin": "La tarifa por hora debe ser al menos ${{min}}",
+  "validation.hourlyRateMax": "La tarifa por hora no puede exceder ${{max}}",
+  "validation.hourlyRatePositive": "La tarifa por hora debe ser mayor que cero",
+
+  "validation.amount": "Por favor ingresa una cantidad válida",
+  "validation.amountRequired": "La cantidad es obligatoria",
+  "validation.amountInvalid": "La cantidad debe ser un número válido",
+  "validation.amountPositive": "La cantidad debe ser mayor que cero",
+  "validation.amountMin": "La cantidad debe ser al menos ${{min}}",
+  "validation.amountMax": "La cantidad no puede exceder ${{max}}",
+  "validation.currencyFormat": "Por favor ingresa la cantidad en formato de moneda válido (ej. 25.50)",
+
+  "validation.textTooShort": "{{field}} debe tener al menos {{min}} caracteres",
+  "validation.textTooLong": "{{field}} no puede exceder {{max}} caracteres",
+  "validation.textRequired": "{{field}} es obligatorio",
+
+  "validation.inviteCode": "Por favor ingresa un código de invitación válido",
+  "validation.inviteCodeRequired": "El código de invitación es obligatorio",
+  "validation.inviteCodeInvalid": "Formato de código de invitación inválido",
+  "validation.inviteCodeExpired": "Este código de invitación ha expirado",
+  "validation.inviteCodeUsed": "Este código de invitación ya ha sido usado",
+  "validation.inviteCodeNotFound": "Código de invitación no encontrado",
+
+  "validation.clientName": "Por favor ingresa un nombre de cliente válido",
+  "validation.clientNameRequired": "El nombre del cliente es obligatorio",
+  "validation.clientNameExists": "Ya existe un cliente con este nombre",
+
+  "validation.workspaceName": "Por favor ingresa un nombre de espacio de trabajo válido",
+  "validation.workspaceNameRequired": "El nombre del espacio de trabajo es obligatorio",
+  "validation.workspaceNameTooShort": "El nombre del espacio debe tener al menos 2 caracteres",
+  "validation.workspaceNameTooLong": "El nombre del espacio no puede exceder 30 caracteres",
+
+  "validation.phoneNumber": "Por favor ingresa un número de teléfono válido",
+  "validation.phoneNumberInvalid": "El formato del número de teléfono no es válido",
+
+  "validation.dateInvalid": "Por favor ingresa una fecha válida",
+  "validation.dateFuture": "La fecha no puede ser en el futuro",
+  "validation.datePast": "La fecha no puede ser en el pasado",
+  "validation.dateRange": "La fecha de fin debe ser posterior a la fecha de inicio",
+
+  "validation.timeInvalid": "Por favor ingresa una hora válida",
+  "validation.timeRange": "La hora de fin debe ser posterior a la hora de inicio",
+
+  "validation.networkError": "Error de red. Por favor verifica tu conexión e intenta nuevamente",
+  "validation.serverError": "Error del servidor. Por favor intenta más tarde",
+  "validation.unknownError": "Ocurrió un error inesperado. Por favor intenta nuevamente",
+
+  "validation.sessionActive": "No se puede realizar esta acción mientras hay una sesión activa",
+  "validation.sessionNotFound": "Sesión no encontrada",
+  "validation.sessionAlreadyEnded": "Esta sesión ya ha terminado",
+
+  "validation.paymentAmount": "El monto del pago debe coincidir con el monto solicitado",
+  "validation.paymentAlreadyMade": "Ya se ha realizado el pago para esta solicitud",
+  "validation.insufficientFunds": "Fondos insuficientes para este pago",
+
+  "validation.accountType": "Por favor selecciona un tipo de cuenta",
+  "validation.accountTypeRequired": "La selección del tipo de cuenta es obligatoria",
+
+  "validation.termsRequired": "Debes aceptar los términos y condiciones",
+  "validation.privacyRequired": "Debes aceptar la política de privacidad",
+
+  "validation.fileSize": "El tamaño del archivo no puede exceder {{max}}MB",
+  "validation.fileType": "Solo se permiten archivos {{types}}",
+  "validation.imageRequired": "Por favor selecciona una imagen",
+
+  "validation.connectionLost": "Conexión perdida. Por favor verifica tu conexión a internet",
+  "validation.timeout": "Tiempo de espera agotado. Por favor intenta nuevamente",
+  "validation.rateLimitExceeded": "Demasiados intentos. Por favor espera {{minutes}} minutos antes de intentar nuevamente"
+}

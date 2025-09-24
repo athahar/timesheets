@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { Session, Client } from '../types';
+import { simpleT } from '../i18n/simple';
 
 interface SessionCardProps {
   session: Session;
@@ -48,7 +49,7 @@ export const SessionCard: React.FC<SessionCardProps> = ({ session, client }) => 
       <View className="flex-row justify-between items-start mb-3">
         <View>
           <Text className="text-lg font-semibold text-gray-900">
-            {client?.name || 'Unknown Client'}
+            {client?.name || simpleT('sessionCard.unknownClient')}
           </Text>
           <Text className="text-sm text-gray-500">
             {formatDate(session.startTime)}
@@ -64,32 +65,32 @@ export const SessionCard: React.FC<SessionCardProps> = ({ session, client }) => 
       {/* Time Details */}
       <View className="space-y-2">
         <View className="flex-row justify-between">
-          <Text className="text-gray-600">Start Time</Text>
+          <Text className="text-gray-600">{simpleT('sessionCard.startTime')}</Text>
           <Text className="text-gray-900">{formatTime(session.startTime)}</Text>
         </View>
 
         {session.endTime && (
           <View className="flex-row justify-between">
-            <Text className="text-gray-600">End Time</Text>
+            <Text className="text-gray-600">{simpleT('sessionCard.endTime')}</Text>
             <Text className="text-gray-900">{formatTime(session.endTime)}</Text>
           </View>
         )}
 
         {session.duration !== undefined && (
           <View className="flex-row justify-between">
-            <Text className="text-gray-600">Duration</Text>
-            <Text className="text-gray-900">{session.duration.toFixed(1)} hours</Text>
+            <Text className="text-gray-600">{simpleT('sessionCard.duration')}</Text>
+            <Text className="text-gray-900">{simpleT('sessionCard.durationHours', { hours: session.duration.toFixed(1) })}</Text>
           </View>
         )}
 
         <View className="flex-row justify-between">
-          <Text className="text-gray-600">Rate</Text>
-          <Text className="text-gray-900">${session.hourlyRate}/hr</Text>
+          <Text className="text-gray-600">{simpleT('sessionCard.rate')}</Text>
+          <Text className="text-gray-900">{simpleT('sessionCard.ratePerHour', { rate: session.hourlyRate })}</Text>
         </View>
 
         {session.amount !== undefined && (
           <View className="flex-row justify-between items-center pt-2 border-t border-gray-100">
-            <Text className="text-gray-900 font-medium">Amount</Text>
+            <Text className="text-gray-900 font-medium">{simpleT('sessionCard.amount')}</Text>
             <Text className={`text-lg font-bold ${getStatusColor(session.status)}`}>
               ${session.amount.toFixed(2)}
             </Text>

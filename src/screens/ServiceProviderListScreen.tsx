@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { Feather } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
@@ -18,6 +19,7 @@ import {
   getServiceProvidersForClient,
   getClientSummary,
 } from '../services/storageService';
+import { simpleT } from '../i18n/simple';
 
 interface ServiceProviderListScreenProps {
   navigation: any;
@@ -43,6 +45,7 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
     }
   }
   const { userProfile, signOut } = useAuth();
+  const t = simpleT;
   if (__DEV__) {
     if (__DEV__) {
       console.log('👤 ServiceProviderListScreen: userProfile:', userProfile?.name, userProfile?.role);
@@ -270,7 +273,7 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
       });
     } catch (error) {
       console.error('Logout error:', error);
-      Alert.alert('Error', 'Failed to logout. Please try again.');
+      Alert.alert(t('providerList.errorTitle'), t('providerList.logoutError'));
     }
   };
 
@@ -290,7 +293,7 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
         {/* Left Side: Provider Info */}
         <View style={styles.providerInfo}>
           <Text style={styles.providerName}>{item.name}</Text>
-          <Text style={styles.providerSubtitle}>Service Provider</Text>
+          <Text style={styles.providerSubtitle}>{t('providerList.serviceProvider')}</Text>
         </View>
 
         {/* Right Side: Balance Info */}
@@ -300,42 +303,48 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
               {/* Payment request notification badge */}
               {item.hasRequestedSessions && (
                 <View style={styles.requestBadge}>
-                  <Text style={styles.requestBadgeText}>Payment Requested</Text>
+                  <Text style={styles.requestBadgeText}>{t('providerList.paymentRequested')}</Text>
                 </View>
               )}
 
               {/* Context-aware balance text */}
               {item.paymentStatus === 'requested' ? (
                 <Text style={styles.balanceRequested}>
-                  Payment requested: ${item.totalUnpaidBalance.toFixed(0)}
+                  {t('providerList.paymentRequestedAmount', { amount: item.totalUnpaidBalance.toFixed(0) })}
                 </Text>
               ) : item.hasRequestedSessions && item.hasUnpaidSessions ? (
                 <Text style={styles.balanceDue}>
-                  You owe: ${item.totalUnpaidBalance.toFixed(0)} (${item.requestedBalance.toFixed(0)} requested)
+                  {t('providerList.youOweWithRequested', {
+                    total: item.totalUnpaidBalance.toFixed(0),
+                    requested: item.requestedBalance.toFixed(0)
+                  })}
                 </Text>
               ) : (
                 <Text style={styles.balanceDue}>
-                  You owe: ${item.totalUnpaidBalance.toFixed(0)}
+                  {t('providerList.youOwe', { amount: item.totalUnpaidBalance.toFixed(0) })}
                 </Text>
               )}
 
               {/* Status-specific hours display */}
               {item.hasUnpaidSessions && item.hasRequestedSessions ? (
                 <Text style={styles.unpaidHoursInline}>
-                  [{formatHours(item.unpaidHours)} unpaid, {formatHours(item.requestedHours)} requested]
+                  [{t('providerList.unpaidAndRequested', {
+                    unpaid: formatHours(item.unpaidHours),
+                    requested: formatHours(item.requestedHours)
+                  })}]
                 </Text>
               ) : item.hasUnpaidSessions ? (
                 <Text style={styles.unpaidHoursInline}>
-                  [{formatHours(item.unpaidHours)} unpaid]
+                  [{t('providerList.unpaidHours', { hours: formatHours(item.unpaidHours) })}]
                 </Text>
               ) : item.hasRequestedSessions ? (
                 <Text style={styles.requestedHoursInline}>
-                  [{formatHours(item.requestedHours)} requested]
+                  [{t('providerList.requestedHours', { hours: formatHours(item.requestedHours) })}]
                 </Text>
               ) : null}
             </>
           ) : (
-            <Text style={styles.paidUp}>All paid up</Text>
+            <Text style={styles.paidUp}>{t('providerList.allPaidUp')}</Text>
           )}
         </View>
       </View>
@@ -349,9 +358,19 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
       {/* User Header */}
       <View style={styles.userHeader}>
         <Text style={styles.userName}>{currentUser}</Text>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Settings')}
+            style={styles.settingsButton}
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+          >
+            <Feather name="settings" size={20} color={theme.color.text} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+            <Text style={styles.logoutText}>{t('providerList.logout')}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Scrollable Content */}
@@ -368,11 +387,11 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
           <View>
             {/* Main Header */}
             <View style={styles.header}>
-              <Text style={styles.title}>Service Providers</Text>
+              <Text style={styles.title}>{t('providerList.title')}</Text>
 
               {totalUnpaid > 0 && (
                 <View style={styles.outstandingCard}>
-                  <Text style={styles.outstandingLabel}>Total You Owe</Text>
+                  <Text style={styles.outstandingLabel}>{t('providerList.totalYouOwe')}</Text>
                   <Text style={styles.outstandingAmount}>
                     ${totalUnpaid.toFixed(2)}
                   </Text>
@@ -383,9 +402,9 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>No service providers yet</Text>
+            <Text style={styles.emptyTitle}>{t('providerList.emptyTitle')}</Text>
             <Text style={styles.emptySubtitle}>
-              You'll see providers you work with here
+              {t('providerList.emptySubtitle')}
             </Text>
           </View>
         }
@@ -416,6 +435,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#111827',
     fontFamily: 'System',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  settingsButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   logoutButton: {
     paddingVertical: 8,

@@ -21,6 +21,7 @@ import { StyledSessionTrackingScreen } from '../screens/StyledSessionTrackingScr
 import { ClientProfileScreen } from '../screens/ClientProfileScreen';
 import { ServiceProviderListScreen } from '../screens/ServiceProviderListScreen';
 import { ServiceProviderSummaryScreen } from '../screens/ServiceProviderSummaryScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
 
 // Components
 import { SimplifiedSyncStatus } from '../components/SimplifiedSyncStatus';
@@ -45,6 +46,7 @@ export type AppStackParamList = {
   ClientProfile: { clientId: string };
   ServiceProviderList: undefined;
   ServiceProviderSummary: { providerId: string; providerName: string };
+  Settings: undefined;
 };
 
 const AuthStack = createStackNavigator<AuthStackParamList>();
@@ -176,6 +178,7 @@ const AppNavigator = () => {
         <AppStack.Screen name="ClientProfile" component={ClientProfileScreen} />
         <AppStack.Screen name="ServiceProviderList" component={ServiceProviderListScreen} />
         <AppStack.Screen name="ServiceProviderSummary" component={ServiceProviderSummaryScreen} />
+        <AppStack.Screen name="Settings" component={SettingsScreen} />
       </AppStack.Navigator>
     </>
   );

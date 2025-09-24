@@ -19,6 +19,7 @@ import { theme } from '../styles/theme';
 import { directSupabase } from '../services/storageService';
 import { validateInviteCodeFormat, extractInviteCode } from '../utils/inviteCodeGenerator';
 import { useAuth } from '../contexts/AuthContext';
+import { simpleT, getCurrentLanguageSimple } from '../i18n/simple';
 
 interface InviteClaimScreenProps {
   route?: {
@@ -29,6 +30,9 @@ interface InviteClaimScreenProps {
 }
 
 export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) => {
+  // Translation function
+  const t = simpleT;
+
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const [inviteCode, setInviteCode] = useState('');
@@ -56,7 +60,7 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
 
     // First check format
     if (!validateInviteCodeFormat(code.trim().toUpperCase())) {
-      setInviteDetails({ valid: false, message: 'Invalid invite code format' });
+      setInviteDetails({ valid: false, message: t('inviteClaim.errors.invalidFormat') });
       return;
     }
 
@@ -66,7 +70,7 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
       setInviteDetails(result);
     } catch (error) {
       console.error('Error validating invite code:', error);
-      setInviteDetails({ valid: false, message: 'Error validating invite code' });
+      setInviteDetails({ valid: false, message: t('inviteClaim.errors.validationError') });
     } finally {
       setValidating(false);
     }
@@ -76,9 +80,9 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
     const newErrors: {inviteCode?: string} = {};
 
     if (!inviteCode.trim()) {
-      newErrors.inviteCode = 'Please enter an invite code';
+      newErrors.inviteCode = t('inviteClaim.errors.codeRequired');
     } else if (!inviteDetails?.valid || !inviteDetails.invite) {
-      newErrors.inviteCode = 'Please enter a valid invite code';
+      newErrors.inviteCode = t('inviteClaim.errors.invalidCode');
     }
 
     setErrors(newErrors);
@@ -124,15 +128,15 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
       const result = await directSupabase.claimInvite(inviteCode.trim().toUpperCase(), user.id);
 
       const successMessage = inviteDetails.invite.inviterRole === 'client'
-        ? `You've accepted the work opportunity with ${inviteDetails.invite.clientName}`
-        : `You've successfully joined ${inviteDetails.invite.clientName}'s workspace`;
+        ? t('inviteClaim.success.acceptedWork').replace('{{clientName}}', inviteDetails.invite.clientName)
+        : t('inviteClaim.success.joinedWorkspace').replace('{{clientName}}', inviteDetails.invite.clientName);
 
       Alert.alert(
-        'Success!',
+        t('inviteClaim.success.title'),
         successMessage,
         [
           {
-            text: 'Continue',
+            text: t('inviteClaim.success.continue'),
             onPress: () => {
               // Navigate to appropriate dashboard based on invite type
               navigation.reset({
@@ -151,7 +155,7 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
       );
     } catch (error) {
       console.error('Error claiming invite:', error);
-      Alert.alert('Error', 'Failed to claim invite. Please try again.');
+      Alert.alert(t('inviteClaim.errors.error'), t('inviteClaim.errors.claimFailed'));
     } finally {
       setLoading(false);
     }
@@ -174,19 +178,19 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
                 <Feather name="chevron-left" size={24} color={theme.color.text} />
               </TouchableOpacity>
               <View style={styles.headerContent}>
-                <Text style={styles.title}>Claim Your Invite</Text>
+                <Text style={styles.title}>{t('inviteClaim.title')}</Text>
               </View>
             </View>
 
             {/* Form */}
             <View style={styles.form}>
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Invite Code</Text>
+                <Text style={styles.label}>{t('inviteClaim.inviteCode')}</Text>
                 <TextInput
                   style={[styles.codeInput, errors.inviteCode && styles.inputError]}
                   value={inviteCode}
                   onChangeText={handleInviteCodeChange}
-                  placeholder="ABC123"
+                  placeholder={t('inviteClaim.placeholder')}
                   placeholderTextColor={theme.color.textSecondary}
                   maxLength={8}
                   autoCapitalize="characters"
@@ -198,14 +202,14 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
                   <Text style={styles.errorText}>{errors.inviteCode}</Text>
                 ) : (
                   <Text style={styles.helperText}>
-                    Enter the 6–8 character code from your provider
+                    {t('inviteClaim.helperText')}
                   </Text>
                 )}
               </View>
 
               {/* Validation Status */}
               {validating && (
-                <Text style={styles.validatingText}>Validating code...</Text>
+                <Text style={styles.validatingText}>{t('inviteClaim.validating')}</Text>
               )}
 
               {inviteDetails && !validating && (
@@ -215,17 +219,17 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
                 ]}>
                   {inviteDetails.valid && inviteDetails.invite ? (
                     <View>
-                      <Text style={styles.validText}>✓ Valid invite code</Text>
+                      <Text style={styles.validText}>✓ {t('inviteClaim.validCode')}</Text>
                       <Text style={styles.inviteDetailsText}>
                         {inviteDetails.invite.inviterRole === 'client'
-                          ? `${inviteDetails.invite.clientName} wants to work with you`
-                          : `Invited by ${inviteDetails.invite.clientName}`
+                          ? t('inviteClaim.wantsToWork').replace('{{clientName}}', inviteDetails.invite.clientName)
+                          : t('inviteClaim.invitedBy').replace('{{clientName}}', inviteDetails.invite.clientName)
                         }
                       </Text>
                     </View>
                   ) : (
                     <Text style={styles.invalidText}>
-                      ✗ {inviteDetails.message || 'Invalid invite code'}
+                      ✗ {inviteDetails.message || t('inviteClaim.errors.invalidCode')}
                     </Text>
                   )}
                 </View>
@@ -236,7 +240,7 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
             {/* Footer */}
             <View style={styles.footer}>
               <Text style={styles.footerText}>
-                Don't have an invite code? Ask your service provider.
+                {t('inviteClaim.noCode')}
               </Text>
             </View>
           </View>
@@ -246,7 +250,7 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
       {/* Sticky bottom CTA */}
       <StickyCTA
         primaryButton={{
-          title: "Join Workspace",
+          title: t('inviteClaim.joinButton'),
           onPress: handleClaimInvite,
           disabled: !inviteDetails?.valid || loading,
           loading: loading,

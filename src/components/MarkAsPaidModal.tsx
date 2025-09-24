@@ -14,6 +14,7 @@ import { StickyCTA } from './StickyCTA';
 import { IOSHeader } from './IOSHeader';
 import { theme } from '../styles/theme';
 import { markPaid } from '../services/storageService';
+import { simpleT } from '../i18n/simple';
 
 interface MarkAsPaidModalProps {
   visible: boolean;
@@ -45,11 +46,11 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
   const dateRef = useRef<TextInput>(null);
 
   const paymentMethods: { value: PaymentMethod; label: string }[] = [
-    { value: 'cash', label: 'Cash' },
-    { value: 'zelle', label: 'Zelle' },
-    { value: 'paypal', label: 'PayPal' },
-    { value: 'bank_transfer', label: 'Bank Transfer' },
-    { value: 'other', label: 'Other' },
+    { value: 'cash', label: simpleT('markAsPaidModal.paymentMethods.cash') },
+    { value: 'zelle', label: simpleT('markAsPaidModal.paymentMethods.zelle') },
+    { value: 'paypal', label: simpleT('markAsPaidModal.paymentMethods.paypal') },
+    { value: 'bank_transfer', label: simpleT('markAsPaidModal.paymentMethods.bankTransfer') },
+    { value: 'other', label: simpleT('markAsPaidModal.paymentMethods.other') },
   ];
 
   const handleMarkAsPaid = async () => {
@@ -58,21 +59,27 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
 
       const amount = parseFloat(customAmount);
       if (isNaN(amount) || amount <= 0) {
-        Alert.alert('Invalid Amount', 'Please enter a valid payment amount.');
+        Alert.alert(
+          simpleT('markAsPaidModal.errors.invalidAmount'),
+          simpleT('markAsPaidModal.errors.validAmount')
+        );
         return;
       }
 
       if (amount > unpaidAmount) {
         Alert.alert(
-          'Amount Too High',
-          `Payment amount cannot exceed the unpaid balance of $${unpaidAmount.toFixed(2)}.`
+          simpleT('markAsPaidModal.errors.amountTooHigh'),
+          simpleT('markAsPaidModal.errors.exceedsBalance', { amount: unpaidAmount.toFixed(2) })
         );
         return;
       }
 
       // Validate that we have sessions to pay
       if (!sessions || sessions.length === 0) {
-        Alert.alert('No Sessions', 'No sessions available for payment.');
+        Alert.alert(
+          simpleT('markAsPaidModal.errors.noSessions'),
+          simpleT('markAsPaidModal.errors.noSessionsAvailable')
+        );
         return;
       }
 
@@ -82,7 +89,10 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
       );
 
       if (payableSessions.length === 0) {
-        Alert.alert('No Unpaid Sessions', 'All sessions are already paid.');
+        Alert.alert(
+          simpleT('markAsPaidModal.errors.noUnpaidSessions'),
+          simpleT('markAsPaidModal.errors.allPaid')
+        );
         return;
       }
 
@@ -90,7 +100,10 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
       const clientId = payableSessions[0]?.clientId;
 
       if (!clientId) {
-        Alert.alert('Error', 'Unable to identify client for payment.');
+        Alert.alert(
+          simpleT('markAsPaidModal.errors.clientError'),
+          simpleT('markAsPaidModal.errors.clientNotFound')
+        );
         return;
       }
 
@@ -129,13 +142,21 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
       // Show success alert after modal is closed
       setTimeout(() => {
         Alert.alert(
-          'Payment Recorded',
-          `Payment of $${amount.toFixed(2)} to ${providerName} has been recorded.`
+          simpleT('markAsPaidModal.success.title'),
+          simpleT('markAsPaidModal.success.message', {
+            amount: amount.toFixed(2),
+            providerName: providerName
+          })
         );
       }, 100);
     } catch (error) {
-      console.error('❌ Error marking as paid:', error);
-      Alert.alert('Error', 'Failed to record payment. Please try again.');
+      if (__DEV__) {
+        console.error('❌ Error marking as paid:', error);
+      }
+      Alert.alert(
+        simpleT('markAsPaidModal.errors.clientError'),
+        simpleT('markAsPaidModal.errors.paymentFailed')
+      );
     } finally {
       setLoading(false);
     }
@@ -160,10 +181,10 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
     >
       <View style={styles.container}>
         <IOSHeader
-          title="Mark as Paid"
-          subtitle={`Record payment to ${providerName}`}
+          title={simpleT('markAsPaidModal.title')}
+          subtitle={simpleT('markAsPaidModal.subtitle', { providerName })}
           leftAction={{
-            title: "Cancel",
+            title: simpleT('markAsPaidModal.cancel'),
             onPress: onClose,
           }}
           backgroundColor={theme.color.cardBg}
@@ -178,7 +199,7 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
         >
           {/* Payment Amount */}
           <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>Payment Amount</Text>
+            <Text style={styles.fieldLabel}>{simpleT('markAsPaidModal.paymentAmount')}</Text>
             <View style={styles.amountInputContainer}>
               <Text style={styles.dollarSign}>$</Text>
               <TextInput
@@ -187,7 +208,7 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
                 value={customAmount}
                 onChangeText={setCustomAmount}
                 keyboardType="decimal-pad"
-                placeholder="0.00"
+                placeholder={simpleT('markAsPaidModal.amountPlaceholder')}
                 placeholderTextColor={theme.color.textSecondary}
                 autoFocus
                 returnKeyType="next"
@@ -196,30 +217,30 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
               />
             </View>
             <Text style={styles.fieldHint}>
-              Maximum: ${unpaidAmount.toFixed(2)}
+              {simpleT('markAsPaidModal.maximumAmount', { amount: unpaidAmount.toFixed(2) })}
             </Text>
           </View>
 
           {/* Payment Date */}
           <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>Payment Date</Text>
+            <Text style={styles.fieldLabel}>{simpleT('markAsPaidModal.paymentDate')}</Text>
             <TextInput
               ref={dateRef}
               style={styles.dateInput}
               value={paymentDate}
               onChangeText={handleDateChange}
-              placeholder="YYYY-MM-DD"
+              placeholder={simpleT('markAsPaidModal.datePlaceholder')}
               placeholderTextColor={theme.color.textSecondary}
               returnKeyType="done"
             />
             <Text style={styles.fieldHint}>
-              Format: YYYY-MM-DD (e.g., 2024-01-15)
+              {simpleT('markAsPaidModal.dateHint')}
             </Text>
           </View>
 
           {/* Payment Method */}
           <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>Payment Method</Text>
+            <Text style={styles.fieldLabel}>{simpleT('markAsPaidModal.paymentMethod')}</Text>
             <View style={styles.methodContainer}>
               {paymentMethods.map((method) => (
                 <TouchableOpacity
@@ -245,13 +266,13 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
 
         <StickyCTA
           primaryButton={{
-            title: loading ? "Recording..." : "Mark as Paid",
+            title: loading ? simpleT('markAsPaidModal.recording') : simpleT('markAsPaidModal.markPaid'),
             onPress: handleMarkAsPaid,
             disabled: !isFormValid(),
             loading,
           }}
           secondaryButton={{
-            title: "Cancel",
+            title: simpleT('markAsPaidModal.cancel'),
             onPress: onClose,
             disabled: loading,
           }}

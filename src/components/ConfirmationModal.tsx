@@ -9,6 +9,7 @@ import {
   AccessibilityInfo,
 } from 'react-native';
 import { theme } from '../styles/theme';
+import { simpleT } from '../i18n/simple';
 
 interface ConfirmationModalProps {
   visible: boolean;
@@ -27,7 +28,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   title,
   message,
   confirmText,
-  cancelText = 'Cancel',
+  cancelText = simpleT('confirmation.cancel'),
   onConfirm,
   onCancel,
   confirmStyle = 'primary',
@@ -122,11 +123,11 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                   onPress={onConfirm}
                   disabled={loading}
                   accessibilityRole="button"
-                  accessibilityLabel={loading ? 'Processing...' : confirmText}
+                  accessibilityLabel={loading ? simpleT('confirmation.processing') : confirmText}
                   accessibilityState={{ disabled: loading }}
                 >
                   <Text style={getConfirmTextStyles()}>
-                    {loading ? 'Processing...' : confirmText}
+                    {loading ? simpleT('confirmation.processing') : confirmText}
                   </Text>
                 </Pressable>
               </View>

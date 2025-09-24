@@ -1,0 +1,188 @@
+{
+  "lang.english": "English",
+  "lang.spanish": "Español",
+
+  "welcome.title": "Track hours. Request payment. Get paid faster.",
+  "welcome.subtitle": "Perfect for house cleaners, babysitters, dog walkers, tutors, and other local services.",
+  "welcome.create": "Create Account",
+  "welcome.signin": "Sign In",
+  "welcome.invite": "Have an invite code?",
+
+  "nav.back": "Back",
+  "nav.providers": "Providers",
+  "nav.clients": "Clients",
+  "nav.workSummary": "Work Summary",
+
+  "summary.balanceDue": "Balance due: {{amount}} {{duration}}",
+  "summary.duration": "[{{hours}}hr {{mins}}min]",
+  "summary.pendingMeta": "Payment requested on {{date}} • {{amount}} pending",
+  "summary.activeHint": "Active session time isn't included. They must end the session to add it.",
+  "summary.paidUp": "Paid up",
+  "summary.request": "Request {{amount}}",
+  "summary.recordPayment": "Record Payment",
+
+  "timeline.activity": "Activity Timeline",
+  "timeline.dayHeader.today": "Today",
+  "timeline.dayHeader.yesterday": "Yesterday",
+
+  "timeline.workStarted": "Work started • {{date}} at {{time}} (active)",
+  "timeline.workDone": "{{range}} — {{duration}} — {{amount}}",
+  "timeline.moneyRequested": "Money requested — {{amount}} • {{count}} sessions • {{date}}",
+  "timeline.paymentReceived": "Payment received — {{amount}}",
+  "timeline.paymentSent": "Payment sent — {{amount}}",
+  "timeline.noActivity": "No activity yet",
+
+  "buttons.startSession": "Start Session",
+  "buttons.endSession": "End Session",
+  "buttons.markAsPaid": "Mark as Paid",
+  "buttons.payFull": "Pay full {{amount}}",
+  "buttons.payRequested": "Pay requested {{amount}}",
+
+  "forms.fullName": "Full Name",
+  "forms.email": "Email Address",
+  "forms.password": "Password",
+  "forms.confirmPassword": "Confirm Password",
+  "forms.accountType": "Account Type",
+  "forms.provider": "Service Provider",
+  "forms.client": "Client",
+  "forms.hourlyRate": "Hourly Rate",
+  "forms.optional": "(Optional)",
+
+  "invite.title": "Join your workspace",
+  "invite.helper": "Enter the invite code you received",
+  "invite.code": "Invite Code",
+  "invite.copyCode": "Copy Code",
+  "invite.copyLink": "Copy Link",
+  "invite.join": "Join Workspace",
+
+  "settings.title": "Settings",
+  "settings.sections.account": "Account",
+  "settings.sections.preferences": "Preferences",
+  "settings.sections.workspace": "Workspace",
+  "settings.sections.help": "Help & Legal",
+  "settings.sections.danger": "Danger Zone",
+
+  "settings.profile": "Profile",
+  "settings.name": "Name",
+  "settings.email": "Email",
+  "settings.language": "Language",
+  "settings.lang.english": "English",
+  "settings.lang.spanish": "Español",
+
+  "settings.haptics": "Haptics",
+  "settings.textSize": "Text size",
+  "settings.textSize.note": "Adjust in iOS Settings → Accessibility → Display & Text Size.",
+
+  "settings.workspaceName": "Workspace name",
+  "settings.inviteClients": "Invite clients",
+
+  "settings.support": "Help & Support",
+  "settings.privacy": "Privacy Policy",
+  "settings.terms": "Terms of Service",
+
+  "settings.signOut": "Sign Out",
+  "settings.delete": "Delete Account",
+  "settings.delete.confirm": "This will permanently delete your account and data. Continue?",
+
+  "status.due": "Due {{amount}}",
+  "status.requested": "Requested",
+  "status.paidUp": "Paid up",
+  "status.active": "Active",
+
+  "toast.copied": "Copied!",
+  "toast.success": "Success",
+  "toast.error": "Error",
+
+  "validation.required": "This field is required",
+  "validation.requiredField": "{{field}} is required",
+
+  "validation.email": "Please enter a valid email address",
+  "validation.emailInvalid": "Email address format is invalid",
+  "validation.emailExists": "This email is already registered",
+  "validation.emailNotFound": "No account found with this email address",
+
+  "validation.password": "Password must be at least 6 characters",
+  "validation.passwordTooShort": "Password must be at least {{min}} characters long",
+  "validation.passwordTooWeak": "Password must contain at least one uppercase letter, one lowercase letter, and one number",
+  "validation.passwordsDoNotMatch": "Passwords do not match",
+  "validation.confirmPassword": "Passwords do not match",
+  "validation.currentPasswordIncorrect": "Current password is incorrect",
+
+  "validation.name": "Please enter a valid name",
+  "validation.nameRequired": "Full name is required",
+  "validation.nameTooShort": "Name must be at least 2 characters long",
+  "validation.nameTooLong": "Name cannot exceed 50 characters",
+  "validation.nameInvalidChars": "Name can only contain letters, spaces, hyphens, and apostrophes",
+
+  "validation.hourlyRate": "Please enter a valid hourly rate",
+  "validation.hourlyRateRequired": "Hourly rate is required",
+  "validation.hourlyRateInvalid": "Hourly rate must be a valid number",
+  "validation.hourlyRateMin": "Hourly rate must be at least ${{min}}",
+  "validation.hourlyRateMax": "Hourly rate cannot exceed ${{max}}",
+  "validation.hourlyRatePositive": "Hourly rate must be greater than zero",
+
+  "validation.amount": "Please enter a valid amount",
+  "validation.amountRequired": "Amount is required",
+  "validation.amountInvalid": "Amount must be a valid number",
+  "validation.amountPositive": "Amount must be greater than zero",
+  "validation.amountMin": "Amount must be at least ${{min}}",
+  "validation.amountMax": "Amount cannot exceed ${{max}}",
+  "validation.currencyFormat": "Please enter amount in valid currency format (e.g., 25.50)",
+
+  "validation.textTooShort": "{{field}} must be at least {{min}} characters long",
+  "validation.textTooLong": "{{field}} cannot exceed {{max}} characters",
+  "validation.textRequired": "{{field}} is required",
+
+  "validation.inviteCode": "Please enter a valid invite code",
+  "validation.inviteCodeRequired": "Invite code is required",
+  "validation.inviteCodeInvalid": "Invalid invite code format",
+  "validation.inviteCodeExpired": "This invite code has expired",
+  "validation.inviteCodeUsed": "This invite code has already been used",
+  "validation.inviteCodeNotFound": "Invite code not found",
+
+  "validation.clientName": "Please enter a valid client name",
+  "validation.clientNameRequired": "Client name is required",
+  "validation.clientNameExists": "A client with this name already exists",
+
+  "validation.workspaceName": "Please enter a valid workspace name",
+  "validation.workspaceNameRequired": "Workspace name is required",
+  "validation.workspaceNameTooShort": "Workspace name must be at least 2 characters long",
+  "validation.workspaceNameTooLong": "Workspace name cannot exceed 30 characters",
+
+  "validation.phoneNumber": "Please enter a valid phone number",
+  "validation.phoneNumberInvalid": "Phone number format is invalid",
+
+  "validation.dateInvalid": "Please enter a valid date",
+  "validation.dateFuture": "Date cannot be in the future",
+  "validation.datePast": "Date cannot be in the past",
+  "validation.dateRange": "End date must be after start date",
+
+  "validation.timeInvalid": "Please enter a valid time",
+  "validation.timeRange": "End time must be after start time",
+
+  "validation.networkError": "Network error. Please check your connection and try again",
+  "validation.serverError": "Server error. Please try again later",
+  "validation.unknownError": "An unexpected error occurred. Please try again",
+
+  "validation.sessionActive": "Cannot perform this action while a session is active",
+  "validation.sessionNotFound": "Session not found",
+  "validation.sessionAlreadyEnded": "This session has already ended",
+
+  "validation.paymentAmount": "Payment amount must match the requested amount",
+  "validation.paymentAlreadyMade": "Payment has already been made for this request",
+  "validation.insufficientFunds": "Insufficient funds for this payment",
+
+  "validation.accountType": "Please select an account type",
+  "validation.accountTypeRequired": "Account type selection is required",
+
+  "validation.termsRequired": "You must accept the terms and conditions",
+  "validation.privacyRequired": "You must accept the privacy policy",
+
+  "validation.fileSize": "File size cannot exceed {{max}}MB",
+  "validation.fileType": "Only {{types}} files are allowed",
+  "validation.imageRequired": "Please select an image",
+
+  "validation.connectionLost": "Connection lost. Please check your internet connection",
+  "validation.timeout": "Request timed out. Please try again",
+  "validation.rateLimitExceeded": "Too many attempts. Please wait {{minutes}} minutes before trying again"
+}

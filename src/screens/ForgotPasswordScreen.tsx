@@ -14,12 +14,16 @@ import { theme } from '../styles/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/Button';
 import { IOSHeader } from '../components/IOSHeader';
+import { simpleT, getCurrentLanguageSimple } from '../i18n/simple';
 
 interface ForgotPasswordScreenProps {
   navigation: any;
 }
 
 export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation }) => {
+  // Translation function
+  const t = simpleT;
+
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
@@ -27,13 +31,13 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
 
   const validateEmail = () => {
     if (!email.trim()) {
-      Alert.alert('Validation Error', 'Please enter your email address');
+      Alert.alert(t('forgotPassword.errors.validationError'), t('forgotPassword.errors.emailRequired'));
       return false;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      Alert.alert('Validation Error', 'Please enter a valid email address');
+      Alert.alert(t('forgotPassword.errors.validationError'), t('forgotPassword.errors.emailInvalid'));
       return false;
     }
 
@@ -48,12 +52,12 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
       const { error } = await resetPassword(email);
 
       if (error) {
-        Alert.alert('Reset Failed', error);
+        Alert.alert(t('forgotPassword.errors.resetFailed'), error);
       } else {
         setEmailSent(true);
       }
     } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      Alert.alert(t('forgotPassword.errors.error'), t('forgotPassword.errors.unexpected'));
     } finally {
       setIsLoading(false);
     }
@@ -63,9 +67,9 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
     return (
       <SafeAreaView style={styles.container}>
         <IOSHeader
-          title="Check Your Email"
+          title={t('forgotPassword.checkEmail')}
           leftAction={{
-            title: "Back",
+            title: t('forgotPassword.back'),
             onPress: () => navigation.goBack(),
           }}
           largeTitleStyle="always"
@@ -76,26 +80,25 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
             <View style={styles.iconContainer}>
               <Text style={styles.successIcon}>📧</Text>
             </View>
-            <Text style={styles.successTitle}>Check Your Email</Text>
+            <Text style={styles.successTitle}>{t('forgotPassword.checkEmail')}</Text>
             <Text style={styles.successMessage}>
-              We've sent a password reset link to {email}.
-              Check your email and follow the instructions to reset your password.
+              {t('forgotPassword.emailSent').replace('{{email}}', email)}
             </Text>
             <Text style={styles.note}>
-              Didn't receive the email? Check your spam folder or try again.
+              {t('forgotPassword.didntReceive')}
             </Text>
           </View>
 
           <View style={styles.actions}>
             <Button
-              title="Try Again"
+              title={t('forgotPassword.tryAgain')}
               onPress={() => setEmailSent(false)}
               variant="secondary"
               size="lg"
               style={styles.actionButton}
             />
             <Button
-              title="Back to Sign In"
+              title={t('forgotPassword.backToSignIn')}
               onPress={() => navigation.navigate('Login')}
               variant="primary"
               size="lg"
@@ -110,10 +113,10 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
   return (
     <SafeAreaView style={styles.container}>
       <IOSHeader
-        title="Reset Password"
-        subtitle="We'll email you a reset link"
+        title={t('forgotPassword.title')}
+        subtitle={t('forgotPassword.subtitle')}
         leftAction={{
-          title: "Back",
+          title: t('forgotPassword.back'),
           onPress: () => navigation.goBack(),
         }}
         largeTitleStyle="always"
@@ -128,12 +131,12 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
           {/* Form */}
           <View style={styles.form}>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email Address</Text>
+              <Text style={styles.label}>{t('forgotPassword.email')}</Text>
               <TextInput
                 style={styles.input}
                 value={email}
                 onChangeText={setEmail}
-                placeholder="your@email.com"
+                placeholder={t('forgotPassword.emailPlaceholder')}
                 placeholderTextColor={theme.color.textSecondary}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -143,7 +146,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
             </View>
 
             <Button
-              title={isLoading ? "Sending..." : "Send Reset Link"}
+              title={isLoading ? t('forgotPassword.sending') : t('forgotPassword.sendButton')}
               onPress={handleResetPassword}
               variant="primary"
               size="lg"
@@ -154,9 +157,9 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
 
           {/* Footer */}
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Remember your password? </Text>
+            <Text style={styles.footerText}>{t('forgotPassword.rememberPassword')} </Text>
             <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-              <Text style={styles.footerLink}>Sign In</Text>
+              <Text style={styles.footerLink}>{t('forgotPassword.signIn')}</Text>
             </TouchableOpacity>
           </View>
         </View>

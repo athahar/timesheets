@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, View } from 'react-native';
 import { Client } from '../types';
+import { simpleT } from '../i18n/simple';
 
 interface ClientCardProps {
   client: Client;
@@ -28,7 +29,10 @@ export const ClientCard: React.FC<ClientCardProps> = ({
       <View className="flex-row justify-between items-center">
         <View className="flex-1">
           <Text className="text-sm text-gray-600">
-            {unpaidHours > 0 ? `${unpaidHours.toFixed(1)} unpaid hours` : 'No unpaid hours'}
+            {unpaidHours > 0
+              ? simpleT('clientCard.unpaidHours', { hours: unpaidHours.toFixed(1) })
+              : simpleT('clientCard.noUnpaidHours')
+            }
           </Text>
         </View>
 
@@ -39,7 +43,7 @@ export const ClientCard: React.FC<ClientCardProps> = ({
             </Text>
           ) : (
             <Text className="text-lg font-bold text-paid">
-              Paid up
+              {simpleT('clientCard.paidUp')}
             </Text>
           )}
         </View>

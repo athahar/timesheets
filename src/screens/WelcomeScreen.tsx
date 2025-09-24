@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,19 +6,33 @@ import {
   StyleSheet,
   Animated,
   ScrollView,
+  TouchableOpacity,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { Button } from '../components/Button';
 import { StickyCTA } from '../components/StickyCTA';
+// TEMP: Use simple i18n while debugging
+import { simpleT, getCurrentLanguageSimple, changeLanguageSimple, isSpanishSimple } from '../i18n/simple';
 
 interface WelcomeScreenProps {
   navigation: any;
 }
 
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
+  // State for reactive language switching
+  const [currentLang, setCurrentLang] = useState(getCurrentLanguageSimple());
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+
+  // Translation function
+  const t = simpleT;
+
+  // Handle language change with state update for reactivity
+  const handleLanguageChange = async (language: string) => {
+    await changeLanguageSimple(language);
+    setCurrentLang(language); // Force re-render
+  };
 
   useEffect(() => {
     Animated.parallel([
@@ -38,18 +52,18 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
   const uspFeatures = [
     {
       icon: 'clock' as const,
-      title: 'Time Tracking',
-      subtitle: 'Start and stop sessions with precision timing'
+      titleKey: 'usp.timeTracking.title',
+      subtitleKey: 'usp.timeTracking.subtitle'
     },
     {
       icon: 'credit-card' as const,
-      title: 'Payment Requests',
-      subtitle: 'Request payment and get notified when clients confirm'
+      titleKey: 'usp.paymentRequests.title',
+      subtitleKey: 'usp.paymentRequests.subtitle'
     },
     {
       icon: 'user-plus' as const,
-      title: 'Invite Your Clients',
-      subtitle: 'Share a workspace where they see hours and requests'
+      titleKey: 'usp.inviteClients.title',
+      subtitleKey: 'usp.inviteClients.subtitle'
     }
   ];
 
@@ -69,14 +83,54 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
             }
           ]}
         >
-          {/* Header */}
-          <View style={styles.header}>
+          {/* Top Bar with Logo and Language Selector */}
+          <View style={styles.topBar}>
             <Text style={styles.wordmark}>TrackPay</Text>
+
+            {/* Compact Language Picker */}
+            <View style={styles.languagePicker}>
+              <TouchableOpacity
+                style={[
+                  styles.languageButton,
+                  currentLang === 'en-US' && styles.languageButtonActive
+                ]}
+                onPress={() => handleLanguageChange('en-US')}
+                accessibilityRole="button"
+                accessibilityLabel={t('lang.english')}
+              >
+                <Text style={[
+                  styles.languageButtonText,
+                  currentLang === 'en-US' && styles.languageButtonTextActive
+                ]}>
+                  {t('lang.english')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.languageButton,
+                  currentLang === 'es-US' && styles.languageButtonActive
+                ]}
+                onPress={() => handleLanguageChange('es-US')}
+                accessibilityRole="button"
+                accessibilityLabel={t('lang.spanish')}
+              >
+                <Text style={[
+                  styles.languageButtonText,
+                  currentLang === 'es-US' && styles.languageButtonTextActive
+                ]}>
+                  {t('lang.spanish')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Header Content */}
+          <View style={styles.header}>
             <Text style={styles.headline}>
-              Track hours. Request payment. Get paid faster.
+              {t('welcome.title')}
             </Text>
             <Text style={styles.subhead}>
-              Made for house cleaners, babysitters, tutors, and other local services.
+              {t('welcome.subtitle')}
             </Text>
           </View>
 
@@ -88,8 +142,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
                   <Feather name={feature.icon} size={28} color={theme.color.text} />
                 </View>
                 <View style={styles.uspContent}>
-                  <Text style={styles.uspTitle}>{feature.title}</Text>
-                  <Text style={styles.uspSubtitle}>{feature.subtitle}</Text>
+                  <Text style={styles.uspTitle}>{t(feature.titleKey)}</Text>
+                  <Text style={styles.uspSubtitle}>{t(feature.subtitleKey)}</Text>
                 </View>
               </View>
             ))}
@@ -98,7 +152,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
           {/* Link CTA */}
           <View style={styles.linkSection}>
             <Button
-              title="Have an invite code?"
+              title={t('welcome.invite')}
               onPress={() => navigation.navigate('InviteClaim')}
               variant="link"
               size="md"
@@ -111,12 +165,12 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
       {/* Sticky bottom CTAs */}
       <StickyCTA
         primaryButton={{
-          title: "Create Account",
-          onPress: () => navigation.navigate('Register'),
+          title: t('welcome.signin'),
+          onPress: () => navigation.navigate('Login'),
         }}
         secondaryButton={{
-          title: "Sign In",
-          onPress: () => navigation.navigate('Login'),
+          title: t('welcome.create'),
+          onPress: () => navigation.navigate('Register'),
         }}
         backgroundColor={theme.color.appBg}
       />
@@ -140,18 +194,67 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // Header Section
-  header: {
+  // Top Bar Section
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 40,
+    paddingHorizontal: 4,
   },
   wordmark: {
     fontSize: 28,
     fontWeight: '700',
     color: theme.color.brand,
     fontFamily: theme.typography.fontFamily.display,
-    marginBottom: 16,
-    textAlign: 'center',
+  },
+
+  // Compact Language Picker Section
+  languagePicker: {
+    flexDirection: 'row',
+    backgroundColor: theme.color.cardBg,
+    borderRadius: 16,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  languageButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    minWidth: 60,
+    minHeight: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  languageButtonActive: {
+    backgroundColor: theme.color.brand,
+    shadowColor: theme.color.brand,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  languageButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.color.text,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  languageButtonTextActive: {
+    color: '#FFFFFF',
+  },
+
+  // Header Content Section
+  header: {
+    alignItems: 'center',
+    marginBottom: 32,
+    minHeight: 120, // Fixed minimum height to prevent jumps
   },
   headline: {
     fontSize: 26,
@@ -161,6 +264,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 32,
     marginBottom: 8,
+    minHeight: 64, // Fixed height for 2 lines maximum
   },
   subhead: {
     fontSize: 16,
@@ -170,6 +274,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
     paddingHorizontal: 16,
+    minHeight: 44, // Fixed height for 2 lines
   },
 
   // USP Section

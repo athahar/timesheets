@@ -5,6 +5,8 @@ import { RootNavigator } from './src/navigation/AppNavigator';
 import { initializeWithSeedData, debugInfo } from './src/services/storageService';
 import { directSupabase } from './src/services/directSupabase';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
+// TEMP: Use simple i18n implementation while debugging
+import { initSimpleI18n } from './src/i18n/simple';
 
 // Environment variable validation
 const validateEnvironment = () => {
@@ -47,7 +49,16 @@ export default function App() {
           console.log('🚀 TrackPay: Starting app initialization...');
         }
 
-        // Validate environment variables first
+        // Initialize i18n system first
+        if (__DEV__) {
+          console.log('🌐 TrackPay: Initializing i18n...');
+        }
+        await initSimpleI18n();
+        if (__DEV__) {
+          console.log('✅ TrackPay: i18n initialized successfully');
+        }
+
+        // Validate environment variables
         const envValid = validateEnvironment();
         if (!envValid) {
           if (__DEV__) {

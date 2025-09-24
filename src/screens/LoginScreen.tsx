@@ -15,12 +15,16 @@ import { theme } from '../styles/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { IOSHeader } from '../components/IOSHeader';
 import { StickyCTA } from '../components/StickyCTA';
+import { simpleT, getCurrentLanguageSimple } from '../i18n/simple';
 
 interface LoginScreenProps {
   navigation: any;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
+  // Translation function
+  const t = simpleT;
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -31,16 +35,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     const newErrors: {email?: string; password?: string} = {};
 
     if (!email.trim()) {
-      newErrors.email = 'Please enter your email address';
+      newErrors.email = t('login.errors.emailRequired');
     } else {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email.trim())) {
-        newErrors.email = 'Please enter a valid email address';
+        newErrors.email = t('login.errors.emailInvalid');
       }
     }
 
     if (!password) {
-      newErrors.password = 'Please enter your password';
+      newErrors.password = t('login.errors.passwordRequired');
     }
 
     setErrors(newErrors);
@@ -69,11 +73,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       const { error } = await signIn(email, password);
 
       if (error) {
-        Alert.alert('Sign In Failed', error);
+        Alert.alert(t('login.errors.failed'), error);
       }
       // Navigation will be handled by AuthNavigator based on auth state
     } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      Alert.alert(t('login.errors.error'), t('login.errors.unexpected'));
     } finally {
       setIsLoading(false);
     }
@@ -82,10 +86,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <IOSHeader
-        title="Welcome Back"
-        subtitle="Sign in to your TrackPay account"
+        title={t('login.title')}
+        subtitle={t('login.subtitle')}
         leftAction={{
-          title: "Back",
+          title: t('login.back'),
           onPress: () => navigation.goBack(),
         }}
         largeTitleStyle="always"
@@ -101,12 +105,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             {/* Form */}
             <View style={styles.form}>
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Email</Text>
+                <Text style={styles.label}>{t('login.email')}</Text>
                 <TextInput
                   style={[styles.input, errors.email && styles.inputError]}
                   value={email}
                   onChangeText={handleEmailChange}
-                  placeholder="your@email.com"
+                  placeholder={t('login.emailPlaceholder')}
                   placeholderTextColor={theme.color.textSecondary}
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -117,12 +121,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Password</Text>
+                <Text style={styles.label}>{t('login.password')}</Text>
                 <TextInput
                   style={[styles.input, errors.password && styles.inputError]}
                   value={password}
                   onChangeText={handlePasswordChange}
-                  placeholder="Enter your password"
+                  placeholder={t('login.passwordPlaceholder')}
                   placeholderTextColor={theme.color.textSecondary}
                   secureTextEntry
                   autoComplete="password"
@@ -134,14 +138,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                 style={styles.forgotPassword}
                 onPress={() => navigation.navigate('ForgotPassword')}
               >
-                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                <Text style={styles.forgotPasswordText}>{t('login.forgotPassword')}</Text>
               </TouchableOpacity>
 
               {/* Footer */}
               <View style={styles.footer}>
-                <Text style={styles.footerText}>Don't have an account? </Text>
+                <Text style={styles.footerText}>{t('login.noAccount')} </Text>
                 <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-                  <Text style={styles.footerLink}>Create Account</Text>
+                  <Text style={styles.footerLink}>{t('login.createAccount')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -152,7 +156,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       {/* Sticky bottom CTA */}
       <StickyCTA
         primaryButton={{
-          title: isLoading ? "Signing In..." : "Sign In",
+          title: isLoading ? t('login.signingIn') : t('login.signInButton'),
           onPress: handleSignIn,
           disabled: isLoading,
           loading: isLoading,

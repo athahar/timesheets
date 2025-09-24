@@ -32,6 +32,7 @@ import { formatCurrency, formatHours, formatTimer, formatDate, generateBatchId, 
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { Toast } from '../components/Toast';
 import { useToast } from '../hooks/useToast';
+import { simpleT, translatePaymentMethod } from '../i18n/simple';
 
 // Helper function to format names in proper sentence case
 const formatName = (name: string): string => {
@@ -76,12 +77,13 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
   const { toast, showSuccess, showError, hideToast } = useToast();
+  const t = simpleT;
 
   const loadData = async () => {
     try {
       const clientData = await getClientById(clientId);
       if (!clientData) {
-        Alert.alert('Error', 'Client not found');
+        Alert.alert(t('clientHistory.errorTitle'), t('clientHistory.clientNotFound'));
         navigation.goBack();
         return;
       }
@@ -128,7 +130,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       }
     } catch (error) {
       console.error('Error loading data:', error);
-      Alert.alert('Error', 'Failed to load client data');
+      Alert.alert(t('clientHistory.errorTitle'), t('clientHistory.loadError'));
     } finally {
       setLoading(false);
     }
@@ -209,7 +211,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       await startSession(clientId);
       loadData();
     } catch (error) {
-      Alert.alert('Error', 'Failed to start session');
+      Alert.alert(t('clientHistory.errorTitle'), t('clientHistory.sessionStartError'));
     }
   };
 
@@ -219,7 +221,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       await endSession(activeSession.id);
       loadData();
     } catch (error) {
-      Alert.alert('Error', 'Failed to end session');
+      Alert.alert(t('clientHistory.errorTitle'), t('clientHistory.sessionEndError'));
     }
   };
 
@@ -237,7 +239,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
     // Pre-check: Ensure unpaid (not requested) sessions exist
     const unpaidSessions = sessions.filter(s => s.status === 'unpaid');
     if (unpaidSessions.length === 0) {
-      showError('There are no unpaid sessions to request payment for.');
+      showError(t('clientHistory.noUnpaidSessions'));
       return;
     }
 
@@ -256,7 +258,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
             console.log('❌ Request blocked - pending request created during confirmation:', currentPendingRequest.id);
           }
         }
-        showError('A payment request for this client is already pending.');
+        showError(t('clientHistory.pendingRequestExists'));
         setShowConfirmModal(false);
         setIsRequesting(false);
         await loadData(); // Refresh to show the pending request
@@ -266,7 +268,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       // Only process unpaid sessions (not requested ones)
       const unpaidSessions = sessions.filter(s => s.status === 'unpaid');
       if (unpaidSessions.length === 0) {
-        showError('There are no unpaid sessions to request payment for.');
+        showError(t('clientHistory.noUnpaidSessions'));
         setShowConfirmModal(false);
         setIsRequesting(false);
         return;
@@ -308,12 +310,12 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       await loadData();
 
       setShowConfirmModal(false);
-      showSuccess(`Payment request for ${formatCurrency(unpaidAmount)} sent to ${client?.name}`);
+      showSuccess(t('clientHistory.paymentRequested', { amount: formatCurrency(unpaidAmount), clientName: client?.name }));
     } catch (error) {
       if (__DEV__) {
         console.error('❌ Payment request failed:', error);
       }
-      showError('Unable to send payment request. Please try again.');
+      showError(t('clientHistory.requestFailed'));
       setShowConfirmModal(false);
     } finally {
       setIsRequesting(false);
@@ -328,7 +330,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
+          <Text style={styles.loadingText}>{t('clientHistory.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -338,7 +340,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Client not found</Text>
+          <Text style={styles.loadingText}>{t('clientHistory.clientNotFound')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -348,13 +350,13 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
     <SafeAreaView style={styles.container}>
       <IOSHeader
         title={formatName(client.name)}
-        subtitle={client.claimedStatus === 'unclaimed' ? "Invite pending" : undefined}
+        subtitle={client.claimedStatus === 'unclaimed' ? t('clientHistory.invitePending') : undefined}
         leftAction={{
-          title: "Clients",
+          title: t('clientHistory.clients'),
           onPress: () => navigation.goBack(),
         }}
         rightAction={{
-          title: "Profile",
+          title: t('clientHistory.profile'),
           onPress: () => navigation.navigate('ClientProfile', { clientId: client.id }),
         }}
         largeTitleStyle="always"
@@ -364,7 +366,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
         {/* Summary Card */}
         <View style={styles.summaryCard}>
           <View style={styles.summaryBalanceRow}>
-            <Text style={styles.summaryLabel}>Balance due: </Text>
+            <Text style={styles.summaryLabel}>{t('clientHistory.balanceDue')}</Text>
             <Text style={[styles.summaryAmount, totalUnpaidBalance === 0 && styles.summaryAmountPaid]}>{formatCurrency(totalUnpaidBalance)}</Text>
             {totalUnpaidBalance > 0 && (
               <Text style={styles.summaryHours}> [{formatHours(unpaidHours + requestedHours)}]</Text>
@@ -398,7 +400,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
                     accessibilityLabel={`Request payment of ${formatCurrency(unpaidUnrequestedCents / 100)}`}
                   >
                     <Text style={[styles.btnText, styles.btnSecondaryText]}>
-                      Request {formatCurrency(unpaidUnrequestedCents / 100)}
+                      {t('clientHistory.requestPayment')} {formatCurrency(unpaidUnrequestedCents / 100)}
                     </Text>
                   </Pressable>
                 </View>
@@ -410,7 +412,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
               return (
                 <View style={styles.summaryButtonRow}>
                   <View style={styles.paidUpPill}>
-                    <Text style={styles.paidUpText}>Paid up</Text>
+                    <Text style={styles.paidUpText}>{t('providerSummary.paidUp')}</Text>
                   </View>
                 </View>
               );
@@ -423,14 +425,17 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
           {/* Active Session Hint */}
           {activeSession && (
             <Text style={styles.hintText}>
-              Active session time isn't included. End session to add it.
+              {t('providerSummary.activeSessionHint')}
             </Text>
           )}
 
           {/* Pending Request Meta */}
           {(pendingRequest || moneyState?.lastPendingRequest) && (
             <Text style={styles.metaText}>
-              Requested on {formatDate((pendingRequest || moneyState?.lastPendingRequest)?.created_at)} • {formatCurrency((pendingRequest || moneyState?.lastPendingRequest)?.amount)} pending
+              {t('providerSummary.requestedOn', {
+                date: formatDate((pendingRequest || moneyState?.lastPendingRequest)?.created_at),
+                amount: formatCurrency((pendingRequest || moneyState?.lastPendingRequest)?.amount)
+              })}
             </Text>
           )}
         </View>
@@ -439,7 +444,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
         {activeSession && (
           <View style={styles.activeSessionCard}>
             <View style={styles.activeSessionHeader}>
-              <Text style={styles.activeSessionTitle}>⏱️ Active Session</Text>
+              <Text style={styles.activeSessionTitle}>{t('providerSummary.activeSessionTitle')}</Text>
             </View>
             <Text style={styles.activeSessionTime}>{formatTimer(sessionTime)}</Text>
             <Pressable
@@ -454,7 +459,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
               accessibilityLabel="End session"
             >
               <Text style={[styles.btnText, styles.btnDangerText]}>
-                End Session
+                {t('clientHistory.endSession')}
               </Text>
             </Pressable>
           </View>
@@ -475,7 +480,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
               accessibilityLabel="Start session"
             >
               <Text style={[styles.btnText, styles.btnPrimaryText]}>
-                Start Session
+                {t('clientHistory.startSession')}
               </Text>
             </Pressable>
           </View>
@@ -483,7 +488,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
 
         {/* Activity Timeline */}
         <View style={styles.timelineSection}>
-          <Text style={styles.timelineTitle}>Activity Timeline</Text>
+          <Text style={styles.timelineTitle}>{t('clientHistory.activityTimeline')}</Text>
 
           {timelineItems.length === 0 ? (
             <View style={styles.emptyState}>
@@ -507,9 +512,9 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
 
               let dayLabel;
               if (isToday) {
-                dayLabel = 'Today';
+                dayLabel = t('clientHistory.today');
               } else if (isYesterday) {
-                dayLabel = 'Yesterday';
+                dayLabel = t('clientHistory.yesterday');
               } else {
                 // Use consistent formatting with client side
                 dayLabel = formatDate(date);
@@ -529,7 +534,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
                           <Text style={styles.timelineIcon}>🕒</Text>
                           <View style={styles.timelineContent}>
                             <Text style={styles.timelineMainText}>
-                              Work session
+                              {t('providerSummary.workSession')}
                             </Text>
                             <Text style={styles.timelineSubText}>
                               {item.data.endTime
@@ -539,11 +544,12 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
                                     const minutes = Math.round((durationMs % (1000 * 60 * 60)) / (1000 * 60));
                                     const startTime = new Date(item.data.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
                                     const endTime = new Date(item.data.endTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                                    return `${hours}hr${minutes > 0 ? ` ${minutes}min` : ''} • ${startTime}-${endTime}`;
+                                    const durationText = minutes > 0 ? t('duration.hoursMinutes', { hours: hours.toString(), minutes: ` ${minutes}min` }) : t('duration.hours', { hours: hours.toString() });
+                                    return `${durationText} • ${startTime}-${endTime}`;
                                   })()
                                 : (() => {
                                     const startTime = new Date(item.data.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                                    return `Active session • Started at ${startTime}`;
+                                    return t('providerSummary.activeSession', { time: startTime });
                                   })()
                               }
                             </Text>
@@ -566,7 +572,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
                           <Text style={styles.timelineIcon}>💰</Text>
                           <View style={styles.timelineContent}>
                             <Text style={styles.timelineMainText}>
-                              Payment received
+                              {t('providerSummary.paymentReceived')}
                             </Text>
                             <Text style={styles.timelineSubText}>
                               {formatCurrency(item.data.data.amount || 0)} • {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''}
@@ -574,7 +580,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
                           </View>
                           <View style={styles.timelineRight}>
                             <Text style={styles.timelineAmount}>
-                              {item.data.data.method}
+                              {translatePaymentMethod(item.data.data.method)}
                             </Text>
                           </View>
                         </View>
@@ -584,7 +590,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
                           <Text style={styles.timelineIcon}>📋</Text>
                           <View style={styles.timelineContent}>
                             <Text style={styles.timelineMainText}>
-                              Payment requested
+                              {t('clientHistory.paymentRequestedActivity')}
                             </Text>
                             <Text style={styles.timelineSubText}>
                               {formatCurrency(item.data.data.amount || 0)} • {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''}
@@ -592,7 +598,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
                           </View>
                           <View style={styles.timelineRight}>
                             <Text style={styles.timelineAmount}>
-                              Pending
+                              {t('providerSummary.pending')}
                             </Text>
                           </View>
                         </View>
@@ -609,10 +615,13 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       {/* Confirmation Modal */}
       <ConfirmationModal
         visible={showConfirmModal}
-        title="Request Payment"
-        message={`Send a payment request to ${client?.name} for ${formatCurrency(totalUnpaidBalance)}?`}
-        confirmText="Send Request"
-        cancelText="Cancel"
+        title={t('requestPaymentModal.title')}
+        message={t('requestPaymentModal.confirmMessage', {
+          clientName: client?.name || '',
+          amount: formatCurrency(totalUnpaidBalance)
+        })}
+        confirmText={t('requestPaymentModal.sendRequest')}
+        cancelText={t('requestPaymentModal.cancel')}
         onConfirm={handleConfirmRequest}
         onCancel={handleCancelRequest}
         confirmStyle="primary"

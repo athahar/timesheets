@@ -14,6 +14,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { ActivityItem, Client, PaymentMethod, Session } from '../types';
 import { Button } from '../components/Button';
 import { theme } from '../styles/theme';
+import { simpleT } from '../i18n/simple';
 import {
   getActivities,
   getClients,
@@ -32,11 +33,11 @@ export const ClientViewScreen: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
 
   const paymentMethods: { value: PaymentMethod; label: string }[] = [
-    { value: 'cash', label: 'Cash' },
-    { value: 'zelle', label: 'Zelle' },
-    { value: 'paypal', label: 'PayPal' },
-    { value: 'bank_transfer', label: 'Bank Transfer' },
-    { value: 'other', label: 'Other' },
+    { value: 'cash', label: simpleT('markAsPaidModal.paymentMethods.cash') },
+    { value: 'zelle', label: simpleT('markAsPaidModal.paymentMethods.zelle') },
+    { value: 'paypal', label: simpleT('markAsPaidModal.paymentMethods.paypal') },
+    { value: 'bank_transfer', label: simpleT('markAsPaidModal.paymentMethods.bankTransfer') },
+    { value: 'other', label: simpleT('markAsPaidModal.paymentMethods.other') },
   ];
 
   const loadData = async () => {
@@ -224,7 +225,7 @@ export const ClientViewScreen: React.FC = () => {
                               const endTime = new Date(item.data.endTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
                               return `${hours}hr${minutes > 0 ? ` ${minutes}min` : ''} (${startTime}-${endTime})`;
                             })()
-                          : 'Active Session - In Progress'
+                          : simpleT('providerSummary.activeSessionInProgress')
                         }
                       </Text>
                       <Text style={styles.timelineClientText}>

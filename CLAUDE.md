@@ -10,6 +10,8 @@ A two-sided time tracking and payment request app built with Expo (React Native)
 - **ALWAYS** take screenshots and compare against design requirements
 - **VERIFY** that styles are actually rendering, not just code compiling
 - **TEST** the app in the browser before saying it's complete
+- **RESEARCH DEPENDENCIES**: Understand all dependencies and potential side effects before implementing
+- **NO EXCUSES**: If you don't test it properly and it breaks, it's YOUR fault - research dependencies upfront
 
 ### Testing Strategy
 - **Visual Testing**: Compare screenshots against mockups/designs
@@ -274,6 +276,18 @@ When Claude says "please test it" - this means COMPLETE end-to-end testing, not 
 - `src/services/hybridStorage.ts` - Dual storage implementation
 - `DATABASE_SETUP.md` - Complete setup and troubleshooting guide
 - `spec/database-migration-plan.md` - Migration specification
+
+
+**📁 Spec Files Created:**
+- "spec/" - folder for all specs to refer and udpate
+- "spec/APP_UX_REDESIGN.md" - app ux redesign for native ios app like feel
+- "spec/ZERO_STATE_SPEC.md" - zero state spec
+- "spec/APPLE_DEPLOYMENT_SPEC.md" - what is required for apple ios app deployment
+- "spec/MULTI_LINGUAL_SUPPORT.md" - english and spanish support in the app
+- "spec/SETTINGS_PAGE.md" - settings page for both service provider and clients after login
+- "spec/PHONENUMBER_AUTH.md" - replace email with phone auth
+
+
 
 **🔧 Technical Foundation:**
 - Offline-first architecture with AsyncStorage fallback

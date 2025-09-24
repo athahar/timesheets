@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { theme } from '../styles/theme';
+import { simpleT } from '../i18n/simple';
 
 interface StatusPillProps {
   status: 'paid' | 'unpaid' | 'requested' | 'active';
@@ -19,31 +20,31 @@ export const StatusPill: React.FC<StatusPillProps> = ({
         return {
           backgroundColor: theme.color.pillPaidBg,
           textColor: theme.color.pillPaidText,
-          text: 'Paid'
+          text: simpleT('statusPill.paid')
         };
       case 'unpaid':
         return {
           backgroundColor: theme.color.pillDueBg,
           textColor: theme.color.pillDueText,
-          text: 'Unpaid'
+          text: simpleT('statusPill.unpaid')
         };
       case 'requested':
         return {
           backgroundColor: theme.color.pillReqBg,
           textColor: theme.color.pillReqText,
-          text: 'Requested'
+          text: simpleT('statusPill.requested')
         };
       case 'active':
         return {
           backgroundColor: theme.color.pillActiveBg,
           textColor: theme.color.pillActiveText,
-          text: 'Active'
+          text: simpleT('statusPill.active')
         };
       default:
         return {
           backgroundColor: theme.color.textTertiary + '1A', // 10% opacity
           textColor: theme.color.textTertiary,
-          text: 'Unknown'
+          text: simpleT('statusPill.unknown')
         };
     }
   };

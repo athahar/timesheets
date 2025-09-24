@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { ActivityItem, Client } from '../types';
+import { simpleT, translatePaymentMethod } from '../i18n/simple';
 
 interface ActivityFeedItemProps {
   activity: ActivityItem;
@@ -30,8 +31,8 @@ export const ActivityFeedItem: React.FC<ActivityFeedItemProps> = ({ activity, cl
     const activityDate = new Date(date);
     const diffDays = Math.floor((now.getTime() - activityDate.getTime()) / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
+    if (diffDays === 0) return simpleT('date.today');
+    if (diffDays === 1) return simpleT('date.yesterday');
     return activityDate.toLocaleDateString();
   };
 
@@ -45,7 +46,7 @@ export const ActivityFeedItem: React.FC<ActivityFeedItemProps> = ({ activity, cl
         return (
           <View className="bg-blue-50 border-l-4 border-blue-400 p-3 rounded-r-lg">
             <Text className="text-blue-800 font-medium">
-              {clientName} started working
+              {simpleT('activity.startedWorking', { clientName })}
             </Text>
             <Text className="text-blue-600 text-sm mt-1">
               {time}
@@ -58,13 +59,13 @@ export const ActivityFeedItem: React.FC<ActivityFeedItemProps> = ({ activity, cl
         return (
           <View className="bg-green-50 border-l-4 border-green-400 p-3 rounded-r-lg">
             <Text className="text-green-800 font-medium">
-              {clientName} finished working
+              {simpleT('activity.finishedWorking', { clientName })}
             </Text>
             <Text className="text-green-700 mt-1">
-              Session: {duration?.toFixed(1)} hours
+              {simpleT('activity.sessionDuration', { duration: duration?.toFixed(1) })}
             </Text>
             <Text className="text-green-700 font-semibold">
-              Amount due: ${amount?.toFixed(2)}
+              {simpleT('activity.amountDue', { amount: amount?.toFixed(2) })}
             </Text>
             <Text className="text-green-600 text-sm mt-1">
               {time}
@@ -77,10 +78,10 @@ export const ActivityFeedItem: React.FC<ActivityFeedItemProps> = ({ activity, cl
         return (
           <View className="bg-orange-50 border-l-4 border-orange-400 p-3 rounded-r-lg">
             <Text className="text-orange-800 font-medium">
-              Payment request from {clientName}
+              {simpleT('activity.paymentRequest', { clientName })}
             </Text>
             <Text className="text-orange-700 font-semibold">
-              Amount: ${requestAmount?.toFixed(2)}
+              {simpleT('activity.amount', { amount: requestAmount?.toFixed(2) })}
             </Text>
             <Text className="text-orange-600 text-sm mt-1">
               {time}
@@ -106,17 +107,17 @@ export const ActivityFeedItem: React.FC<ActivityFeedItemProps> = ({ activity, cl
             <View className="flex-row justify-between items-start">
               <View className="flex-1">
                 <Text className="text-emerald-800 font-medium">
-                  Payment completed
+                  {simpleT('activity.paymentCompleted')}
                 </Text>
                 <Text className="text-emerald-700 font-semibold">
-                  ${paidAmount?.toFixed(2)} via {method}
+                  {simpleT('activity.paidAmount', { amount: paidAmount?.toFixed(2), method: translatePaymentMethod(method) })}
                 </Text>
                 <Text className="text-emerald-600 text-sm mt-1">
                   {paymentDate ? formatDateTime(paymentDate) : time}
                 </Text>
                 {sessionCount && (
                   <Text className="text-emerald-600 text-sm">
-                    {sessionCount} session{sessionCount > 1 ? 's' : ''} included
+                    {simpleT('activity.sessionsIncluded', { count: sessionCount, plural: sessionCount > 1 ? 'es' : '' })}
                   </Text>
                 )}
               </View>
@@ -128,15 +129,15 @@ export const ActivityFeedItem: React.FC<ActivityFeedItemProps> = ({ activity, cl
             {isExpanded && sessionIds && sessionIds.length > 0 && (
               <View className="mt-3 pt-3 border-t border-emerald-200">
                 <Text className="text-emerald-700 font-medium mb-2">
-                  Sessions included in this payment:
+                  {simpleT('activity.sessionsIncludedInPayment')}
                 </Text>
                 {sessionIds.map((sessionId: string, index: number) => (
                   <View key={sessionId} className="bg-emerald-100 p-2 rounded mb-1">
                     <Text className="text-emerald-800 text-sm font-mono">
-                      Session #{index + 1}: {sessionId.substring(0, 8)}...
+                      {simpleT('activity.sessionNumber', { number: index + 1, id: sessionId.substring(0, 8) })}
                     </Text>
                     <Text className="text-emerald-600 text-xs mt-1">
-                      Tap to view session details
+                      {simpleT('activity.tapToViewDetails')}
                     </Text>
                   </View>
                 ))}
@@ -153,7 +154,7 @@ export const ActivityFeedItem: React.FC<ActivityFeedItemProps> = ({ activity, cl
       default:
         return (
           <View className="bg-gray-50 border-l-4 border-gray-400 p-3 rounded-r-lg">
-            <Text className="text-gray-800">Unknown activity</Text>
+            <Text className="text-gray-800">{simpleT('activity.unknownActivity')}</Text>
             <Text className="text-gray-600 text-sm mt-1">{time}</Text>
           </View>
         );

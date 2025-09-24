@@ -24,7 +24,8 @@ import {
   getSessionsByClient,
 } from '../services/storageService';
 import { supabase } from '../services/supabase';
-import { formatDate } from '../utils/formatters';
+import { formatDate, formatCurrency as formatCurrencyLocal } from '../utils/localeFormatters';
+import { simpleT, translatePaymentMethod } from '../i18n/simple';
 
 interface ServiceProviderSummaryScreenProps {
   route: {
@@ -222,14 +223,6 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
     return minutes > 0 ? `${hours}hr ${minutes}min` : `${hours}hr`;
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
 
   const formatTimeRange = (startTime: string, endTime: string) => {
     const start = new Date(startTime);
@@ -305,7 +298,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading Provider Summary...</Text>
+          <Text style={styles.loadingText}>{simpleT('providerSummary.loadingProviderSummary')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -315,9 +308,9 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
     <SafeAreaView style={styles.container}>
       <IOSHeader
         title={providerName}
-        subtitle="Work Summary"
+        subtitle={simpleT('providerSummary.workSummary')}
         leftAction={{
-          title: "Back",
+          title: simpleT('providerSummary.back'),
           onPress: () => navigation.goBack(),
         }}
         largeTitleStyle="always"
@@ -331,8 +324,8 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
         {/* Summary Card - Responsive like provider side */}
         <View style={styles.summaryCard}>
           <View style={styles.summaryBalanceRow}>
-            <Text style={styles.summaryLabel}>Balance due: </Text>
-            <Text style={[styles.summaryAmount, unpaidBalance === 0 && styles.summaryAmountPaid]}>{formatCurrency(unpaidBalance)}</Text>
+            <Text style={styles.summaryLabel}>{simpleT('providerSummary.balanceDue')}</Text>
+            <Text style={[styles.summaryAmount, unpaidBalance === 0 && styles.summaryAmountPaid]}>{formatCurrencyLocal(unpaidBalance)}</Text>
             {unpaidBalance > 0 && (
               <Text style={styles.summaryHours}> [{formatHours(unpaidHours)}]</Text>
             )}
@@ -344,13 +337,13 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                 style={styles.recordPaymentButton}
                 onPress={() => setShowMarkAsPaidModal(true)}
               >
-                <Text style={styles.recordPaymentButtonText}>Record Payment</Text>
+                <Text style={styles.recordPaymentButtonText}>{simpleT('providerSummary.recordPayment')}</Text>
               </Pressable>
             </View>
           ) : (
             <View style={styles.summaryButtonRow}>
               <View style={styles.paidUpPill}>
-                <Text style={styles.paidUpText}>Paid up</Text>
+                <Text style={styles.paidUpText}>{simpleT('providerSummary.paidUp')}</Text>
               </View>
             </View>
           )}
@@ -358,13 +351,13 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
 
         {/* Activity Timeline */}
         <View style={styles.timelineSection}>
-          <Text style={styles.timelineTitle}>Activity Timeline</Text>
+          <Text style={styles.timelineTitle}>{simpleT('providerSummary.activityTimeline')}</Text>
 
           {timelineItems.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No activity yet</Text>
+              <Text style={styles.emptyStateText}>{simpleT('providerSummary.noActivity')}</Text>
               <Text style={styles.emptyStateSubtext}>
-                Work sessions and payments will appear here
+                {simpleT('providerSummary.noActivitySubtext')}
               </Text>
             </View>
           ) : (
@@ -382,9 +375,9 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                 const isYesterday = date.toDateString() === new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();
 
                 if (isToday) {
-                  dayLabel = 'Today';
+                  dayLabel = simpleT('date.today');
                 } else if (isYesterday) {
-                  dayLabel = 'Yesterday';
+                  dayLabel = simpleT('date.yesterday');
                 } else {
                   // Use consistent formatting with provider side
                   dayLabel = formatDate(date);
@@ -405,7 +398,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                           <Text style={styles.timelineIcon}>🕒</Text>
                           <View style={styles.timelineContent}>
                             <Text style={styles.timelineMainText}>
-                              Work session
+                              {simpleT('providerSummary.workSession')}
                             </Text>
                             <Text style={styles.timelineSubText}>
                               {item.data.endTime
@@ -419,14 +412,14 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                                   })()
                                 : (() => {
                                     const startTime = new Date(item.data.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                                    return `Active session • Started at ${startTime}`;
+                                    return simpleT('providerSummary.activeSession', { time: startTime });
                                   })()
                               }
                             </Text>
                           </View>
                           <View style={styles.timelineRight}>
                             <Text style={styles.timelineAmount}>
-                              {item.data.endTime ? formatCurrency(item.data.amount || 0) : ''}
+                              {item.data.endTime ? formatCurrencyLocal(item.data.amount || 0) : ''}
                             </Text>
                             {item.data.endTime && item.data.status !== 'requested' && (
                               <StatusPill
@@ -442,15 +435,15 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                           <Text style={styles.timelineIcon}>💰</Text>
                           <View style={styles.timelineContent}>
                             <Text style={styles.timelineMainText}>
-                              Payment sent
+                              {simpleT('providerSummary.paymentSent')}
                             </Text>
                             <Text style={styles.timelineSubText}>
-                              {formatCurrency(item.data.data.amount || 0)} • {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''}
+                              {formatCurrencyLocal(item.data.data.amount || 0)} • {item.data.data.sessionCount} {item.data.data.sessionCount > 1 ? simpleT('providerSummary.sessions') : simpleT('providerSummary.session')}
                             </Text>
                           </View>
                           <View style={styles.timelineRight}>
                             <Text style={styles.timelineAmount}>
-                              {item.data.data.method}
+                              {translatePaymentMethod(item.data.data.method)}
                             </Text>
                           </View>
                         </View>
@@ -460,15 +453,15 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                           <Text style={styles.timelineIcon}>📋</Text>
                           <View style={styles.timelineContent}>
                             <Text style={styles.timelineMainText}>
-                              Payment requested
+                              {simpleT('providerSummary.paymentRequested')}
                             </Text>
                             <Text style={styles.timelineSubText}>
-                              {formatCurrency(item.data.data.amount || 0)} • {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''}
+                              {formatCurrencyLocal(item.data.data.amount || 0)} • {item.data.data.sessionCount} {item.data.data.sessionCount > 1 ? simpleT('providerSummary.sessions') : simpleT('providerSummary.session')}
                             </Text>
                           </View>
                           <View style={styles.timelineRight}>
                             <Text style={styles.timelineAmount}>
-                              Pending
+                              {simpleT('providerSummary.pending')}
                             </Text>
                           </View>
                         </View>

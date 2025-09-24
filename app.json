@@ -51,7 +51,8 @@
     },
     "owner": "athahar",
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-localization"
     ]
   }
 }

@@ -1,6 +1,7 @@
 import React, { Component, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { theme } from '../styles/theme';
+import { simpleT } from '../i18n/simple';
 
 interface Props {
   children: ReactNode;
@@ -30,6 +31,10 @@ export class ErrorBoundary extends Component<Props, State> {
       console.error('Error caught by boundary:', error, errorInfo);
     }
 
+    if (__DEV__) {
+      console.error('ErrorBoundary caught error:', error, errorInfo);
+    }
+
     this.setState({
       error,
       errorInfo
@@ -49,9 +54,9 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <ScrollView style={styles.container}>
           <View style={styles.content}>
-            <Text style={styles.title}>Oops! Something went wrong</Text>
+            <Text style={styles.title}>{simpleT('errorBoundary.title')}</Text>
             <Text style={styles.message}>
-              We're sorry, but something unexpected happened. Please try restarting the app.
+              {simpleT('errorBoundary.message')}
             </Text>
 
             {__DEV__ && this.state.error && (
@@ -67,7 +72,7 @@ export class ErrorBoundary extends Component<Props, State> {
             )}
 
             <TouchableOpacity style={styles.button} onPress={this.handleReset}>
-              <Text style={styles.buttonText}>Try Again</Text>
+              <Text style={styles.buttonText}>{simpleT('errorBoundary.retry')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
