@@ -31,6 +31,7 @@ import {
   getClientMoneyState,
 } from '../services/storageService';
 import { simpleT } from '../i18n/simple';
+import { formatCurrency } from '../utils/formatters';
 
 // Helper function to format names in proper sentence case
 const formatName = (name: string): string => {
@@ -464,7 +465,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
           totalUnpaid > 0 ? (
             <View style={styles.summaryCard}>
               <Text style={styles.summaryLabel}>{t('clientList.totalOutstanding')}</Text>
-              <Text style={styles.summaryAmount}>${totalUnpaid.toFixed(2)}</Text>
+              <Text style={styles.summaryAmount}>{formatCurrency(totalUnpaid)}</Text>
             </View>
           ) : (
             <View style={styles.summaryCard}>
