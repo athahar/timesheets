@@ -209,6 +209,8 @@ export class DirectSupabaseService {
         start_time,
         end_time,
         duration_minutes,
+        crew_size,
+        person_hours,
         hourly_rate,
         amount_due,
         status
@@ -227,13 +229,15 @@ export class DirectSupabaseService {
       startTime: new Date(session.start_time),
       endTime: session.end_time ? new Date(session.end_time) : undefined,
       duration: session.duration_minutes ? session.duration_minutes / 60 : undefined,
+      crewSize: session.crew_size ?? 1,
+      personHours: session.person_hours ?? (session.duration_minutes ? (session.duration_minutes / 60) * (session.crew_size ?? 1) : undefined),
       hourlyRate: session.hourly_rate,
       amount: session.amount_due,
       status: session.status as Session['status']
     }));
   }
 
-  async startSession(clientId: string): Promise<Session> {
+  async startSession(clientId: string, crewSize = 1): Promise<Session> {
     try {
       const sessionId = generateUUID();
       const providerId = await this.getCurrentProviderId();
@@ -256,6 +260,7 @@ export class DirectSupabaseService {
           provider_id: providerId,
           client_id: clientId,
           start_time: startTime.toISOString(),
+          crew_size: Math.max(crewSize, 1),
           hourly_rate: hourlyRate,
           status: 'active'
         }]);
@@ -275,13 +280,18 @@ export class DirectSupabaseService {
       await this.addActivity({
         type: 'session_start',
         clientId,
-        data: { sessionId, startTime: startTime.toISOString() }
+        data: {
+          sessionId,
+          startTime: startTime.toISOString(),
+          crewSize: Math.max(crewSize, 1)
+        }
       });
 
       return {
         id: sessionId,
         clientId,
         startTime,
+        crewSize: Math.max(crewSize, 1),
         hourlyRate,
         status: 'active'
       };
@@ -304,7 +314,7 @@ export class DirectSupabaseService {
       // Get session to calculate duration
       const { data: session, error: fetchError } = await supabase
         .from('trackpay_sessions')
-        .select('start_time, hourly_rate, client_id')
+        .select('start_time, hourly_rate, client_id, crew_size')
         .eq('id', sessionId)
         .single();
 
@@ -319,9 +329,11 @@ export class DirectSupabaseService {
       }
 
       const startTime = new Date(session.start_time);
+      const crewSize = Math.max(session.crew_size || 1, 1);
       const durationMinutes = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60));
       const durationHours = durationMinutes / 60;
-      const amount = durationHours * session.hourly_rate;
+      const personHours = durationHours * crewSize;
+      const amount = personHours * session.hourly_rate;
 
       if (__DEV__) {
 
@@ -335,6 +347,8 @@ export class DirectSupabaseService {
         .update({
           end_time: endTime.toISOString(),
           duration_minutes: durationMinutes,
+          crew_size: crewSize,
+          person_hours: personHours,
           amount_due: amount,
           status: 'unpaid',
           updated_at: new Date().toISOString()
@@ -360,6 +374,8 @@ export class DirectSupabaseService {
           sessionId,
           endTime: endTime.toISOString(),
           duration: durationHours,
+          personHours,
+          crewSize,
           amount
         }
       });
@@ -370,6 +386,8 @@ export class DirectSupabaseService {
         startTime,
         endTime,
         duration: durationHours,
+        crewSize,
+        personHours,
         hourlyRate: session.hourly_rate,
         amount,
         status: 'unpaid'
@@ -379,6 +397,82 @@ export class DirectSupabaseService {
       console.error('❌ End session failed:', error);
       throw error;
     }
+  }
+
+  async updateSessionCrewSize(sessionId: string, crewSize: number): Promise<Session> {
+    const sanitizedCrewSize = Math.max(crewSize, 1);
+    const now = new Date();
+
+    const { data: session, error: fetchError } = await supabase
+      .from('trackpay_sessions')
+      .select('id, client_id, provider_id, start_time, end_time, duration_minutes, hourly_rate, amount_due, status, crew_size, person_hours')
+      .eq('id', sessionId)
+      .single();
+
+    if (fetchError || !session) {
+      console.error('❌ Error loading session for crew update:', fetchError);
+      throw new Error('Session not found');
+    }
+
+    const previousCrewSize = Math.max(session.crew_size || 1, 1);
+    const startTime = new Date(session.start_time);
+    const endTime = session.end_time ? new Date(session.end_time) : undefined;
+    const baseDurationMinutes = session.duration_minutes ??
+      (endTime ? Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)) : undefined);
+    const baseDurationHours = baseDurationMinutes !== undefined ? baseDurationMinutes / 60 : undefined;
+
+    const updates: Record<string, any> = {
+      crew_size: sanitizedCrewSize,
+      updated_at: now.toISOString()
+    };
+
+    if (session.status !== 'active' && baseDurationHours !== undefined) {
+      const recalculatedPersonHours = baseDurationHours * sanitizedCrewSize;
+      const recalculatedAmount = recalculatedPersonHours * session.hourly_rate;
+      updates.person_hours = recalculatedPersonHours;
+      updates.amount_due = recalculatedAmount;
+    }
+
+    const { error: updateError } = await supabase
+      .from('trackpay_sessions')
+      .update(updates)
+      .eq('id', sessionId);
+
+    if (updateError) {
+      console.error('❌ Error updating crew size:', updateError);
+      throw updateError;
+    }
+
+    try {
+      await this.addActivity({
+        type: 'session_updated',
+        clientId: session.client_id,
+        data: {
+          sessionId,
+          updatedAt: now.toISOString(),
+          previousCrewSize,
+          crewSize: sanitizedCrewSize,
+          appliesFromStart: true
+        }
+      });
+    } catch (activityError) {
+      console.error('⚠️ Failed to log crew update activity:', activityError);
+      // Do not throw – the session update succeeded
+    }
+
+    return {
+      id: session.id,
+      clientId: session.client_id,
+      providerId: session.provider_id,
+      startTime,
+      endTime,
+      duration: baseDurationHours,
+      crewSize: sanitizedCrewSize,
+      personHours: session.person_hours ?? (baseDurationHours !== undefined ? baseDurationHours * sanitizedCrewSize : undefined),
+      hourlyRate: session.hourly_rate,
+      amount: session.amount_due,
+      status: session.status as Session['status']
+    };
   }
 
   // Payment operations
@@ -404,16 +498,26 @@ export class DirectSupabaseService {
       // Calculate total amount
       const { data: sessions } = await supabase
         .from('trackpay_sessions')
-        .select('amount_due')
+        .select('amount_due, person_hours, crew_size, duration_minutes, hourly_rate')
         .in('id', sessionIds);
 
       const amount = sessions?.reduce((sum, s) => sum + (s.amount_due || 0), 0) || 0;
+      const totalPersonHours = sessions?.reduce((sum, s) => {
+        if (typeof s.person_hours === 'number') return sum + s.person_hours;
+        const durationHours = s.duration_minutes ? s.duration_minutes / 60 : 0;
+        const crew = Math.max(s.crew_size || 1, 1);
+        return sum + durationHours * crew;
+      }, 0) || 0;
 
       // Create activity
       await this.addActivity({
         type: 'payment_request',
         clientId,
-        data: { sessionIds, amount }
+        data: {
+          sessionIds,
+          amount,
+          personHours: totalPersonHours
+        }
       });
 
     } catch (error) {
@@ -478,6 +582,19 @@ export class DirectSupabaseService {
 
       // Create detailed payment activity
       const paymentDate = new Date().toISOString();
+
+      const { data: paymentSessions } = await supabase
+        .from('trackpay_sessions')
+        .select('person_hours, duration_minutes, crew_size')
+        .in('id', sessionIds);
+
+      const totalPersonHours = paymentSessions?.reduce((sum, s) => {
+        if (typeof s.person_hours === 'number') return sum + s.person_hours;
+        const durationHours = s.duration_minutes ? s.duration_minutes / 60 : 0;
+        const crew = Math.max(s.crew_size || 1, 1);
+        return sum + durationHours * crew;
+      }, 0) || 0;
+
       if (__DEV__) {
         if (__DEV__) { console.log('💳 Creating payment activity...', {
         type: 'payment_completed',
@@ -486,7 +603,8 @@ export class DirectSupabaseService {
         amount,
         method,
         sessionIds,
-        sessionCount: sessionIds.length
+        sessionCount: sessionIds.length,
+        totalPersonHours
       }); }
       }
 
@@ -501,6 +619,7 @@ export class DirectSupabaseService {
             paymentDate,
             sessionIds,
             sessionCount: sessionIds.length,
+            personHours: totalPersonHours,
             description: `Payment $${amount.toFixed(2)} made via ${method}`
           }
         });
@@ -938,6 +1057,8 @@ export class DirectSupabaseService {
         start_time,
         end_time,
         duration_minutes,
+        crew_size,
+        person_hours,
         hourly_rate,
         amount_due,
         status
@@ -957,6 +1078,8 @@ export class DirectSupabaseService {
       startTime: new Date(session.start_time),
       endTime: session.end_time ? new Date(session.end_time) : undefined,
       duration: session.duration_minutes ? session.duration_minutes / 60 : undefined,
+      crewSize: session.crew_size ?? 1,
+      personHours: session.person_hours ?? (session.duration_minutes ? (session.duration_minutes / 60) * (session.crew_size ?? 1) : undefined),
       hourlyRate: session.hourly_rate,
       amount: session.amount_due,
       status: session.status as Session['status']

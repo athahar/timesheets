@@ -15,6 +15,7 @@ import { IOSHeader } from './IOSHeader';
 import { theme } from '../styles/theme';
 import { markPaid } from '../services/storageService';
 import { simpleT } from '../i18n/simple';
+import { formatCurrency, formatHours } from '../utils/formatters';
 
 interface MarkAsPaidModalProps {
   visible: boolean;
@@ -44,6 +45,15 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
   // Focus management
   const amountRef = useRef<TextInput>(null);
   const dateRef = useRef<TextInput>(null);
+
+  const totalPersonHours = sessions.reduce((sum, session) => {
+    const crew = session.crewSize || 1;
+    const baseDuration = session.duration || 0;
+    const personHours = typeof session.personHours === 'number' ? session.personHours : baseDuration * crew;
+    return sum + personHours;
+  }, 0);
+  const outstandingAmountLabel = formatCurrency(unpaidAmount);
+  const totalPersonHoursLabel = formatHours(totalPersonHours);
 
   const paymentMethods: { value: PaymentMethod; label: string }[] = [
     { value: 'cash', label: simpleT('markAsPaidModal.paymentMethods.cash') },
@@ -197,6 +207,12 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
           keyboardShouldPersistTaps="handled"
           contentInsetAdjustmentBehavior="automatic"
         >
+          {/* Outstanding Summary */}
+          <View style={styles.summaryBlock}>
+            <Text style={styles.summaryPrimary}>{outstandingAmountLabel}</Text>
+            <Text style={styles.summarySecondary}>{totalPersonHoursLabel} person-hours outstanding</Text>
+          </View>
+
           {/* Payment Amount */}
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>{simpleT('markAsPaidModal.paymentAmount')}</Text>
@@ -295,6 +311,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 24,
     paddingBottom: 32,
+  },
+  summaryBlock: {
+    marginBottom: 24,
+  },
+  summaryPrimary: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.color.text,
+    fontFamily: theme.typography.fontFamily.display,
+  },
+  summarySecondary: {
+    fontSize: 14,
+    color: theme.color.textSecondary,
+    marginTop: 4,
+    fontFamily: theme.typography.fontFamily.primary,
   },
   fieldContainer: {
     marginBottom: 24,

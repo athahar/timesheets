@@ -31,7 +31,7 @@ import {
   getClientMoneyState,
 } from '../services/storageService';
 import { simpleT } from '../i18n/simple';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, formatHours } from '../utils/formatters';
 
 // Helper function to format names in proper sentence case
 const formatName = (name: string): string => {
@@ -53,7 +53,7 @@ interface ClientWithSummary extends Client {
   unpaidBalance: number;
   requestedBalance: number;
   totalUnpaidBalance: number;
-  totalHours: number;
+  totalPersonHours: number;
   hasUnpaidSessions: boolean;
   hasRequestedSessions: boolean;
   paymentStatus: 'unpaid' | 'requested' | 'paid';
@@ -206,7 +206,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
               unpaidBalance: summary.unpaidBalance,
               requestedBalance: summary.requestedBalance,
               totalUnpaidBalance: summary.totalUnpaidBalance,
-              totalHours: summary.totalHours,
+              totalPersonHours: summary.totalPersonHours ?? summary.totalHours,
               hasUnpaidSessions: summary.hasUnpaidSessions,
               hasRequestedSessions: summary.hasRequestedSessions,
               paymentStatus: summary.paymentStatus,
@@ -227,7 +227,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
               unpaidBalance: 0,
               requestedBalance: 0,
               totalUnpaidBalance: 0,
-              totalHours: 0,
+              totalPersonHours: 0,
               hasUnpaidSessions: false,
               hasRequestedSessions: false,
               paymentStatus: 'paid' as const,
@@ -352,22 +352,29 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
     if (client.totalUnpaidBalance > 0) {
       // Show amount with optional "Requested" label below
       const isRequested = client.paymentStatus === 'requested';
+      const outstandingHours = client.unpaidHours + client.requestedHours;
       return (
         <View style={[styles.pill, { backgroundColor: theme.color.pillDueBg }]}>
           <Text style={[styles.pillText, { color: theme.color.pillDueText }]}>
             Due: {formatCurrency(client.totalUnpaidBalance)}
+          </Text>
+          <Text style={[styles.pillMeta, { color: theme.color.pillDueText }]}>
+            {`${formatHours(outstandingHours)} person-hours`}
           </Text>
           {isRequested && (
             <Text style={styles.requestedLabel}>Requested</Text>
           )}
         </View>
       );
-    } else if (client.totalHours > 0) {
+    } else if (client.totalPersonHours > 0) {
       // Has work history and is paid up
       return (
         <View style={[styles.pill, { backgroundColor: theme.color.pillPaidBg }]}>
           <Text style={[styles.pillText, { color: theme.color.pillPaidText }]}>
             {t('clientList.statusPaidUp')}
+          </Text>
+          <Text style={[styles.pillMeta, { color: theme.color.pillPaidText }]}>
+            {`${formatHours(client.totalPersonHours)} logged`}
           </Text>
         </View>
       );
@@ -727,6 +734,11 @@ const styles = StyleSheet.create({
   pillText: {
     fontSize: theme.font.small,
     fontWeight: '600',
+  },
+  pillMeta: {
+    fontSize: theme.font.small - 1,
+    fontWeight: '500',
+    marginTop: theme.space.x2,
   },
   requestedLabel: {
     fontSize: theme.font.small - 2,

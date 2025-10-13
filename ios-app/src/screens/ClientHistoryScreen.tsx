@@ -386,7 +386,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
             <Text style={styles.summaryLabel}>{t('clientHistory.balanceDue')}</Text>
             <Text style={[styles.summaryAmount, totalUnpaidBalance === 0 && styles.summaryAmountPaid]}>{formatCurrency(totalUnpaidBalance)}</Text>
             {totalUnpaidBalance > 0 && (
-              <Text style={styles.summaryHours}> [{formatHours(unpaidHours + requestedHours)}]</Text>
+              <Text style={styles.summaryHours}> [{formatHours(unpaidHours + requestedHours)} person-hours]</Text>
             )}
           </View>
 
@@ -545,7 +545,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
                   {dayItems.map((item, index) => (
                     <View key={item.id} style={styles.timelineItem}>
                       {item.type === 'session' ? (
-                        // Work Session Line - Simplified
+                        // Work Session Line with crew context
                         <View style={styles.timelineLine}>
                           <Text style={styles.timelineIcon}>🕒</Text>
                           <View style={styles.timelineContent}>
@@ -553,21 +553,24 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
                               {t('providerSummary.workSession')}
                             </Text>
                             <Text style={styles.timelineSubText}>
-                              {item.data.endTime
-                                ? (() => {
-                                    const durationMs = new Date(item.data.endTime).getTime() - new Date(item.data.startTime).getTime();
-                                    const hours = Math.floor(durationMs / (1000 * 60 * 60));
-                                    const minutes = Math.round((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-                                    const startTime = new Date(item.data.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                                    const endTime = new Date(item.data.endTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                                    const durationText = minutes > 0 ? t('duration.hoursMinutes', { hours: hours.toString(), minutes: ` ${minutes}min` }) : t('duration.hours', { hours: hours.toString() });
-                                    return `${durationText} • ${startTime}-${endTime}`;
-                                  })()
-                                : (() => {
-                                    const startTime = new Date(item.data.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                                    return t('providerSummary.activeSession', { time: startTime });
-                                  })()
-                              }
+                              {(() => {
+                                const session = item.data as Session;
+                                const crewSize = session.crewSize || 1;
+                                const crewText = crewSize === 1 ? '1 person' : `${crewSize} people`;
+                                const start = new Date(session.startTime);
+                                const startLabel = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                                if (session.endTime) {
+                                  const end = new Date(session.endTime);
+                                  const endLabel = end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                                  const baseDuration =
+                                    session.duration ??
+                                    ((end.getTime() - start.getTime()) / (1000 * 60 * 60));
+                                  const totalPersonHours =
+                                    session.personHours ?? baseDuration * crewSize;
+                                  return `${crewText} • ${formatHours(baseDuration)} each • ${formatHours(totalPersonHours)} total • ${startLabel}-${endLabel}`;
+                                }
+                                return `${crewText} • active since ${startLabel}`;
+                              })()}
                             </Text>
                           </View>
                           <View style={styles.timelineRight}>
@@ -591,7 +594,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
                               {t('providerSummary.paymentReceived')}
                             </Text>
                             <Text style={styles.timelineSubText}>
-                              {formatCurrency(item.data.data.amount || 0)} • {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''}
+                              {formatCurrency(item.data.data.amount || 0)} • {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''} • {formatHours(item.data.data.personHours || 0)} person-hours
                             </Text>
                           </View>
                           <View style={styles.timelineRight}>
@@ -609,7 +612,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
                               {t('clientHistory.paymentRequestedActivity')}
                             </Text>
                             <Text style={styles.timelineSubText}>
-                              {formatCurrency(item.data.data.amount || 0)} • {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''}
+                              {formatCurrency(item.data.data.amount || 0)} • {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''} • {formatHours(item.data.data.personHours || 0)} person-hours
                             </Text>
                           </View>
                           <View style={styles.timelineRight}>

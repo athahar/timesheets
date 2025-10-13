@@ -35,12 +35,16 @@ export const getSessionsByClient = (clientId: string): Promise<Session[]> => {
   return directSupabase.getSessionsByClient(clientId);
 };
 
-export const startSession = (clientId: string): Promise<Session> => {
-  return directSupabase.startSession(clientId);
+export const startSession = (clientId: string, crewSize = 1): Promise<Session> => {
+  return directSupabase.startSession(clientId, crewSize);
 };
 
 export const endSession = (sessionId: string): Promise<Session> => {
   return directSupabase.endSession(sessionId);
+};
+
+export const updateSessionCrewSize = (sessionId: string, crewSize: number): Promise<Session> => {
+  return directSupabase.updateSessionCrewSize(sessionId, crewSize);
 };
 
 export const getActiveSession = async (clientId: string): Promise<Session | null> => {
@@ -151,9 +155,21 @@ export const getClientSummary = async (clientId: string) => {
   const requestedSessions = sessions.filter(s => s.status === 'requested');
   const paidSessions = sessions.filter(s => s.status === 'paid');
 
-  const totalHours = sessions.reduce((sum, s) => sum + (s.duration || 0), 0);
-  const unpaidHours = unpaidSessions.reduce((sum, s) => sum + (s.duration || 0), 0);
-  const requestedHours = requestedSessions.reduce((sum, s) => sum + (s.duration || 0), 0);
+  const computePersonHours = (session: Session) => {
+    const baseDuration = session.duration || 0;
+    const crew = session.crewSize || 1;
+    return typeof session.personHours === 'number'
+      ? session.personHours
+      : baseDuration * crew;
+  };
+
+  const totalDurationHours = sessions.reduce((sum, s) => sum + (s.duration || 0), 0);
+  const unpaidDurationHours = unpaidSessions.reduce((sum, s) => sum + (s.duration || 0), 0);
+  const requestedDurationHours = requestedSessions.reduce((sum, s) => sum + (s.duration || 0), 0);
+
+  const totalPersonHours = sessions.reduce((sum, s) => sum + computePersonHours(s), 0);
+  const unpaidPersonHours = unpaidSessions.reduce((sum, s) => sum + computePersonHours(s), 0);
+  const requestedPersonHours = requestedSessions.reduce((sum, s) => sum + computePersonHours(s), 0);
 
   const unpaidBalance = unpaidSessions.reduce((sum, s) => sum + (s.amount || 0), 0);
   const requestedBalance = requestedSessions.reduce((sum, s) => sum + (s.amount || 0), 0);
@@ -169,9 +185,15 @@ export const getClientSummary = async (clientId: string) => {
   }
 
   return {
-    totalHours,
-    unpaidHours,
-    requestedHours,
+    totalHours: totalPersonHours,
+    unpaidHours: unpaidPersonHours,
+    requestedHours: requestedPersonHours,
+    totalPersonHours,
+    unpaidPersonHours,
+    requestedPersonHours,
+    totalDurationHours,
+    unpaidDurationHours,
+    requestedDurationHours,
     unpaidBalance,
     requestedBalance,
     totalUnpaidBalance,
@@ -433,6 +455,7 @@ export default {
   getSessionsByClient,
   startSession,
   endSession,
+  updateSessionCrewSize,
   getActiveSession,
 
   // Payment operations
