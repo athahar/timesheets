@@ -20,6 +20,7 @@ import {
   getClientSummary,
 } from '../services/storageService';
 import { simpleT } from '../i18n/simple';
+import { formatCurrency } from '../utils/formatters';
 
 interface ServiceProviderListScreenProps {
   navigation: any;
@@ -310,18 +311,18 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
               {/* Context-aware balance text */}
               {item.paymentStatus === 'requested' ? (
                 <Text style={styles.balanceRequested}>
-                  {t('providerList.paymentRequestedAmount', { amount: item.totalUnpaidBalance.toFixed(0) })}
+                  {t('providerList.paymentRequestedAmount', { amount: formatCurrency(item.totalUnpaidBalance) })}
                 </Text>
               ) : item.hasRequestedSessions && item.hasUnpaidSessions ? (
                 <Text style={styles.balanceDue}>
                   {t('providerList.youOweWithRequested', {
-                    total: item.totalUnpaidBalance.toFixed(0),
-                    requested: item.requestedBalance.toFixed(0)
+                    total: formatCurrency(item.totalUnpaidBalance),
+                    requested: formatCurrency(item.requestedBalance)
                   })}
                 </Text>
               ) : (
                 <Text style={styles.balanceDue}>
-                  {t('providerList.youOwe', { amount: item.totalUnpaidBalance.toFixed(0) })}
+                  {t('providerList.youOwe', { amount: formatCurrency(item.totalUnpaidBalance) })}
                 </Text>
               )}
 
@@ -393,7 +394,7 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
                 <View style={styles.outstandingCard}>
                   <Text style={styles.outstandingLabel}>{t('providerList.totalYouOwe')}</Text>
                   <Text style={styles.outstandingAmount}>
-                    ${totalUnpaid.toFixed(2)}
+                    {formatCurrency(totalUnpaid)}
                   </Text>
                 </View>
               )}
