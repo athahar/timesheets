@@ -33,6 +33,7 @@ interface ClientListScreenProps {
 interface ClientWithSummary extends Client {
   unpaidHours: number;
   unpaidBalance: number;
+  totalHours: number;
 }
 
 export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }) => {
@@ -56,6 +57,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
             ...client,
             unpaidHours: summary.unpaidHours,
             unpaidBalance: summary.unpaidBalance,
+            totalHours: summary.totalHours,
           };
         })
       );
@@ -153,13 +155,13 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
                 {formatCurrency(item.unpaidBalance)}
               </Text>
             </View>
-          ) : (
+          ) : item.totalHours > 0 ? (
             <View style={[styles.statusPill, styles.paidPill]}>
               <Text style={[styles.statusPillText, styles.paidPillText]}>
                 Paid up
               </Text>
             </View>
-          )}
+          ) : null}
         </View>
       </View>
 
@@ -174,6 +176,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   );
 
   const totalUnpaid = clients.reduce((sum, client) => sum + client.unpaidBalance, 0);
+  const totalHoursAcrossClients = clients.reduce((sum, client) => sum + client.totalHours, 0);
   const isZeroState = clients.length === 0; // Restore proper zero-state logic
   const showOutstanding = !isZeroState && (clients.length > 0 || totalUnpaid > 0);
 
@@ -212,17 +215,19 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
               <Text style={styles.outstandingAmount}>
                 {formatCurrency(totalUnpaid)}
               </Text>
-              <View style={[
-                styles.statusPill,
-                totalUnpaid > 0 ? styles.duePill : styles.paidPill,
-              ]}>
-                <Text style={[
-                  styles.statusPillText,
-                  totalUnpaid > 0 ? styles.duePillText : styles.paidPillText,
-                ]}>
-                  {totalUnpaid > 0 ? `Due ${formatCurrency(totalUnpaid)}` : 'Paid up'}
-                </Text>
-              </View>
+              {totalUnpaid > 0 ? (
+                <View style={[styles.statusPill, styles.duePill]}>
+                  <Text style={[styles.statusPillText, styles.duePillText]}>
+                    Due {formatCurrency(totalUnpaid)}
+                  </Text>
+                </View>
+              ) : totalHoursAcrossClients > 0 ? (
+                <View style={[styles.statusPill, styles.paidPill]}>
+                  <Text style={[styles.statusPillText, styles.paidPillText]}>
+                    Paid up
+                  </Text>
+                </View>
+              ) : null}
             </View>
           </View>
         </View>

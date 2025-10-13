@@ -424,8 +424,8 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
               );
             }
 
-            // Case 2: Show Paid up pill (no outstanding balance)
-            if (totalUnpaidBalance === 0 && !hasPendingRequest) {
+            // Case 2: Show Paid up pill (no outstanding balance AND has work history)
+            if (totalUnpaidBalance === 0 && !hasPendingRequest && totalHours > 0) {
               return (
                 <View style={styles.summaryButtonRow}>
                   <View style={styles.paidUpPill}>
