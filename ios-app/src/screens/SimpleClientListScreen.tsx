@@ -346,25 +346,29 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
   };
 
   const renderStatusPill = (client: ClientWithSummary) => {
-    let pillConfig;
-
     if (client.totalUnpaidBalance > 0) {
-      if (client.paymentStatus === 'requested') {
-        pillConfig = pillColors.requested(formatCurrency(client.totalUnpaidBalance));
-      } else {
-        pillConfig = pillColors.due(formatCurrency(client.totalUnpaidBalance));
-      }
+      // Show amount with optional "Requested" label below
+      const isRequested = client.paymentStatus === 'requested';
+      return (
+        <View style={[styles.pill, { backgroundColor: theme.color.pillDueBg }]}>
+          <Text style={[styles.pillText, { color: theme.color.pillDueText }]}>
+            Due: {formatCurrency(client.totalUnpaidBalance)}
+          </Text>
+          {isRequested && (
+            <Text style={styles.requestedLabel}>Requested</Text>
+          )}
+        </View>
+      );
     } else {
-      pillConfig = pillColors.paid;
+      // Paid up status
+      return (
+        <View style={[styles.pill, { backgroundColor: theme.color.pillPaidBg }]}>
+          <Text style={[styles.pillText, { color: theme.color.pillPaidText }]}>
+            {t('clientList.statusPaidUp')}
+          </Text>
+        </View>
+      );
     }
-
-    return (
-      <View style={[styles.pill, { backgroundColor: pillConfig.bg }]}>
-        <Text style={[styles.pillText, { color: pillConfig.text }]}>
-          {pillConfig.label}
-        </Text>
-      </View>
-    );
   };
 
   const renderActiveChip = (client: ClientWithSummary) => {
@@ -717,6 +721,12 @@ const styles = StyleSheet.create({
   pillText: {
     fontSize: theme.font.small,
     fontWeight: '600',
+  },
+  requestedLabel: {
+    fontSize: theme.font.small - 2,
+    fontWeight: '400',
+    color: '#9ca3af',
+    marginTop: theme.space.x2,
   },
   activeMeta: {
     marginTop: theme.space.x8,
