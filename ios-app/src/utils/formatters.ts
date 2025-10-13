@@ -58,7 +58,13 @@ export const formatTimer = (seconds: number): string => {
  * Format date for display
  */
 export const formatDate = (date: string | Date): string => {
+  if (!date) return 'No date';
   const d = typeof date === 'string' ? new Date(date) : date;
+
+  // Check if date is valid
+  if (isNaN(d.getTime())) {
+    return 'No date';
+  }
 
   return d.toLocaleDateString('en-US', {
     month: 'short',

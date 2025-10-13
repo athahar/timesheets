@@ -7,6 +7,7 @@ import {
   StyleSheet,
   TouchableWithoutFeedback,
   AccessibilityInfo,
+  findNodeHandle,
 } from 'react-native';
 import { theme } from '../styles/theme';
 import { simpleT } from '../i18n/simple';
@@ -39,7 +40,10 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   useEffect(() => {
     if (visible && confirmButtonRef.current) {
       const timer = setTimeout(() => {
-        AccessibilityInfo.setAccessibilityFocus(confirmButtonRef.current);
+        const handle = findNodeHandle(confirmButtonRef.current);
+        if (handle) {
+          AccessibilityInfo.setAccessibilityFocus(handle);
+        }
       }, 100);
       return () => clearTimeout(timer);
     }
