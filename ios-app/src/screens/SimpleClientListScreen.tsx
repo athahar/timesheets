@@ -63,8 +63,8 @@ interface ClientWithSummary extends Client {
 
 const getPillColors = (t: typeof simpleT) => ({
   paid: { bg: theme.color.pillPaidBg, text: theme.color.pillPaidText, label: t('clientList.statusPaidUp') },
-  due: (amount: number) => ({ bg: theme.color.pillDueBg, text: theme.color.pillDueText, label: t('clientList.statusDue', { amount: amount.toString() }) }),
-  requested: { bg: theme.color.pillReqBg, text: theme.color.pillReqText, label: t('clientList.statusRequested') },
+  due: (amount: string) => ({ bg: theme.color.pillDueBg, text: theme.color.pillDueText, label: t('clientList.statusDue', { amount }) }),
+  requested: (amount: string) => ({ bg: theme.color.pillReqBg, text: theme.color.pillReqText, label: t('clientList.statusRequested', { amount }) }),
   active: (timer: string) => ({ bg: theme.color.pillActiveBg, text: theme.color.pillActiveText, label: t('clientList.statusActive', { timer }) }),
 });
 
@@ -350,7 +350,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
 
     if (client.totalUnpaidBalance > 0) {
       if (client.paymentStatus === 'requested') {
-        pillConfig = pillColors.requested;
+        pillConfig = pillColors.requested(formatCurrency(client.totalUnpaidBalance));
       } else {
         pillConfig = pillColors.due(formatCurrency(client.totalUnpaidBalance));
       }
