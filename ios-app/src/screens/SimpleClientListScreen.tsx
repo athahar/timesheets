@@ -53,6 +53,7 @@ interface ClientWithSummary extends Client {
   unpaidBalance: number;
   requestedBalance: number;
   totalUnpaidBalance: number;
+  totalHours: number;
   hasUnpaidSessions: boolean;
   hasRequestedSessions: boolean;
   paymentStatus: 'unpaid' | 'requested' | 'paid';
@@ -205,6 +206,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
               unpaidBalance: summary.unpaidBalance,
               requestedBalance: summary.requestedBalance,
               totalUnpaidBalance: summary.totalUnpaidBalance,
+              totalHours: summary.totalHours,
               hasUnpaidSessions: summary.hasUnpaidSessions,
               hasRequestedSessions: summary.hasRequestedSessions,
               paymentStatus: summary.paymentStatus,
@@ -225,6 +227,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
               unpaidBalance: 0,
               requestedBalance: 0,
               totalUnpaidBalance: 0,
+              totalHours: 0,
               hasUnpaidSessions: false,
               hasRequestedSessions: false,
               paymentStatus: 'paid' as const,
@@ -359,8 +362,8 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
           )}
         </View>
       );
-    } else {
-      // Paid up status
+    } else if (client.totalHours > 0) {
+      // Has work history and is paid up
       return (
         <View style={[styles.pill, { backgroundColor: theme.color.pillPaidBg }]}>
           <Text style={[styles.pillText, { color: theme.color.pillPaidText }]}>
@@ -368,6 +371,9 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
           </Text>
         </View>
       );
+    } else {
+      // Brand new client with no work history - show nothing
+      return null;
     }
   };
 
