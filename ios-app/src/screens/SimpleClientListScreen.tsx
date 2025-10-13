@@ -352,7 +352,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
       if (client.paymentStatus === 'requested') {
         pillConfig = pillColors.requested;
       } else {
-        pillConfig = pillColors.due(client.totalUnpaidBalance.toFixed(0));
+        pillConfig = pillColors.due(formatCurrency(client.totalUnpaidBalance));
       }
     } else {
       pillConfig = pillColors.paid;
@@ -393,7 +393,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
         ]}
         activeOpacity={0.8}
         accessibilityRole="button"
-        accessibilityLabel={`${item.name}, ${item.totalUnpaidBalance > 0 ? `Due $${item.totalUnpaidBalance.toFixed(0)}` : 'Paid up'}`}
+        accessibilityLabel={`${item.name}, ${item.totalUnpaidBalance > 0 ? `Due ${formatCurrency(item.totalUnpaidBalance)}` : 'Paid up'}`}
       >
         {/* Left Side: Client Info */}
         <View style={styles.clientLeft}>

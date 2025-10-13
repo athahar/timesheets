@@ -18,6 +18,7 @@ import { Client } from '../types';
 import { Button } from '../components/Button';
 import { HowItWorksModal } from '../components/HowItWorksModal';
 import { useAuth } from '../contexts/AuthContext';
+import { formatCurrency } from '../utils/formatters';
 import {
   getClients,
   addClient,
@@ -149,7 +150,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
           {item.unpaidBalance > 0 ? (
             <View style={[styles.statusPill, styles.duePill]}>
               <Text style={[styles.statusPillText, styles.duePillText]}>
-                ${item.unpaidBalance.toFixed(0)}
+                {formatCurrency(item.unpaidBalance)}
               </Text>
             </View>
           ) : (
@@ -209,7 +210,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
             <Text style={styles.outstandingLabel}>Total Outstanding</Text>
             <View style={styles.outstandingRow}>
               <Text style={styles.outstandingAmount}>
-                ${totalUnpaid.toFixed(2)}
+                {formatCurrency(totalUnpaid)}
               </Text>
               <View style={[
                 styles.statusPill,
@@ -219,7 +220,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
                   styles.statusPillText,
                   totalUnpaid > 0 ? styles.duePillText : styles.paidPillText,
                 ]}>
-                  {totalUnpaid > 0 ? `Due $${totalUnpaid.toFixed(0)}` : 'Paid up'}
+                  {totalUnpaid > 0 ? `Due ${formatCurrency(totalUnpaid)}` : 'Paid up'}
                 </Text>
               </View>
             </View>
