@@ -307,6 +307,7 @@ const translations = {
     'confirmation.title': 'Confirm Action',
     'confirmation.message': 'Are you sure you want to proceed?',
     'confirmation.processing': 'Processing...',
+    'confirmation.requesting': 'Requesting...',
 
     // MarkAsPaidModal
     'markAsPaidModal.title': 'Mark as Paid',
@@ -714,6 +715,7 @@ const translations = {
     'confirmation.title': 'Confirmar Acción',
     'confirmation.message': '¿Estás seguro de que quieres proceder?',
     'confirmation.processing': 'Procesando...',
+    'confirmation.requesting': 'Solicitando...',
 
     // MarkAsPaidModal (Spanish)
     'markAsPaidModal.title': 'Marcar como Pagado',

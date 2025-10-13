@@ -642,6 +642,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
         onCancel={handleCancelRequest}
         confirmStyle="primary"
         loading={isRequesting}
+        loadingText={t('confirmation.requesting')}
       />
 
       {/* Toast Notification */}
