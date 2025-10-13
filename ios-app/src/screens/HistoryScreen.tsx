@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Session, Client } from '../types';
+import { formatCurrency } from '../utils/formatters';
 import {
   getSessions,
   getClients,
@@ -136,7 +137,7 @@ export const HistoryScreen: React.FC = () => {
           <View className="flex-row items-center">
             <Text className="text-success text-title font-bold mr-2">$</Text>
             <Text className="text-callout font-semibold text-success">
-              ${item.amount?.toFixed(2) || '0.00'}
+              {formatCurrency(item.amount || 0)}
             </Text>
           </View>
         </View>
@@ -156,7 +157,7 @@ export const HistoryScreen: React.FC = () => {
           <View className="flex-1 bg-card rounded-card shadow-card p-6">
             <Text className="text-callout text-text-secondary mb-3">Total Earned</Text>
             <Text className="text-title font-bold text-success">
-              ${summary.totalEarned.toFixed(0)}
+              {formatCurrency(summary.totalEarned)}
             </Text>
           </View>
 
@@ -203,14 +204,14 @@ export const HistoryScreen: React.FC = () => {
                 <View className="flex-row justify-between items-center">
                   <Text className="text-callout text-text-secondary">Paid Sessions</Text>
                   <Text className="text-callout font-semibold text-success">
-                    {summary.paidSessionCount} sessions • ${summary.paidAmount.toFixed(0)}
+                    {summary.paidSessionCount} sessions • {formatCurrency(summary.paidAmount)}
                   </Text>
                 </View>
 
                 <View className="flex-row justify-between items-center">
                   <Text className="text-callout text-text-secondary">Unpaid Sessions</Text>
                   <Text className="text-callout font-semibold text-warning">
-                    {summary.unpaidSessionCount} sessions • ${summary.unpaidAmount.toFixed(0)}
+                    {summary.unpaidSessionCount} sessions • {formatCurrency(summary.unpaidAmount)}
                   </Text>
                 </View>
 
@@ -218,7 +219,7 @@ export const HistoryScreen: React.FC = () => {
                   <View className="flex-row justify-between items-center">
                     <Text className="text-headline font-semibold text-text-primary">Total</Text>
                     <Text className="text-headline font-bold text-text-primary">
-                      ${summary.totalEarned.toFixed(0)}
+                      {formatCurrency(summary.totalEarned)}
                     </Text>
                   </View>
                 </View>

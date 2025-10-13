@@ -17,6 +17,7 @@ import { IOSHeader } from '../components/IOSHeader';
 import { theme } from '../styles/theme';
 import { getClientById, updateClient, directSupabase } from '../services/storageService';
 import { generateInviteLink } from '../utils/inviteCodeGenerator';
+import { formatCurrency } from '../utils/formatters';
 
 // Helper function to format names in proper sentence case
 const formatName = (name: string): string => {
@@ -238,7 +239,7 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
 
               <View style={styles.rateSection}>
                 <Text style={styles.rateLabel}>Hourly Rate</Text>
-                <Text style={styles.rateValue}>${client.hourlyRate.toFixed(2)}/hr</Text>
+                <Text style={styles.rateValue}>{formatCurrency(client.hourlyRate)}/hr</Text>
               </View>
 
               {/* Invite Section for Unclaimed Clients */}

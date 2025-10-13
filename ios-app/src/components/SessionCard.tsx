@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { Session, Client } from '../types';
 import { simpleT } from '../i18n/simple';
+import { formatCurrency } from '../utils/formatters';
 
 interface SessionCardProps {
   session: Session;
@@ -92,7 +93,7 @@ export const SessionCard: React.FC<SessionCardProps> = ({ session, client }) => 
           <View className="flex-row justify-between items-center pt-2 border-t border-gray-100">
             <Text className="text-gray-900 font-medium">{simpleT('sessionCard.amount')}</Text>
             <Text className={`text-lg font-bold ${getStatusColor(session.status)}`}>
-              ${session.amount.toFixed(2)}
+              {formatCurrency(session.amount)}
             </Text>
           </View>
         )}

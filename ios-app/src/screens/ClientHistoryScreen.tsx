@@ -177,13 +177,21 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
         .map(activity => ({
           type: activity.type === 'payment_completed' ? 'payment' as const : 'payment_request' as const,
           id: activity.id,
-          timestamp: activity.data.paymentDate ? new Date(activity.data.paymentDate) : activity.timestamp,
+          timestamp: activity.data.paymentDate ? new Date(activity.data.paymentDate) : new Date(activity.timestamp),
           data: activity
         }))
     ];
 
     // Sort by timestamp, newest first
     items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+    if (__DEV__) {
+      console.log('📋 Timeline items:', items.map(i => ({
+        type: i.type,
+        timestamp: i.timestamp.toISOString(),
+        isValid: !isNaN(i.timestamp.getTime())
+      })));
+    }
 
     return items;
   }, [sessions, activities, activeSession]);
@@ -193,9 +201,18 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
     const groups: { [key: string]: typeof timelineItems } = {};
 
     timelineItems.slice(0, 20).forEach(item => {
-      const date = new Date(item.timestamp);
-      // Use same date formatting as client side for consistency
-      const dayKey = formatDate(date).replace(/\s/g, '-'); // Convert "Sep 23, 2025" to "Sep-23,-2025"
+      const date = item.timestamp;
+      // Use ISO date string (YYYY-MM-DD) as the key for grouping
+      const dayKey = date.toISOString().split('T')[0]; // "2025-10-09"
+
+      if (__DEV__) {
+        console.log('🗓️ Grouping item:', {
+          type: item.type,
+          timestamp: date.toISOString(),
+          dayKey,
+          formatDateResult: formatDate(date)
+        });
+      }
 
       if (!groups[dayKey]) {
         groups[dayKey] = [];
@@ -407,8 +424,8 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
               );
             }
 
-            // Case 2: Show Paid up pill (no outstanding balance)
-            if (totalUnpaidBalance === 0 && !hasPendingRequest) {
+            // Case 2: Show Paid up pill (no outstanding balance AND has work history)
+            if (totalUnpaidBalance === 0 && !hasPendingRequest && totalHours > 0) {
               return (
                 <View style={styles.summaryButtonRow}>
                   <View style={styles.paidUpPill}>
@@ -504,9 +521,8 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
             </View>
           ) : (
             groupedTimeline.map(([dayKey, dayItems]) => {
-              // Parse back from formatted date key (e.g., "Sep-23,-2025")
-              const formattedDate = dayKey.replace(/-/g, ' '); // Convert back to "Sep 23, 2025"
-              const date = new Date(formattedDate);
+              // Parse from ISO date key (e.g., "2025-10-09")
+              const date = new Date(dayKey + 'T00:00:00'); // Add time to ensure correct date
               const isToday = date.toDateString() === new Date().toDateString();
               const isYesterday = date.toDateString() === new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();
 
@@ -516,7 +532,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
               } else if (isYesterday) {
                 dayLabel = t('clientHistory.yesterday');
               } else {
-                // Use consistent formatting with client side
+                // Use consistent formatting
                 dayLabel = formatDate(date);
               }
 
@@ -626,6 +642,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
         onCancel={handleCancelRequest}
         confirmStyle="primary"
         loading={isRequesting}
+        loadingText={t('confirmation.requesting')}
       />
 
       {/* Toast Notification */}

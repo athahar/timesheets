@@ -34,7 +34,7 @@ export const formatCurrency = (amount: number): string => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-    minimumFractionDigits: 0,
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);
 };
@@ -82,7 +82,13 @@ export const formatTimer = (seconds: number): string => {
  * Format date for display
  */
 export const formatDate = (date: string | Date): string => {
+  if (!date) return 'No date';
   const d = typeof date === 'string' ? new Date(date) : date;
+
+  // Check if date is valid
+  if (isNaN(d.getTime())) {
+    return 'No date';
+  }
 
   return d.toLocaleDateString('en-US', {
     month: 'short',

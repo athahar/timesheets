@@ -31,9 +31,7 @@ import {
   getClientMoneyState,
 } from '../services/storageService';
 import { simpleT } from '../i18n/simple';
-import { debug, mark, stop } from '../utils/debug';
-import { getClientsMoneyState } from '../services/aggregate';
-import { formatName, formatTimer, useCurrencyFormatter } from '../utils/formatters';
+import { formatCurrency } from '../utils/formatters';
 
 // PERFORMANCE: Memoized ClientCard component to prevent unnecessary re-renders
 const ClientCard = React.memo<{
@@ -120,6 +118,7 @@ interface ClientWithSummary extends Client {
   unpaidBalance: number;
   requestedBalance: number;
   totalUnpaidBalance: number;
+  totalHours: number;
   hasUnpaidSessions: boolean;
   hasRequestedSessions: boolean;
   paymentStatus: 'unpaid' | 'requested' | 'paid';
@@ -130,8 +129,8 @@ interface ClientWithSummary extends Client {
 
 const getPillColors = (t: typeof simpleT) => ({
   paid: { bg: theme.color.pillPaidBg, text: theme.color.pillPaidText, label: t('clientList.statusPaidUp') },
-  due: (amount: number) => ({ bg: theme.color.pillDueBg, text: theme.color.pillDueText, label: t('clientList.statusDue', { amount: amount.toString() }) }),
-  requested: { bg: theme.color.pillReqBg, text: theme.color.pillReqText, label: t('clientList.statusRequested') },
+  due: (amount: string) => ({ bg: theme.color.pillDueBg, text: theme.color.pillDueText, label: t('clientList.statusDue', { amount }) }),
+  requested: (amount: string) => ({ bg: theme.color.pillReqBg, text: theme.color.pillReqText, label: t('clientList.statusRequested', { amount }) }),
   active: (timer: string) => ({ bg: theme.color.pillActiveBg, text: theme.color.pillActiveText, label: t('clientList.statusActive', { timer }) }),
 });
 
@@ -291,7 +290,44 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
       const clientIds = clientsData.map(client => client.id);
       const moneyStates = await getClientsMoneyState(clientIds);
 
-      stop('clients:summaries');
+            return {
+              ...client,
+              unpaidHours: summary.unpaidHours,
+              requestedHours: summary.requestedHours,
+              unpaidBalance: summary.unpaidBalance,
+              requestedBalance: summary.requestedBalance,
+              totalUnpaidBalance: summary.totalUnpaidBalance,
+              totalHours: summary.totalHours,
+              hasUnpaidSessions: summary.hasUnpaidSessions,
+              hasRequestedSessions: summary.hasRequestedSessions,
+              paymentStatus: summary.paymentStatus,
+              hasActiveSession: !!activeSession,
+              activeSessionTime: activeSession ?
+                (Date.now() - new Date(activeSession.startTime).getTime()) / 1000 : 0,
+            };
+          } catch (error) {
+            if (__DEV__) {
+              if (__DEV__) {
+                console.warn('⚠️ Failed to load summary for client:', client.name, error.message);
+              }
+            }
+            return {
+              ...client,
+              unpaidHours: 0,
+              requestedHours: 0,
+              unpaidBalance: 0,
+              requestedBalance: 0,
+              totalUnpaidBalance: 0,
+              totalHours: 0,
+              hasUnpaidSessions: false,
+              hasRequestedSessions: false,
+              paymentStatus: 'paid' as const,
+              hasActiveSession: false,
+              activeSessionTime: 0,
+            };
+          }
+        })
+      );
 
       // Merge client data with batched money states
       const clientsWithSummary = clientsData.map(client => {
@@ -378,25 +414,32 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
   }, [signOut, navigation, t]);
 
   const renderStatusPill = (client: ClientWithSummary) => {
-    let pillConfig;
-
     if (client.totalUnpaidBalance > 0) {
-      if (client.paymentStatus === 'requested') {
-        pillConfig = pillColors.requested;
-      } else {
-        pillConfig = pillColors.due(client.totalUnpaidBalance.toFixed(0));
-      }
+      // Show amount with optional "Requested" label below
+      const isRequested = client.paymentStatus === 'requested';
+      return (
+        <View style={[styles.pill, { backgroundColor: theme.color.pillDueBg }]}>
+          <Text style={[styles.pillText, { color: theme.color.pillDueText }]}>
+            Due: {formatCurrency(client.totalUnpaidBalance)}
+          </Text>
+          {isRequested && (
+            <Text style={styles.requestedLabel}>Requested</Text>
+          )}
+        </View>
+      );
+    } else if (client.totalHours > 0) {
+      // Has work history and is paid up
+      return (
+        <View style={[styles.pill, { backgroundColor: theme.color.pillPaidBg }]}>
+          <Text style={[styles.pillText, { color: theme.color.pillPaidText }]}>
+            {t('clientList.statusPaidUp')}
+          </Text>
+        </View>
+      );
     } else {
-      pillConfig = pillColors.paid;
+      // Brand new client with no work history - show nothing
+      return null;
     }
-
-    return (
-      <View style={[styles.pill, { backgroundColor: pillConfig.bg }]}>
-        <Text style={[styles.pillText, { color: pillConfig.text }]}>
-          {pillConfig.label}
-        </Text>
-      </View>
-    );
   };
 
   const renderActiveChip = (client: ClientWithSummary) => {
@@ -414,10 +457,37 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
   };
 
 
-  const totalUnpaid = useMemo(() =>
-    clients.reduce((sum, client) => sum + client.totalUnpaidBalance, 0),
-    [clients]
-  );
+    return (
+      <TouchableOpacity
+        onPress={() => handleClientPress(item)}
+        style={[
+          styles.clientCard,
+          isActive && styles.clientCardActive
+        ]}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.name}, ${item.totalUnpaidBalance > 0 ? `Due ${formatCurrency(item.totalUnpaidBalance)}` : 'Paid up'}`}
+      >
+        {/* Left Side: Client Info */}
+        <View style={styles.clientLeft}>
+          <Text style={styles.clientName}>{formatName(item.name)}</Text>
+          <Text style={styles.clientRate}>
+            ${item.hourlyRate}/hour
+          </Text>
+          {item.claimedStatus === 'unclaimed' && (
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                handleShowInvite(item);
+              }}
+              activeOpacity={0.7}
+              style={styles.inviteButton}
+            >
+              <Text style={styles.inviteButtonText}>{t('clientList.invite')}</Text>
+            </TouchableOpacity>
+          )}
+          {renderActiveChip(item)}
+        </View>
 
   // PERFORMANCE: Mark first paint completion when data is ready
   useEffect(() => {
@@ -465,7 +535,7 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
           totalUnpaid > 0 ? (
             <View style={styles.summaryCard}>
               <Text style={styles.summaryLabel}>{t('clientList.totalOutstanding')}</Text>
-              <Text style={styles.summaryAmount}>${totalUnpaid.toFixed(2)}</Text>
+              <Text style={styles.summaryAmount}>{formatCurrency(totalUnpaid)}</Text>
             </View>
           ) : (
             <View style={styles.summaryCard}>
@@ -724,6 +794,12 @@ const styles = StyleSheet.create({
   pillText: {
     fontSize: theme.font.small,
     fontWeight: '600',
+  },
+  requestedLabel: {
+    fontSize: theme.font.small - 2,
+    fontWeight: '400',
+    color: '#9ca3af',
+    marginTop: theme.space.x2,
   },
   activeMeta: {
     marginTop: theme.space.x8,

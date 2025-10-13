@@ -2,6 +2,7 @@ import React from 'react';
 import { TouchableOpacity, Text, View } from 'react-native';
 import { Client } from '../types';
 import { simpleT } from '../i18n/simple';
+import { formatCurrency } from '../utils/formatters';
 
 interface ClientCardProps {
   client: Client;
@@ -39,7 +40,7 @@ export const ClientCard = React.memo<ClientCardProps>(({
         <View className="items-end">
           {unpaidBalance > 0 ? (
             <Text className="text-lg font-bold text-unpaid">
-              ${unpaidBalance.toFixed(2)}
+              {formatCurrency(unpaidBalance)}
             </Text>
           ) : (
             <Text className="text-lg font-bold text-paid">

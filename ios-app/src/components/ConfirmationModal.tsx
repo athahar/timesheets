@@ -7,6 +7,7 @@ import {
   StyleSheet,
   TouchableWithoutFeedback,
   AccessibilityInfo,
+  findNodeHandle,
 } from 'react-native';
 import { theme } from '../styles/theme';
 import { simpleT } from '../i18n/simple';
@@ -21,6 +22,7 @@ interface ConfirmationModalProps {
   onCancel: () => void;
   confirmStyle?: 'primary' | 'danger';
   loading?: boolean;
+  loadingText?: string;
 }
 
 export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
@@ -33,13 +35,17 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   onCancel,
   confirmStyle = 'primary',
   loading = false,
+  loadingText,
 }) => {
   const confirmButtonRef = useRef<any>(null);
 
   useEffect(() => {
     if (visible && confirmButtonRef.current) {
       const timer = setTimeout(() => {
-        AccessibilityInfo.setAccessibilityFocus(confirmButtonRef.current);
+        const handle = findNodeHandle(confirmButtonRef.current);
+        if (handle) {
+          AccessibilityInfo.setAccessibilityFocus(handle);
+        }
       }, 100);
       return () => clearTimeout(timer);
     }
@@ -123,11 +129,11 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                   onPress={onConfirm}
                   disabled={loading}
                   accessibilityRole="button"
-                  accessibilityLabel={loading ? simpleT('confirmation.processing') : confirmText}
+                  accessibilityLabel={loading ? (loadingText || simpleT('confirmation.processing')) : confirmText}
                   accessibilityState={{ disabled: loading }}
                 >
                   <Text style={getConfirmTextStyles()}>
-                    {loading ? simpleT('confirmation.processing') : confirmText}
+                    {loading ? (loadingText || simpleT('confirmation.processing')) : confirmText}
                   </Text>
                 </Pressable>
               </View>

@@ -15,6 +15,7 @@ import { ActivityItem, Client, PaymentMethod, Session } from '../types';
 import { Button } from '../components/Button';
 import { theme } from '../styles/theme';
 import { simpleT } from '../i18n/simple';
+import { formatCurrency } from '../utils/formatters';
 import {
   getActivities,
   getClients,
@@ -164,11 +165,6 @@ export const ClientViewScreen: React.FC = () => {
 
     return items;
   }, [sessions, activities]);
-
-  const formatCurrency = (amount: number) => {
-    return `$${amount.toFixed(2)}`;
-  };
-
 
   if (loading) {
     return (

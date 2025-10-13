@@ -150,8 +150,8 @@ const translations = {
     'clientList.logout': 'Logout',
     'clientList.totalOutstanding': 'Total Outstanding',
     'clientList.statusPaidUp': 'Paid up',
-    'clientList.statusDue': 'Due ${{amount}}',
-    'clientList.statusRequested': 'Requested',
+    'clientList.statusDue': 'Due {{amount}}',
+    'clientList.statusRequested': '{{amount}} Requested',
     'clientList.statusActive': 'Active • {{timer}}',
     'clientList.invite': 'Invite',
     'clientList.errorTitle': 'Error',
@@ -314,6 +314,7 @@ const translations = {
     'confirmation.title': 'Confirm Action',
     'confirmation.message': 'Are you sure you want to proceed?',
     'confirmation.processing': 'Processing...',
+    'confirmation.requesting': 'Requesting...',
 
     // MarkAsPaidModal
     'markAsPaidModal.title': 'Mark as Paid',
@@ -564,8 +565,8 @@ const translations = {
     'clientList.logout': 'Cerrar Sesión',
     'clientList.totalOutstanding': 'Total Pendiente',
     'clientList.statusPaidUp': 'Al día',
-    'clientList.statusDue': 'Debe ${{amount}}',
-    'clientList.statusRequested': 'Solicitado',
+    'clientList.statusDue': 'Debe {{amount}}',
+    'clientList.statusRequested': '{{amount}} Solicitado',
     'clientList.statusActive': 'Activo • {{timer}}',
     'clientList.invite': 'Invitar',
     'clientList.errorTitle': 'Error',
@@ -728,6 +729,7 @@ const translations = {
     'confirmation.title': 'Confirmar Acción',
     'confirmation.message': '¿Estás seguro de que quieres proceder?',
     'confirmation.processing': 'Procesando...',
+    'confirmation.requesting': 'Solicitando...',
 
     // MarkAsPaidModal (Spanish)
     'markAsPaidModal.title': 'Marcar como Pagado',

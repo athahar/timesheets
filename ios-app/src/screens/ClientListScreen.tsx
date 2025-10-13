@@ -18,6 +18,7 @@ import { Client } from '../types';
 import { Button } from '../components/Button';
 import { HowItWorksModal } from '../components/HowItWorksModal';
 import { useAuth } from '../contexts/AuthContext';
+import { formatCurrency } from '../utils/formatters';
 import {
   getClients,
   addClient,
@@ -32,6 +33,7 @@ interface ClientListScreenProps {
 interface ClientWithSummary extends Client {
   unpaidHours: number;
   unpaidBalance: number;
+  totalHours: number;
 }
 
 export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }) => {
@@ -55,6 +57,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
             ...client,
             unpaidHours: summary.unpaidHours,
             unpaidBalance: summary.unpaidBalance,
+            totalHours: summary.totalHours,
           };
         })
       );
@@ -149,16 +152,16 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
           {item.unpaidBalance > 0 ? (
             <View style={[styles.statusPill, styles.duePill]}>
               <Text style={[styles.statusPillText, styles.duePillText]}>
-                ${item.unpaidBalance.toFixed(0)}
+                {formatCurrency(item.unpaidBalance)}
               </Text>
             </View>
-          ) : (
+          ) : item.totalHours > 0 ? (
             <View style={[styles.statusPill, styles.paidPill]}>
               <Text style={[styles.statusPillText, styles.paidPillText]}>
                 Paid up
               </Text>
             </View>
-          )}
+          ) : null}
         </View>
       </View>
 
@@ -173,6 +176,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   );
 
   const totalUnpaid = clients.reduce((sum, client) => sum + client.unpaidBalance, 0);
+  const totalHoursAcrossClients = clients.reduce((sum, client) => sum + client.totalHours, 0);
   const isZeroState = clients.length === 0; // Restore proper zero-state logic
   const showOutstanding = !isZeroState && (clients.length > 0 || totalUnpaid > 0);
 
@@ -209,19 +213,21 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
             <Text style={styles.outstandingLabel}>Total Outstanding</Text>
             <View style={styles.outstandingRow}>
               <Text style={styles.outstandingAmount}>
-                ${totalUnpaid.toFixed(2)}
+                {formatCurrency(totalUnpaid)}
               </Text>
-              <View style={[
-                styles.statusPill,
-                totalUnpaid > 0 ? styles.duePill : styles.paidPill,
-              ]}>
-                <Text style={[
-                  styles.statusPillText,
-                  totalUnpaid > 0 ? styles.duePillText : styles.paidPillText,
-                ]}>
-                  {totalUnpaid > 0 ? `Due $${totalUnpaid.toFixed(0)}` : 'Paid up'}
-                </Text>
-              </View>
+              {totalUnpaid > 0 ? (
+                <View style={[styles.statusPill, styles.duePill]}>
+                  <Text style={[styles.statusPillText, styles.duePillText]}>
+                    Due {formatCurrency(totalUnpaid)}
+                  </Text>
+                </View>
+              ) : totalHoursAcrossClients > 0 ? (
+                <View style={[styles.statusPill, styles.paidPill]}>
+                  <Text style={[styles.statusPillText, styles.paidPillText]}>
+                    Paid up
+                  </Text>
+                </View>
+              ) : null}
             </View>
           </View>
         </View>
