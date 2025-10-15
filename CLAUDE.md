@@ -171,6 +171,26 @@ Before implementing ANY feature involving data:
 
 **Common Anti-Pattern**: Creating duplicate records instead of claiming/updating existing ones (e.g., invite systems).
 
+### 🚨 Permission Protocol
+
+**CRITICAL RULE**: NEVER make changes that weren't explicitly requested by the user.
+
+Before making ANY code change, ask yourself:
+1. **Did the user explicitly ask for this?** - If no, STOP and ask permission first
+2. **Am I changing existing behavior?** - If yes, verify this was requested
+3. **Am I modifying navigation, data flow, or business logic?** - If yes, ensure this is part of the stated requirements
+
+**Examples of UNAUTHORIZED changes**:
+- Changing which screen a navigation goes to (e.g., ClientHistory → ClientProfile)
+- Modifying data structures or API responses
+- Altering business logic or calculations
+- Removing or adding features that weren't mentioned
+- Changing UX flows without explicit instruction
+
+**When in doubt**: ASK the user before proceeding.
+
+**Consequence**: Unauthorized changes break working functionality and erode trust.
+
 ### END-TO-END TESTING CHECKLIST
 
 When testing is requested, this means COMPLETE end-to-end testing:

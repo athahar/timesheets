@@ -52,6 +52,97 @@ export const getActiveSession = async (clientId: string): Promise<Session | null
   return sessions.find(session => session.clientId === clientId && session.status === 'active') || null;
 };
 
+// Batch query functions for efficient multi-client operations
+export const getClientSummariesForClients = async (clientIds: string[]) => {
+  if (clientIds.length === 0) return [];
+
+  try {
+    // ONE query fetches all sessions for all clients
+    const { data, error } = await supabase
+      .from('trackpay_sessions')
+      .select('*')
+      .in('client_id', clientIds);
+
+    if (error) throw error;
+
+    // Validate and group by client_id
+    const rows = (data ?? []).filter(r => typeof r.client_id === 'string');
+    const sessionsByClient = new Map<string, any[]>();
+
+    for (const session of rows) {
+      if (!sessionsByClient.has(session.client_id)) {
+        sessionsByClient.set(session.client_id, []);
+      }
+      sessionsByClient.get(session.client_id)!.push(session);
+    }
+
+    // Compute summaries for each client
+    return clientIds.map(clientId => {
+      const sessions = sessionsByClient.get(clientId) || [];
+      const unpaidSessions = sessions.filter(s => s.status === 'unpaid');
+      const requestedSessions = sessions.filter(s => s.status === 'requested');
+
+      const computePersonHours = (session: any) => {
+        const baseDuration = session.duration_minutes ? session.duration_minutes / 60 : 0;
+        const crew = session.crew_size || 1;
+        return typeof session.person_hours === 'number'
+          ? session.person_hours
+          : baseDuration * crew;
+      };
+
+      const totalPersonHours = sessions.reduce((sum, s) => sum + computePersonHours(s), 0);
+      const unpaidPersonHours = unpaidSessions.reduce((sum, s) => sum + computePersonHours(s), 0);
+      const requestedPersonHours = requestedSessions.reduce((sum, s) => sum + computePersonHours(s), 0);
+
+      // Read pre-calculated amounts from database (stored when session ended)
+      const unpaidBalance = unpaidSessions.reduce((sum, s) => sum + (s.amount_due || 0), 0);
+      const requestedBalance = requestedSessions.reduce((sum, s) => sum + (s.amount_due || 0), 0);
+      const totalUnpaidBalance = unpaidBalance + requestedBalance;
+
+      // Determine payment status
+      let paymentStatus: 'unpaid' | 'requested' | 'paid' = 'paid';
+      if (unpaidSessions.length > 0) {
+        paymentStatus = 'unpaid';
+      } else if (requestedSessions.length > 0) {
+        paymentStatus = 'requested';
+      }
+
+      return {
+        id: clientId,
+        unpaidHours: unpaidPersonHours + requestedPersonHours,
+        unpaidBalance: totalUnpaidBalance,
+        totalHours: totalPersonHours,
+        paymentStatus,
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching client summaries:', error);
+    return clientIds.map(id => ({ id, unpaidHours: 0, unpaidBalance: 0, totalHours: 0, paymentStatus: 'paid' as const }));
+  }
+};
+
+export const getActiveSessionsForClients = async (clientIds: string[]): Promise<Set<string>> => {
+  if (clientIds.length === 0) return new Set();
+
+  try {
+    // ONE query fetches all active sessions for all clients
+    const { data, error } = await supabase
+      .from('trackpay_sessions')
+      .select('client_id')
+      .in('client_id', clientIds)
+      .eq('status', 'active');
+
+    if (error) throw error;
+
+    // Validate and return Set of client IDs with active sessions
+    const rows = (data ?? []).filter(r => typeof r.client_id === 'string');
+    return new Set(rows.map(r => r.client_id));
+  } catch (error) {
+    console.error('Error fetching active sessions:', error);
+    return new Set();
+  }
+};
+
 // Payment functions
 export const getPayments = (): Promise<Payment[]> => {
   // Simplified - not implemented in direct service yet
