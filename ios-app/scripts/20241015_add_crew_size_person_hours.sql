@@ -1,13 +1,13 @@
 -- TrackPay crew size migration
 
--- Adds crew size and person-hours columns to trackpay_sessions
+-- Adds crew size and person-hours columns to trackpay_sessions (idempotent)
 ALTER TABLE trackpay_sessions
-  ADD COLUMN crew_size integer NOT NULL DEFAULT 1,
-  ADD COLUMN person_hours numeric(10,2);
+  ADD COLUMN IF NOT EXISTS crew_size integer NOT NULL DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS person_hours numeric(10,2);
 
--- Backfill legacy sessions with person-hours derived from duration
+-- Backfill legacy sessions with person-hours derived from stored duration (minutes)
 UPDATE trackpay_sessions
-SET person_hours = COALESCE(duration, 0) * crew_size
+SET person_hours = COALESCE(duration_minutes, 0) / 60.0 * GREATEST(crew_size, 1)
 WHERE person_hours IS NULL;
 
 -- Helper function keeps crew_size >= 1 and maintains person_hours
@@ -18,8 +18,8 @@ BEGIN
     NEW.crew_size := 1;
   END IF;
 
-  IF NEW.duration IS NOT NULL THEN
-    NEW.person_hours := NEW.duration * NEW.crew_size;
+  IF NEW.duration_minutes IS NOT NULL THEN
+    NEW.person_hours := NEW.duration_minutes / 60.0 * NEW.crew_size;
   END IF;
 
   RETURN NEW;
