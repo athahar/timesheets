@@ -18,7 +18,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.trackpay.track",
-      "buildNumber": "5",
+      "buildNumber": "6",
       "infoPlist": {
         "NSCameraUsageDescription": "TrackPay uses camera for profile photos and document scanning",
         "NSPhotoLibraryUsageDescription": "TrackPay accesses photo library for profile photos",
