@@ -35,6 +35,15 @@ A two-sided time tracking and payment request app built with Expo (React Native)
 - npm or yarn
 - For mobile testing: Expo Go app on your device
 
+### Environment setup
+```bash
+cd ios-app
+cp .env.sample .env
+# edit ios-app/.env with your Supabase URL + anon key
+```
+
+> The npm scripts call Expo with `--env-file .env`, so keeping that file updated is enough for local development.
+
 ### Installation
 
 1. Install dependencies:
@@ -61,6 +70,10 @@ Scan QR code with Expo Go app
 npm run ios     # iOS simulator
 npm run android # Android emulator
 ```
+
+### EAS build configuration
+- Set Expo secrets `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `APP_DISPLAY_NAME` (`eas secret:create` or through the dashboard).
+- The build profiles in `ios-app/eas.json` reference those secrets so credentials stay outside the repo.
 
 ## App Usage
 
