@@ -27,6 +27,7 @@ import {
   getPendingPaymentRequest,
   addActivity,
   getClientMoneyState,
+  updateSessionCrewSize,
 } from '../services/storageService';
 import { formatCurrency, formatHours, formatTimer, formatDate, generateBatchId, isSameDay } from '../utils/formatters';
 import { ConfirmationModal } from '../components/ConfirmationModal';
@@ -76,6 +77,9 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
   const [moneyState, setMoneyState] = useState<any>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
+  const [crewSize, setCrewSize] = useState(1);
+  const [crewMessage, setCrewMessage] = useState<string | null>(null);
+  const [isUpdatingCrew, setIsUpdatingCrew] = useState(false);
   const { toast, showSuccess, showError, hideToast } = useToast();
   const t = simpleT;
 
@@ -108,6 +112,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
 
       const currentActiveSession = await getActiveSession(clientId);
       setActiveSession(currentActiveSession);
+      setCrewSize(currentActiveSession?.crewSize || 1);
 
       // Check for pending payment request
       const pendingPaymentRequest = await getPendingPaymentRequest(clientId);
@@ -160,6 +165,16 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       if (interval) clearInterval(interval);
     };
   }, [activeSession]);
+
+  useEffect(() => {
+    if (!crewMessage) return;
+    const timer = setTimeout(() => setCrewMessage(null), 4000);
+    return () => clearTimeout(timer);
+  }, [crewMessage]);
+
+  const currentCrewSize = activeSession?.crewSize ?? crewSize;
+  const perPersonHours = activeSession ? sessionTime / 3600 : 0;
+  const totalPersonHours = perPersonHours * currentCrewSize;
 
   // Create timeline with day-grouped sessions and payment activities - memoized for performance
   const timelineItems = useMemo(() => {
@@ -223,9 +238,69 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
     return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
   }, [timelineItems]);
 
+const handleCrewAdjust = async (delta: number) => {
+  const targetSize = Math.max(1, currentCrewSize + delta);
+  if (targetSize === currentCrewSize) return;
+
+    if (activeSession) {
+      setIsUpdatingCrew(true);
+      try {
+        const updated = await updateSessionCrewSize(activeSession.id, targetSize);
+        const normalized = updated.crewSize ?? targetSize;
+        setActiveSession(prev => prev ? { ...prev, crewSize: normalized } : prev);
+        setCrewSize(normalized);
+        setCrewMessage(`${normalized} ${normalized === 1 ? 'person' : 'people'} logged for this session.`);
+      } catch (error) {
+        console.error('Error updating crew size:', error);
+        Alert.alert(t('clientHistory.errorTitle'), 'Unable to update crew size. Please try again.');
+      } finally {
+        setIsUpdatingCrew(false);
+      }
+    } else {
+      setCrewSize(targetSize);
+      setCrewMessage(`${targetSize} ${targetSize === 1 ? 'person' : 'people'} will be tracked when the session starts.`);
+    }
+  };
+
+  const renderCrewSelector = () => {
+    const minusDisabled = currentCrewSize <= 1 || isUpdatingCrew;
+    const plusDisabled = isUpdatingCrew;
+
+    return (
+      <View style={styles.crewSelector}>
+        <Text style={styles.crewLabel}>Crew size</Text>
+        <View style={styles.crewStepper}>
+          <TouchableOpacity
+            onPress={() => handleCrewAdjust(-1)}
+            disabled={minusDisabled}
+            style={[styles.crewButton, minusDisabled && styles.crewButtonDisabled]}
+            accessibilityRole="button"
+            accessibilityLabel="Decrease crew size"
+          >
+            <Text style={styles.crewButtonText}>-</Text>
+          </TouchableOpacity>
+          <Text style={styles.crewValue}>{currentCrewSize}</Text>
+          <TouchableOpacity
+            onPress={() => handleCrewAdjust(1)}
+            disabled={plusDisabled}
+            style={[styles.crewButton, plusDisabled && styles.crewButtonDisabled]}
+            accessibilityRole="button"
+            accessibilityLabel="Increase crew size"
+          >
+            <Text style={styles.crewButtonText}>+</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.crewHint}>
+          {activeSession ? 'Applies to the entire session' : 'Set before starting'}
+        </Text>
+        {crewMessage ? <Text style={styles.crewMessage}>{crewMessage}</Text> : null}
+      </View>
+    );
+  };
+
   const handleStartSession = async () => {
     try {
-      await startSession(clientId);
+      await startSession(clientId, crewSize);
       loadData();
     } catch (error) {
       Alert.alert(t('clientHistory.errorTitle'), t('clientHistory.sessionStartError'));
@@ -457,51 +532,54 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
           )}
         </View>
 
-        {/* Active Session */}
-        {activeSession && (
-          <View style={styles.activeSessionCard}>
-            <View style={styles.activeSessionHeader}>
-              <Text style={styles.activeSessionTitle}>{t('providerSummary.activeSessionTitle')}</Text>
-            </View>
-            <Text style={styles.activeSessionTime}>{formatTimer(sessionTime)}</Text>
-            <Pressable
-              style={({pressed}) => [
-                styles.btnBase,
-                styles.btnDanger,
-                styles.endSessionButton,
-                pressed && { backgroundColor: theme.color.btnDangerBgPressed },
-              ]}
-              onPress={handleEndSession}
-              accessibilityRole="button"
-              accessibilityLabel="End session"
-            >
-              <Text style={[styles.btnText, styles.btnDangerText]}>
-                {t('clientHistory.endSession')}
-              </Text>
-            </Pressable>
+        {/* Session Controls */}
+        <View style={styles.activeSessionCard}>
+          <View style={styles.activeSessionHeader}>
+            <Text style={styles.activeSessionTitle}>
+              {activeSession ? t('providerSummary.activeSessionTitle') : 'Ready to start?'}
+            </Text>
           </View>
-        )}
 
-        {/* Start Session Button */}
-        {!activeSession && (
-          <View style={styles.actionButtons}>
-            <Pressable
-              style={({pressed}) => [
-                styles.btnBase,
-                styles.btnPrimary,
-                styles.actionButton,
-                pressed && { backgroundColor: theme.color.btnPrimaryBgPressed },
-              ]}
-              onPress={handleStartSession}
-              accessibilityRole="button"
-              accessibilityLabel="Start session"
-            >
-              <Text style={[styles.btnText, styles.btnPrimaryText]}>
-                {t('clientHistory.startSession')}
+          {activeSession ? (
+            <Text style={styles.activeSessionTime}>{formatTimer(sessionTime)}</Text>
+          ) : (
+            <Text style={styles.activeSessionPrompt}>Set your crew and tap start to begin tracking.</Text>
+          )}
+
+          {renderCrewSelector()}
+
+          <Pressable
+            style={({pressed}) => [
+              styles.btnBase,
+              activeSession ? styles.btnDanger : styles.btnPrimary,
+              styles.sessionActionButton,
+              pressed && (activeSession ? { backgroundColor: theme.color.btnDangerBgPressed } : { backgroundColor: theme.color.btnPrimaryBgPressed }),
+            ]}
+            onPress={activeSession ? handleEndSession : handleStartSession}
+            accessibilityRole="button"
+            accessibilityLabel={activeSession ? 'End session' : 'Start session'}
+          >
+            <Text style={[
+              styles.btnText,
+              activeSession ? styles.btnDangerText : styles.btnPrimaryText,
+            ]}>
+              {activeSession ? t('clientHistory.endSession') : t('clientHistory.startSession')}
+            </Text>
+          </Pressable>
+
+          {activeSession && (
+            <View style={styles.activeSessionMeta}>
+              <Text style={styles.activeSessionMetaText}>
+                {`${currentCrewSize} ${currentCrewSize === 1 ? 'person' : 'people'} × ${formatHours(perPersonHours)} = ${formatHours(totalPersonHours)}`}
               </Text>
-            </Pressable>
-          </View>
-        )}
+              <Text style={styles.activeSessionMetaText}>
+                {t('clientHistory.activeSessionStarted', {
+                  time: activeSession.startTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase(),
+                })}
+              </Text>
+            </View>
+          )}
+        </View>
 
         {/* Activity Timeline */}
         <View style={styles.timelineSection}>
@@ -567,7 +645,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
                                     ((end.getTime() - start.getTime()) / (1000 * 60 * 60));
                                   const totalPersonHours =
                                     session.personHours ?? baseDuration * crewSize;
-                                  return `${crewText} • ${formatHours(baseDuration)} each • ${formatHours(totalPersonHours)} total • ${startLabel}-${endLabel}`;
+                                  return `${crewText} × ${formatHours(baseDuration)} = ${formatHours(totalPersonHours)} • ${startLabel}-${endLabel}`;
                                 }
                                 return `${crewText} • active since ${startLabel}`;
                               })()}
@@ -594,7 +672,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
                               {t('providerSummary.paymentReceived')}
                             </Text>
                             <Text style={styles.timelineSubText}>
-                              {formatCurrency(item.data.data.amount || 0)} • {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''} • {formatHours(item.data.data.personHours || 0)} person-hours
+                              {formatCurrency(item.data.data.amount || 0)} • {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''} • {formatHours(item.data.data.personHours || 0)} total
                             </Text>
                           </View>
                           <View style={styles.timelineRight}>
@@ -612,7 +690,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
                               {t('clientHistory.paymentRequestedActivity')}
                             </Text>
                             <Text style={styles.timelineSubText}>
-                              {formatCurrency(item.data.data.amount || 0)} • {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''} • {formatHours(item.data.data.personHours || 0)} person-hours
+                              {formatCurrency(item.data.data.amount || 0)} • {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''} • {formatHours(item.data.data.personHours || 0)} total
                             </Text>
                           </View>
                           <View style={styles.timelineRight}>
@@ -719,17 +797,81 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     fontFamily: theme.typography.fontFamily.primary,
   },
-  endSessionButton: {
-    marginTop: 16,
-    width: '100%',
-  },
-  actionButtons: {
-    gap: 12,
-    marginTop: 16,
+  activeSessionPrompt: {
+    marginTop: 12,
+    fontSize: theme.font.body,
+    color: theme.color.textSecondary,
+    fontFamily: theme.typography.fontFamily.primary,
     marginBottom: 16,
   },
-  actionButton: {
+  sessionActionButton: {
+    marginTop: 16,
     width: '100%',
+  },
+  activeSessionMeta: {
+    marginTop: 16,
+    gap: 4,
+  },
+  activeSessionMetaText: {
+    fontSize: theme.font.small,
+    color: theme.color.textSecondary,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  crewSelector: {
+    marginTop: 8,
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  crewLabel: {
+    fontSize: theme.font.body,
+    fontWeight: '600',
+    color: theme.color.text,
+    fontFamily: theme.typography.fontFamily.primary,
+    marginBottom: 8,
+  },
+  crewStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  crewButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.color.cardBg,
+  },
+  crewButtonDisabled: {
+    opacity: 0.4,
+  },
+  crewButtonText: {
+    fontSize: 24,
+    color: theme.color.text,
+    fontFamily: theme.typography.fontFamily.display,
+  },
+  crewValue: {
+    minWidth: 48,
+    textAlign: 'center',
+    fontSize: theme.font.title,
+    fontWeight: '600',
+    color: theme.color.text,
+    fontFamily: theme.typography.fontFamily.display,
+  },
+  crewHint: {
+    marginTop: 8,
+    fontSize: theme.font.small,
+    color: theme.color.textSecondary,
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  crewMessage: {
+    marginTop: 4,
+    fontSize: theme.font.small,
+    color: theme.color.primary,
+    fontFamily: theme.typography.fontFamily.primary,
   },
 
   // Button base styles

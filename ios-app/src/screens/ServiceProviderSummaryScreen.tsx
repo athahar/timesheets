@@ -415,7 +415,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                                     ((end.getTime() - start.getTime()) / (1000 * 60 * 60));
                                   const totalPersonHours =
                                     session.personHours ?? baseDuration * crewSize;
-                                  return `${crewText} • ${formatHours(baseDuration)} each • ${formatHours(totalPersonHours)} total • ${startLabel}-${endLabel}`;
+                                  return `${crewText} × ${formatHours(baseDuration)} = ${formatHours(totalPersonHours)} • ${startLabel}-${endLabel}`;
                                 }
                                 return `${crewText} • active since ${startLabel}`;
                               })()}
@@ -442,7 +442,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                               {simpleT('providerSummary.paymentSent')}
                             </Text>
                             <Text style={styles.timelineSubText}>
-                              {formatCurrencyLocal(item.data.data.amount || 0)} • {item.data.data.sessionCount} {item.data.data.sessionCount > 1 ? simpleT('providerSummary.sessions') : simpleT('providerSummary.session')} • {formatHours(item.data.data.personHours || 0)} person-hours
+                              {formatCurrencyLocal(item.data.data.amount || 0)} • {item.data.data.sessionCount} {item.data.data.sessionCount > 1 ? simpleT('providerSummary.sessions') : simpleT('providerSummary.session')} • {formatHours(item.data.data.personHours || 0)} total
                             </Text>
                           </View>
                           <View style={styles.timelineRight}>
@@ -460,7 +460,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                               {simpleT('providerSummary.paymentRequested')}
                             </Text>
                             <Text style={styles.timelineSubText}>
-                              {formatCurrencyLocal(item.data.data.amount || 0)} • {item.data.data.sessionCount} {item.data.data.sessionCount > 1 ? simpleT('providerSummary.sessions') : simpleT('providerSummary.session')} • {formatHours(item.data.data.personHours || 0)} person-hours
+                              {formatCurrencyLocal(item.data.data.amount || 0)} • {item.data.data.sessionCount} {item.data.data.sessionCount > 1 ? simpleT('providerSummary.sessions') : simpleT('providerSummary.session')} • {formatHours(item.data.data.personHours || 0)} total
                             </Text>
                           </View>
                           <View style={styles.timelineRight}>
