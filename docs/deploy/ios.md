@@ -14,31 +14,57 @@ Run **EVERY TIME** before building for TestFlight or App Store.
 
 ### 1. Console Statement Audit (MANDATORY)
 
+**⚠️ CRITICAL**: Build 7 white screen was caused by unguarded console statements. This check is non-negotiable.
+
 ```bash
 cd ios-app
-rg "console\." src --glob "*.{ts,tsx}" | rg -v "__DEV__" | rg -v "console.error"
+
+# Check for ALL unguarded console statements (log, warn, error, etc.)
+rg "console\." src --glob "*.{ts,tsx}" | rg -v "__DEV__"
 ```
 
-**Requirements:**
-- ❌ NO unguarded `console.log` or `console.warn` statements
-- ✅ All console statements wrapped with `if (__DEV__)` **OR**
-- ✅ Babel plugin `transform-remove-console` is enabled (current approach)
+**Requirements** (Build 8+):
+- ❌ NO unguarded `console.log`, `console.warn`, OR `console.error` statements
+- ✅ ALL console statements must be wrapped with `if (__DEV__)` guards
+- ✅ Babel plugin `transform-remove-console` provides backup protection (strips ALL console.* in production)
 
-**Current Mitigation** (Build 6+):
-- ✅ `babel-plugin-transform-remove-console` installed in package.json
-- ✅ Configured in `babel.config.js` to strip all console.* in production builds
-- ✅ Follows WaddlePlay proven approach
-- ⚠️ Source code may still contain unguarded statements (they're stripped at build time)
+**Current Mitigation** (Build 8+):
+- ✅ Dual-layer protection approach
+- ✅ **Primary**: All console statements wrapped with `if (__DEV__)` guards
+- ✅ **Backup**: `babel-plugin-transform-remove-console` strips all console.* in production builds
+- ✅ Belt-and-suspenders approach ensures no console crashes
 
-**Example of correct manual wrapping** (if not using babel plugin):
+**Example of correct wrapping:**
 ```typescript
+// ✅ CORRECT - All console types wrapped
 if (__DEV__) {
-  console.log('Debug information here');
+  console.log('Debug information');
+  console.warn('Warning message');
+  console.error('Error details:', error);
 }
 
-// console.error is OK for crash reporting
-console.error('Critical error:', error);
+// For production error tracking, integrate Sentry/Bugsnag:
+// Sentry.captureException(error);
 ```
+
+**❌ WRONG - These patterns caused Build 7 white screen:**
+```typescript
+// ❌ NEVER do this - runs ONLY in production, crashes immediately!
+if (!__DEV__) {
+  console.error('Error caught:', error);  // CRASHES iOS!
+}
+
+// ❌ NEVER use unguarded console statements
+console.error('Error:', error);  // Will crash if babel plugin fails
+console.log('Debug');            // Will crash if babel plugin fails
+```
+
+**Build 7 Root Cause** (Fixed in Build 8):
+1. **ErrorBoundary.tsx** - Had `if (!__DEV__) { console.error(...) }` causing immediate crash
+2. **AuthContext.tsx** - 9 unguarded `console.error` statements
+3. **App.tsx** - Rendered before i18n initialization completed
+
+**See CLAUDE.md** for full root cause analysis and prevention checklist.
 
 ---
 
@@ -511,6 +537,61 @@ src/i18n/index.ts                 - 2 warnings
 ---
 
 ## 📚 Deployment History
+
+### Build 8 (2025-10-16) - CURRENT
+
+**Status**: In preparation
+**Focus**: Fix Build 7 white screen crash
+
+**Critical Fixes**:
+1. **ErrorBoundary.tsx** - Removed `console.error` in production block (`if (!__DEV__)`)
+2. **AuthContext.tsx** - Wrapped all 9 `console.error` statements with `if (__DEV__)` guards
+3. **App.tsx** - Added `isReady` state to prevent rendering before i18n initialization
+4. **babel.config.js** - Enhanced to strip ALL console.* methods (backup protection)
+
+**Dual-Layer Protection**:
+- ✅ **Primary**: All console statements wrapped with `if (__DEV__)` guards
+- ✅ **Backup**: Babel plugin strips all console.* in production builds
+- ✅ Belt-and-suspenders approach prevents future console-related crashes
+
+**Pre-Build Validation**:
+- ✅ Production simulation tested (`npx expo start --no-dev --minify --clear`)
+- ✅ No white screens
+- ✅ Navigation works smoothly
+- ✅ ErrorBoundary catches errors properly
+- ✅ No console output (all guards working)
+
+**Ready for Deployment**: Pending final pre-flight checks
+
+---
+
+### Build 7 (2025-10-15) - FAILED
+
+**Status**: ❌ White screen crash on TestFlight
+**Root Cause**: Unguarded console statements
+
+**Critical Mistakes**:
+1. **ErrorBoundary.tsx (MOST CRITICAL)**:
+   - Had `if (!__DEV__) { console.error(...) }` - ran ONLY in production
+   - Caused immediate crash on app launch
+
+2. **AuthContext.tsx**:
+   - 9 unguarded `console.error` statements
+   - In loadUserProfile, createUserProfile, auth listeners
+
+3. **App.tsx**:
+   - Rendered before i18n initialization completed
+   - Caused white flash and potential crashes
+
+**Lesson Learned**:
+- ❌ NEVER use `if (!__DEV__)` with console statements
+- ❌ NEVER assume babel plugin is sufficient protection
+- ✅ ALWAYS wrap console statements: `if (__DEV__) { console.log(...) }`
+- ✅ ALWAYS test with `--no-dev --minify` before building
+
+**Recovery**: All issues fixed in Build 8 (see above)
+
+---
 
 ### Build 6 (2025-10-15)
 

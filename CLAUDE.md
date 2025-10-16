@@ -191,6 +191,107 @@ These are referenced in `ios-app/eas.json` via `$VARIABLE_NAME` syntax.
 
 ---
 
+### ⚠️ LESSONS LEARNED: Build 7 White Screen Crash (Oct 2025)
+
+**CRITICAL BUG** - White screen on TestFlight Build 7 caused by unguarded console statements.
+
+#### Root Cause Analysis
+
+**Primary Issue**: Console statements executing in iOS production builds cause immediate crashes.
+
+**Three critical mistakes:**
+
+1. **ErrorBoundary.tsx (MOST CRITICAL)**
+   ```typescript
+   // ❌ WRONG - Runs ONLY in production, crashes immediately
+   componentDidCatch(error: Error, errorInfo: any) {
+     if (!__DEV__) {
+       console.error('Error caught:', error);  // CRASHES iOS!
+     }
+   }
+   ```
+
+2. **AuthContext.tsx** - 9 unguarded `console.error` statements in:
+   - `loadUserProfile()`
+   - `createUserProfile()`
+   - Auth state listeners
+   - Error handlers
+
+3. **App initialization** - Rendered before i18n completed initialization
+
+#### The Fix (Build 8)
+
+**Dual-Layer Protection:**
+
+1. **Primary Defense**: Wrap ALL console statements with `if (__DEV__)` guards
+   ```typescript
+   // ✅ CORRECT - Only runs in development
+   if (__DEV__) {
+     console.error('Error caught:', error);
+   }
+   // In production: silent handling, integrate Sentry/Bugsnag here
+   ```
+
+2. **Backup Defense**: Babel plugin strips ALL console.* in production
+   ```javascript
+   // babel.config.js
+   isProd && [
+     'transform-remove-console',
+     { exclude: [] }  // Remove ALL console methods
+   ]
+   ```
+
+3. **Initialization Fix**: Added `isReady` state in App.tsx
+   ```typescript
+   const [isReady, setIsReady] = React.useState(false);
+
+   // Wait for i18n + storage init
+   useEffect(() => {
+     await initSimpleI18n();
+     await initializeWithSeedData();
+     setIsReady(true);
+   }, []);
+
+   if (!isReady) return null;  // Prevent early render
+   ```
+
+#### Prevention Checklist
+
+**NEVER AGAIN:**
+- ❌ NEVER use `if (!__DEV__)` with console statements
+- ❌ NEVER use unguarded console.error, console.log, console.warn anywhere
+- ❌ NEVER render before async initialization completes
+
+**ALWAYS:**
+- ✅ ALWAYS wrap console statements: `if (__DEV__) { console.log(...) }`
+- ✅ ALWAYS run console audit before EAS builds (see Pre-Build Checklist)
+- ✅ ALWAYS test with `npx expo start --no-dev --minify` before building
+- ✅ ALWAYS wait for initialization (i18n, storage) before rendering
+
+#### Testing in Production Mode
+
+**Proper way to simulate production locally:**
+```bash
+cd ios-app
+npx expo start --no-dev --minify --clear
+```
+
+**What to verify:**
+- No console output (all statements guarded)
+- App loads without white screen
+- Navigation works smoothly
+- No crashes on errors (ErrorBoundary catches them)
+
+**Note**: You'll see React Native's RedBox in dev environment even with `--no-dev`. In real EAS production builds, RedBox doesn't exist and ErrorBoundary properly displays fallback UI.
+
+#### Files Modified (Commit 4ed4a58)
+- `ios-app/src/components/ErrorBoundary.tsx` - Fixed critical console.error in production block
+- `ios-app/src/contexts/AuthContext.tsx` - Wrapped 9 console.error statements
+- `ios-app/App.tsx` - Added isReady state for proper initialization
+- `ios-app/babel.config.js` - Enhanced console stripping configuration
+
+---
+
 ### Testing Philosophy
 
 **NEVER** claim a feature works without:
