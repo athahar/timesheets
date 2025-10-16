@@ -375,4 +375,64 @@ Read these specs BEFORE implementing related features.
 
 ---
 
+## Production Database Migration
+
+### 🚀 Production-Ready Migration Plan
+
+**Location:** `docs/prod-migrate/plan.md`
+
+This is the **authoritative guide** for setting up a production Supabase database with correct schema, RLS, and performance optimizations.
+
+**Key Features:**
+- ✅ Schema-only migration (no data transfer)
+- ✅ Correct auth pattern (auth.uid() → trackpay_users.id mapping)
+- ✅ Row Level Security with helper function
+- ✅ Performance indexes for all query patterns
+- ✅ Realtime subscriptions enabled
+- ✅ Foreign key protection (RESTRICT for business data)
+- ✅ Audit logging
+- ✅ Schema drift detection
+
+**Migration Files:** All located in `ios-app/scripts/prod-migrate/`
+
+| File | Purpose |
+|------|---------|
+| `000_extensions.sql` | Install pgcrypto + pg_stat_statements |
+| `010_realtime.sql` | Enable realtime for all 8 tables |
+| `015_rls_helper.sql` | **CRITICAL** - Auth helper function + unique constraint |
+| `020_rls_policies.sql` | RLS policies with correct auth pattern |
+| `030_indexes.sql` | 14 performance indexes |
+| `040_manifest.sql` | Schema drift detection |
+| `20251015_fix_fk_SAFE_SEQUENTIAL.sql` | FK constraint fixes |
+| `20251015_fix_session_fk_cascades.sql` | Session FK fixes |
+| `20251016_fix_delete_rpc_provider_lookup.sql` | Delete client RPC |
+
+### ⚠️ CRITICAL: Auth Pattern
+
+**The production database MUST use the correct auth pattern or RLS will lock everyone out!**
+
+```sql
+-- WRONG (will fail in production):
+USING (provider_id = auth.uid())  -- ❌
+
+-- CORRECT (uses helper function):
+USING (provider_id = current_trackpay_user_id())  -- ✅
+```
+
+**Why?** Our auth pattern is: `auth.users.id` → `trackpay_users.auth_user_id` → `trackpay_users.id`
+
+The `current_trackpay_user_id()` helper function bridges this gap. See `docs/prod-migrate/plan.md` for full explanation.
+
+### 📋 Quick Start
+
+1. Read `docs/prod-migrate/plan.md` (comprehensive guide)
+2. Run migrations from `ios-app/scripts/prod-migrate/` in order
+3. Verify with `040_manifest.sql`
+4. Update app config (`.env` and EAS secrets)
+5. Test thoroughly
+
+**Estimated Time:** ~45 minutes for complete setup
+
+---
+
 **Remember**: Test everything. Verify database state. Be honest about feature status. Ship working, beautiful features.
