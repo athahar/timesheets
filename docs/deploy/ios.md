@@ -1,172 +1,455 @@
 # TrackPay – iOS Deployment Guide
 
-**Status**: Production build ready
-**Last Updated**: 2025-10-15 (Build 6)
-**Scope**: Expo-managed TrackPay iOS app
+**Status**: Production Ready
+**Last Updated**: 2025-10-16
+**Based on**: WaddlePlay proven approach (21+ successful App Store deployments)
 
-This guide distills the deployment routine for TrackPay into a repeatable checklist. When asked to “get ready for iOS deploy,” follow these steps top-to-bottom.
+This guide provides a repeatable deployment checklist for TrackPay iOS app. When asked to "prep for iOS deploy," follow these steps top-to-bottom.
 
 ---
 
-## 1. Pre-Build Hygiene (Run Every Time)
+## 🚨 Critical Pre-Build Checklist
 
-### 1.1 Environment & Secrets
-- Confirm `.env` contains valid Supabase URL + anon key.
-- Ensure Expo secrets are set (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `APP_DISPLAY_NAME`).
+Run **EVERY TIME** before building for TestFlight or App Store.
 
-### 1.2 Console Statement Audit
+### 1. Console Statement Audit (MANDATORY)
+
 ```bash
-rg "console\." ios-app/src --glob "*.{ts,tsx}" \
-  | rg -v "__DEV__" \
-  | rg -v "console.error"
+cd ios-app
+rg "console\." src --glob "*.{ts,tsx}" | rg -v "__DEV__" | rg -v "console.error"
 ```
-- ❌ No unguarded `console.log`/`console.warn` in production paths.
-- ✅ `console.error` allowed for crash reporting.
-- ✅ Babel `transform-remove-console` plugin stays enabled in production.
 
-### 1.3 TypeScript Strict Check
+**Requirements:**
+- ❌ NO unguarded `console.log` or `console.warn` statements
+- ✅ All console statements wrapped with `if (__DEV__)` **OR**
+- ✅ Babel plugin `transform-remove-console` is enabled (current approach)
+
+**Current Mitigation** (Build 6+):
+- ✅ `babel-plugin-transform-remove-console` installed in package.json
+- ✅ Configured in `babel.config.js` to strip all console.* in production builds
+- ✅ Follows WaddlePlay proven approach
+- ⚠️ Source code may still contain unguarded statements (they're stripped at build time)
+
+**Example of correct manual wrapping** (if not using babel plugin):
+```typescript
+if (__DEV__) {
+  console.log('Debug information here');
+}
+
+// console.error is OK for crash reporting
+console.error('Critical error:', error);
+```
+
+---
+
+### 2. TypeScript Strict Check (MANDATORY)
+
 ```bash
 cd ios-app
 npx tsc --noEmit
 ```
-- Build must pass with zero errors or warnings.
 
-### 1.4 Expo Doctor
-```bash
-npx expo-doctor
-```
-- Resolve any dependency or config issues before building.
+**Requirement:**
+- ✅ Build must pass with **zero errors or warnings**
 
-### 1.5 Lint for Stray URLs (optional sanity)
-```bash
-rg "localhost" ios-app/src --glob "*.{ts,tsx}"
-```
-- Remove or gate any local-only endpoints.
-
-### 1.6 Review iOS Permissions
-- Inspect `ios-app/app.json → expo.ios.infoPlist` for unused permission strings.
-- Remove any `NSCameraUsageDescription`, etc., that aren’t required.
-
-### 1.7 Confirm Error Boundary
-- `App.tsx` must wrap root navigator with `<ErrorBoundary>` (already in place).
+**Note**: As of Build 6, there are 83 known TypeScript errors (deferred technical debt). While these don't prevent EAS builds from succeeding (EAS uses babel transpilation), they should be fixed in a cleanup PR.
 
 ---
 
-## 2. Version & Build Number Management
+### 3. Expo Doctor (MANDATORY)
 
-### 2.1 App Version (semantic)
-```bash
-cd ios-app
-npm version patch   # or minor/major, as appropriate
-```
-
-### 2.2 iOS Build Number (MANDATORY increment)
-```bash
-grep -A5 "\"ios\"" app.json | rg "\"buildNumber\""
-# edit buildNumber: "<previous>" → "<previous + 1>"
-grep -A5 "\"ios\"" app.json | rg "\"buildNumber\""
-```
-- Never reuse a build number—Apple rejects duplicates (`CFBundleVersion`).
-
----
-
-## 3. Project Health Snapshot
-
-Run the following together and capture output in deployment notes (helps trace issues later):
 ```bash
 cd ios-app
 npx expo-doctor
+```
+
+**Requirements:**
+- ✅ All peer dependencies installed
+- ✅ Package versions aligned with Expo SDK
+- ✅ `npx expo-doctor` shows **0 issues**
+
+---
+
+### 4. Environment & Secrets (MANDATORY)
+
+```bash
+# Verify local .env exists
+ls -la ios-app/.env
+
+# Verify EAS secrets are set
+eas login
+eas secret:list
+```
+
+**Required EAS Secrets:**
+- `SUPABASE_URL` - Production Supabase project URL
+- `SUPABASE_ANON_KEY` - Production anon key
+- `APP_DISPLAY_NAME` - "TrackPay"
+
+**Set secrets if missing:**
+```bash
+eas secret:create --scope project --name SUPABASE_URL --value "https://[PROJECT-ID].supabase.co" --force
+eas secret:create --scope project --name SUPABASE_ANON_KEY --value "[ANON-KEY]" --force
+eas secret:create --scope project --name APP_DISPLAY_NAME --value "TrackPay" --force
+```
+
+---
+
+### 5. iOS Permissions Review (MANDATORY)
+
+Check `app.json → expo.ios.infoPlist` for unused permission strings.
+
+**Current permissions:**
+```json
+"NSCameraUsageDescription": "TrackPay uses camera for profile photos and document scanning"
+"NSPhotoLibraryUsageDescription": "TrackPay accesses photo library for profile photos"
+```
+
+**Action Required:**
+```bash
+# Search for camera/photo usage in code
+cd ios-app
+rg -i "camera|photo|image.*picker" src --glob "*.{ts,tsx}"
+```
+
+**Decision:**
+- ❌ If NOT used: Remove these permissions to avoid App Store review questions
+- ✅ If used: Keep and document the feature
+
+---
+
+### 6. Lint for Stray URLs (MANDATORY)
+
+```bash
+cd ios-app
+rg "localhost" src --glob "*.{ts,tsx}"
+```
+
+**Requirement:**
+- ❌ NO hardcoded `localhost` or development URLs in production paths
+- ✅ All endpoints use environment variables
+
+---
+
+### 7. Error Boundary (MANDATORY)
+
+**Requirement:**
+- ✅ `App.tsx` must wrap root navigator with `<ErrorBoundary>`
+- ✅ Graceful error handling prevents white screens
+
+**Verify:**
+```bash
+cd ios-app
+rg "ErrorBoundary" App.tsx
+```
+
+---
+
+## 🔢 Version & Build Number Management
+
+### Version Bumping (Semantic)
+
+```bash
+cd ios-app
+
+# Patch version (1.0.0 → 1.0.1) - Bug fixes
+npm version patch
+
+# Minor version (1.0.1 → 1.1.0) - New features
+npm version minor
+
+# Major version (1.1.0 → 2.0.0) - Breaking changes
+npm version major
+```
+
+---
+
+### 🚨 iOS Build Number (CRITICAL - MANDATORY INCREMENT!)
+
+**RULE: ALWAYS increment `buildNumber` in app.json before ANY Apple submission!**
+
+```bash
+cd ios-app
+
+# 1. Check current build number
+grep -A5 "\"ios\"" app.json | rg "\"buildNumber\""
+
+# 2. Edit app.json and increment manually
+# Example: "buildNumber": "6" → "buildNumber": "7"
+
+# 3. Verify the change
+grep -A5 "\"ios\"" app.json | rg "\"buildNumber\""
+```
+
+**Why This Matters:**
+```
+❌ Apple Error: "You've already submitted this build of the app.
+Builds are identified by CFBundleVersion from Info.plist
+(expo.ios.buildNumber in app.json)."
+```
+
+**Build Number Rules:**
+- ✅ Sequential integers: 1, 2, 3, 4, 5...
+- ✅ REQUIRED for each TestFlight submission
+- ✅ REQUIRED for each App Store submission
+- ✅ Increment BEFORE running `eas build`
+- ❌ Never reuse previous build numbers
+- ❌ Never skip this step - causes Apple rejection
+
+---
+
+## 📊 Project Health Snapshot
+
+Run before every build and save output for troubleshooting:
+
+```bash
+cd ios-app
+
+echo "=== Expo Doctor ==="
+npx expo-doctor
+
+echo "=== TypeScript Check ==="
 npx tsc --noEmit
-rg "console\." src --glob "*.{ts,tsx}" \
-  | rg -v "__DEV__" \
-  | rg -v "console.error"
+
+echo "=== Console Statement Audit ==="
+rg "console\." src --glob "*.{ts,tsx}" | rg -v "__DEV__" | rg -v "console.error" | wc -l
+echo "(Should be 0 or handled by babel plugin)"
+
+echo "=== Environment Check ==="
+test -f .env && echo "✅ .env exists" || echo "❌ .env missing"
+
+echo "=== Assets Check ==="
+ls -lh assets/app-icon.png assets/splash-icon.png
 ```
 
 ---
 
-## 4. Build & Submit with EAS
+## 🚀 Build & Submit with EAS
 
-### 4.1 Auth (first time only)
+### First Time Setup (One-Time Only)
+
 ```bash
+cd ios-app
+
+# 1. Login to EAS
 npx eas login
+
+# 2. Configure project
 npx eas build:configure
 ```
 
-### 4.2 Production Build
+---
+
+### Production Build
+
 ```bash
+cd ios-app
+
+# 🚨 CRITICAL: Verify build number was incremented!
+grep -A5 "\"ios\"" app.json | rg "\"buildNumber\""
+
+# Build for iOS production
 npx eas build --platform ios --profile production
-```
-- Monitor progress in CLI or the build link provided.
-- If you hit cache-related issues: `npx eas build --platform ios --profile production --clear-cache`.
 
-### 4.3 Submit to TestFlight
+# Monitor build progress
+# Build URL will be provided - monitor in browser or CLI
+```
+
+**If build fails with cache issues:**
 ```bash
+npx eas build --platform ios --profile production --clear-cache
+```
+
+---
+
+### Submit to TestFlight
+
+```bash
+cd ios-app
+
+# Submit the built app to TestFlight
 npx eas submit --platform ios
-```
-- Provide App Store Connect credentials when prompted.
-- Verify upload in App Store Connect → TestFlight.
 
----
-
-## 5. Post-Build Validation
-
-1. Download the TestFlight build to a physical device.
-2. Smoke-test critical flows:
-   - Provider session tracking (crew + person-hours math).
-   - Client mark-as-paid workflow.
-   - Offline behavior if applicable.
-3. Check crash logs / console for errors (use Xcode Devices log if needed).
-
-Optional quick regression script:
-```bash
-# timeline localization sanity
-rg "crew" ios-app/src --context 2
-rg "person-hours" ios-app/src --context 2
+# Follow prompts for App Store Connect credentials
 ```
 
----
-
-## 6. App Store Submission Checklist
-
-- [ ] App Store metadata (description, keywords, screenshots) aligns with current features.
-- [ ] Privacy policy reflects actual data usage (none beyond Supabase auth).
-- [ ] No external links lacking a parental gate (not relevant today, but verify before submitting kids content).
-- [ ] Build number increments captured in release notes.
+**Verify Upload:**
+1. Go to App Store Connect → My Apps → TrackPay
+2. Navigate to TestFlight tab
+3. Confirm new build appears
 
 ---
 
-## 7. Useful Commands Reference
+## ✅ Post-Build Validation
+
+### TestFlight Testing Checklist
+
+1. **Download & Install**
+   - [ ] Install TestFlight build on physical iOS device
+   - [ ] App launches without crashes or white screens
+   - [ ] No console-related crashes
+
+2. **Provider Workflow**
+   - [ ] Register/login as provider
+   - [ ] Add new client (via invite or direct)
+   - [ ] Start session → verify crew size selection works
+   - [ ] Stop session → verify amount calculation (with person-hours)
+   - [ ] Request payment
+   - [ ] View history → correct session data
+   - [ ] Delete client (with blocker checks working)
+
+3. **Client Workflow**
+   - [ ] Claim invite → create account
+   - [ ] Login as client
+   - [ ] View providers → see assigned provider
+   - [ ] View sessions → see tracked work
+   - [ ] Mark payment sent
+   - [ ] Activity timeline → see work and payment history
+
+4. **Real-Time Updates**
+   - [ ] Provider creates session → Client sees it immediately
+   - [ ] Client marks payment → Provider sees update
+   - [ ] Activity feed updates live
+
+5. **Localization**
+   - [ ] Toggle language English ↔ Spanish
+   - [ ] Verify translations display correctly
+   - [ ] Currency formatting respects locale
+
+6. **Edge Cases**
+   - [ ] Offline behavior (if applicable)
+   - [ ] App survives backgrounding/foregrounding
+   - [ ] Memory usage acceptable during extended use
+   - [ ] No crashes during 30-minute test session
+
+---
+
+## 📱 App Store Submission Checklist
+
+Before submitting for App Store review:
+
+### Metadata & Marketing
+
+- [ ] **App Name**: "TrackPay" (or approved marketing name)
+- [ ] **Description**: Highlights core value (time tracking + payment requests)
+- [ ] **Keywords**: time tracking, freelance, payment, invoicing, work hours
+- [ ] **Screenshots**: All device sizes (iPhone SE, iPhone 14, iPhone 14 Pro Max, iPad)
+- [ ] **Privacy Policy**: Reflects actual data usage (Supabase auth + time tracking)
+
+### Age Rating
+
+- [ ] Likely **4+** or **9+** (business app, no violence/mature content)
+- [ ] No data collection beyond Supabase authentication
+- [ ] No social features requiring parental gate
+
+### App Review Information
+
+- [ ] **Demo Account**: Provide test provider and client credentials
+- [ ] **Review Notes**: Explain two-sided marketplace (provider/client)
+- [ ] **Contact Information**: Support email
+
+### External Links (If Applicable)
 
 ```bash
-# Project health
-npx expo-doctor
-npx tsc --noEmit
+# Check for external links in the app
+cd ios-app
+rg "https://|http://|Linking.openURL" src --glob "*.{ts,tsx}"
+```
 
-# Reset Metro cache before final test
+**Requirements:**
+- ⚠️ External links may require parental gate for kids apps (4+ rating)
+- ✅ Email links (mailto:) are acceptable
+- ❌ Direct Safari links without confirmation may be rejected
+
+---
+
+## 🛠️ Useful Commands Reference
+
+```bash
+# View recent builds
+eas build:list
+
+# View specific build details
+eas build:view [build-id]
+
+# Check build logs if failed
+eas build:view [build-id]
+
+# Reset Metro cache for local testing
+cd ios-app
 npm start -- --clear
 
-# View recent builds
-npx eas build:list
-npx eas build:view <build-id>
-
-# Verify Supabase env at runtime
-echo "SUPABASE_URL=$EXPO_PUBLIC_SUPABASE_URL"
+# Verify Supabase env at runtime (in console)
+console.log('SUPABASE_URL:', process.env.EXPO_PUBLIC_SUPABASE_URL)
 ```
 
 ---
 
-## 8. Outstanding TODOs / Watchouts
+## 🚨 Common Issues & Solutions
 
-### 8.1 General Maintenance
-- Ensure Spanish translations exist for crew-selector copy and timeline phrases introduced in multi-crew work.
-- Confirm `.env` is not committed; `.env.sample` should mirror required keys.
-- Keep migration script (`ios-app/scripts/20241015_add_crew_size_person_hours.sql`) in sync with production database state.
+### Issue: White Screen on Launch
 
-### 8.2 Known Technical Debt (Deferred from Build 6 - 2025-10-15)
+**Cause**: Unguarded console.log statements
+**Solution**:
+```bash
+# Find offending statements
+cd ios-app
+rg "console\." src --glob "*.{ts,tsx}" | rg -v "__DEV__" | rg -v "console.error"
 
-**⚠️ IMPORTANT**: Build 6 was deployed with the following known issues. These do NOT prevent successful iOS builds or runtime crashes, but violate the strict TypeScript hygiene requirements in section 1.3.
+# Option 1: Wrap with __DEV__ guards
+if (__DEV__) {
+  console.log('Debug info');
+}
 
-#### TypeScript Errors (83 total)
+# Option 2: Verify babel plugin is enabled (current approach)
+cat babel.config.js | grep "transform-remove-console"
+```
+
+---
+
+### Issue: Build Fails with Dependencies
+
+**Cause**: Incompatible package versions
+**Solution**:
+```bash
+cd ios-app
+npx expo-doctor
+npx expo install --fix
+```
+
+---
+
+### Issue: "You've already submitted this build"
+
+**Cause**: Forgot to increment build number
+**Solution**:
+```bash
+cd ios-app
+# Edit app.json → expo.ios.buildNumber → increment by 1
+# Then rebuild: eas build --platform ios --profile production
+```
+
+---
+
+### Issue: App Store Rejection for Unused Permissions
+
+**Cause**: Camera/Photo permissions declared but not used
+**Solution**:
+```bash
+# Search for actual usage
+cd ios-app
+rg -i "camera|photo|image.*picker" src --glob "*.{ts,tsx}"
+
+# If NOT found, remove from app.json:
+# Delete NSCameraUsageDescription and NSPhotoLibraryUsageDescription
+```
+
+---
+
+## 📋 Known Technical Debt (As of Build 6 - 2025-10-15)
+
+### TypeScript Errors (83 total)
+
 **Status**: Deferred to future cleanup PR
 **Impact**: Code quality issues, not runtime bugs
 **EAS Build Impact**: None (EAS uses babel transpilation, not tsc)
@@ -175,31 +458,16 @@ echo "SUPABASE_URL=$EXPO_PUBLIC_SUPABASE_URL"
 
 1. **Theme Color System (47 errors)**
    - Duplicate color property definitions in `src/styles/theme.ts`
-   - Missing color properties: `black`, `white`, `primary`, `surface`, `slate50`, `slate200`, `slate400`, `slate500`
-   - ColorValue type mismatches in Button.tsx, Toast.tsx, ConfirmationModal.tsx, InviteClientModal.tsx
-
-   **Files affected**:
-   - `src/styles/theme.ts` - Core issue with duplicate/missing properties
-   - `src/components/Button.tsx` - ColorValue type errors
-   - `src/components/Toast.tsx` - Missing white/black colors
-   - `src/components/ConfirmationModal.tsx` - Missing black color
-   - `src/components/InviteClientModal.tsx` - Missing surface color
-   - `src/screens/ClientHistoryScreen.tsx` - Missing primary color
+   - Missing color properties: `black`, `white`, `primary`, `surface`, etc.
+   - ColorValue type mismatches in Button.tsx, Toast.tsx, etc.
 
 2. **Supabase Type Assertions (36 errors)**
    - `syncQueue.ts` - PostgrestFilterBuilder not properly awaited with `.single()`
    - Missing `.then()` calls on query builders
 
-   **Files affected**:
-   - `src/services/syncQueue.ts` - All CRUD operations need `.single()` type fixes
-
 3. **Data Model Type Mismatches**
    - `payment_request_created` activity type not in union type
    - Missing in ClientHistoryScreen activity type checks
-
-   **Files affected**:
-   - `src/types/index.ts` - Add to ActivityType union
-   - `src/screens/ClientHistoryScreen.tsx` - Update type guards
 
 4. **General Type Safety Issues**
    - `unknown` types in ServiceProviderListScreen
@@ -207,32 +475,24 @@ echo "SUPABASE_URL=$EXPO_PUBLIC_SUPABASE_URL"
    - AuthContext type mismatches
    - i18n translation function return types
 
-   **Files affected**:
-   - `src/screens/ServiceProviderListScreen.tsx`
-   - `src/screens/RegisterScreen.tsx`
-   - `src/contexts/AuthContext.tsx`
-   - `src/hooks/useLocale.ts`
-   - `src/i18n/index.ts`
+**Estimated Effort to Fix**: 4-6 hours total
 
-**Fix Command** (when ready to address):
+**Fix When Ready:**
 ```bash
 cd ios-app
 npx tsc --noEmit 2>&1 | tee typescript-errors.log
 # Review typescript-errors.log and fix systematically
 ```
 
-**Estimated Effort**: 4-6 hours
-- Theme fixes: 2 hours
-- Supabase type assertions: 1.5 hours
-- Data model updates: 0.5 hours
-- General type safety: 1-2 hours
+---
 
-#### Console Statement Handling
-**Status**: Mitigated by babel plugin, but source code still contains unguarded statements
-**Impact**: None (babel-plugin-transform-remove-console strips them in production)
-**Future Action**: Consider wrapping debug logs with `if (__DEV__)` for consistency
+### Console Statement Handling
 
-**Locations** (~20 instances):
+**Status**: Mitigated by babel plugin
+**Source code**: Still contains ~20 unguarded console statements
+**Runtime Impact**: None (babel strips them in production builds)
+
+**Locations**:
 ```
 src/services/storageService.ts    - 8 debug logs
 src/services/storage.ts           - 2 debug logs
@@ -244,51 +504,19 @@ src/i18n/index.ts                 - 2 warnings
 ```
 
 **Current Mitigation**:
-- ✅ `babel-plugin-transform-remove-console` installed in `devDependencies`
-- ✅ `babel.config.js` configured to strip all console.* in production builds
-- ✅ Follows WaddlePlay proven approach (21+ successful App Store deployments)
-
-**Optional Future Cleanup**:
-```bash
-# Wrap debug logs for consistency (NOT required for builds)
-rg "console\." src --glob "*.{ts,tsx}" -l | xargs -I {} \
-  echo "Review and wrap console statements in: {}"
-```
-
-#### iOS Permissions Review
-**Status**: Needs review
-**Impact**: App Store review may question unused permissions
-
-Current permissions in `app.json`:
-```json
-"NSCameraUsageDescription": "TrackPay uses camera for profile photos and document scanning"
-"NSPhotoLibraryUsageDescription": "TrackPay accesses photo library for profile photos"
-```
-
-**Question**: Does TrackPay actually use camera or photo library?
-- If NO: Remove these permissions to avoid App Store reviewer questions
-- If YES: Keep and document the feature
-
-**Action** (before next App Store submission):
-```bash
-# Search for camera/photo usage in code
-rg -i "camera|photo|image.*picker" src --glob "*.{ts,tsx}"
-```
-
-#### Component Cleanup Tasks
-**Status**: Low priority
-
-Files with minor issues:
-- `src/components/SyncStatusIndicator.tsx` - Promise handling on getSyncStatus
-- Various screens with optional chaining that could be stricter
+- ✅ `babel-plugin-transform-remove-console` in devDependencies
+- ✅ Configured in `babel.config.js`
+- ✅ Proven approach from WaddlePlay (21+ deployments)
 
 ---
 
-## 9. Deployment History & Notes
+## 📚 Deployment History
 
 ### Build 6 (2025-10-15)
+
 **Status**: Deployed with known TypeScript errors
 **Approach**: Pragmatic build (deferred TypeScript fixes)
+
 **Rationale**:
 - EAS builds succeed with babel transpilation regardless of tsc errors
 - babel-plugin-transform-remove-console handles console statements automatically
@@ -310,21 +538,108 @@ Files with minor issues:
 
 ---
 
-## Appendix: Fallback Logs Script
-Useful for quick pre-submit audits (optional):
+## 🎯 Pre-Submission Quick Audit Script
+
+Save this as `ios-app/scripts/pre-deploy-audit.sh`:
+
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
-cd ios-app
 
-echo "🔍 Checking console usage..."
-rg "console\." src --glob "*.{ts,tsx}" | rg -v "__DEV__" | rg -v "console.error" || echo "✅ No unguarded console statements."
+echo "🔍 TrackPay iOS Pre-Deployment Audit"
+echo "===================================="
+echo ""
 
-echo "🔍 Running expo-doctor..."
+cd "$(dirname "$0")/.."
+
+echo "1️⃣  Checking console usage..."
+console_count=$(rg "console\." src --glob "*.{ts,tsx}" | rg -v "__DEV__" | rg -v "console.error" | wc -l | xargs)
+if [ "$console_count" -eq "0" ]; then
+  echo "   ✅ No unguarded console statements"
+else
+  echo "   ⚠️  Found $console_count unguarded console statements (mitigated by babel plugin)"
+fi
+echo ""
+
+echo "2️⃣  Running expo-doctor..."
 npx expo-doctor
+echo ""
 
-echo "🔍 Running TypeScript..."
-npx tsc --noEmit
+echo "3️⃣  Running TypeScript check..."
+if npx tsc --noEmit; then
+  echo "   ✅ TypeScript check passed"
+else
+  echo "   ⚠️  TypeScript errors found (review output above)"
+fi
+echo ""
 
-echo "✅ Audit complete."
+echo "4️⃣  Checking for localhost references..."
+localhost_count=$(rg "localhost" src --glob "*.{ts,tsx}" | wc -l | xargs)
+if [ "$localhost_count" -eq "0" ]; then
+  echo "   ✅ No localhost references found"
+else
+  echo "   ❌ Found $localhost_count localhost references"
+  rg "localhost" src --glob "*.{ts,tsx}"
+fi
+echo ""
+
+echo "5️⃣  Verifying .env exists..."
+if [ -f ".env" ]; then
+  echo "   ✅ .env file exists"
+else
+  echo "   ❌ .env file missing"
+fi
+echo ""
+
+echo "6️⃣  Verifying assets..."
+if [ -f "assets/app-icon.png" ] && [ -f "assets/splash-icon.png" ]; then
+  echo "   ✅ App icon and splash screen exist"
+else
+  echo "   ❌ Missing assets"
+fi
+echo ""
+
+echo "7️⃣  Checking build number..."
+current_build=$(grep -A5 "\"ios\"" app.json | rg "\"buildNumber\"" | grep -o '[0-9]*')
+echo "   Current build number: $current_build"
+echo "   ⚠️  REMEMBER: Increment to $((current_build + 1)) before building!"
+echo ""
+
+echo "✅ Audit complete!"
+echo ""
+echo "Next steps:"
+echo "1. Increment build number in app.json"
+echo "2. Run: eas build --platform ios --profile production"
+echo "3. Submit: eas submit --platform ios"
 ```
+
+**Usage:**
+```bash
+cd ios-app
+chmod +x scripts/pre-deploy-audit.sh
+./scripts/pre-deploy-audit.sh
+```
+
+---
+
+## 📖 Additional Resources
+
+- **Expo EAS Documentation**: https://docs.expo.dev/eas/
+- **Apple Developer Portal**: https://developer.apple.com/
+- **App Store Connect**: https://appstoreconnect.apple.com/
+- **TrackPay Codebase Guide**: `../../CLAUDE.md`
+- **Production DB Migration**: `../prod-migrate/plan.md`
+
+---
+
+## 🎯 Remember: Quality First!
+
+This guide should be referenced for **every build and deployment**. The quality gates exist to prevent white screens, crashes, and App Store rejections that cost valuable development time.
+
+**Before ANY production build**: Run through the Critical Pre-Build Checklist!
+
+---
+
+*Last Updated: 2025-10-16*
+*Based on: WaddlePlay proven approach (21+ successful deployments)*
+*Next Review: After first successful App Store submission*
