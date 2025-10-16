@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.warning,
   },
   buttonDanger: {
-    backgroundColor: theme.colors.danger,
+    backgroundColor: '#EF4444', // Red danger color
   },
   buttonDisabled: {
     backgroundColor: theme.colors.text.tertiary,

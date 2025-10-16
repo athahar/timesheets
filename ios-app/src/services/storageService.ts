@@ -26,6 +26,18 @@ export const updateClient = async (id: string, name: string, hourlyRate: number,
   await directSupabase.updateClient(id, name, hourlyRate, email);
 };
 
+// Delete client relationship functions
+export const deleteClientRelationshipSafely = (clientId: string): Promise<boolean> => {
+  return directSupabase.deleteClientRelationshipSafely(clientId);
+};
+
+export const canDeleteClient = (clientId: string, providerId: string) => {
+  return directSupabase.canDeleteClient(clientId, providerId);
+};
+
+// Export blocker status constants for consistency
+export { BLOCKER_SESSION_STATUSES, BLOCKER_REQUEST_STATUSES } from './directSupabase';
+
 // Session functions
 export const getSessions = (): Promise<Session[]> => {
   return directSupabase.getSessions();
@@ -540,6 +552,8 @@ export default {
   addClient,
   getClientById,
   updateClient,
+  deleteClientRelationshipSafely,
+  canDeleteClient,
 
   // Session operations
   getSessions,

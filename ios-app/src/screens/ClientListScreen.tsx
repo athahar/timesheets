@@ -474,7 +474,11 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     <SafeAreaView style={styles.container}>
       {renderHeader()}
 
-      {isZeroState ? (
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.color.brand} />
+        </View>
+      ) : isZeroState ? (
         renderZeroState()
       ) : (
         <SectionList
@@ -681,6 +685,13 @@ const styles = StyleSheet.create({
   },
   duePillText: {
     color: theme.color.pillDueText,
+  },
+
+  // Loading State
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   // Zero State

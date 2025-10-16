@@ -9,15 +9,21 @@ import {
   StyleSheet,
   TextInput,
   Clipboard,
+  Platform,
+  Appearance,
+  ActionSheetIOS,
 } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
+import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from '@react-navigation/native';
 import { Client } from '../types';
 import { Button } from '../components/Button';
 import { IOSHeader } from '../components/IOSHeader';
 import { theme } from '../styles/theme';
-import { getClientById, updateClient, directSupabase } from '../services/storageService';
+import { getClientById, updateClient, directSupabase, deleteClientRelationshipSafely, canDeleteClient } from '../services/storageService';
 import { generateInviteLink } from '../utils/inviteCodeGenerator';
 import { formatCurrency } from '../utils/formatters';
+import { useAuth } from '../contexts/AuthContext';
 
 // Helper function to format names in proper sentence case
 const formatName = (name: string): string => {
@@ -43,6 +49,7 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
   navigation,
 }) => {
   const { clientId } = route.params;
+  const { userProfile } = useAuth();
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -50,6 +57,16 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
   const [editedEmail, setEditedEmail] = useState('');
   const [editedRate, setEditedRate] = useState('');
   const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+
+  // Network detection
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsOnline(!!state.isConnected);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const loadData = async () => {
     try {
@@ -135,6 +152,143 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
     setEditedEmail(client.email || '');
     setEditedRate(client.hourlyRate.toString());
     setEditing(false);
+  };
+
+  const handleDeletePress = async () => {
+    if (!client || !userProfile) return;
+
+    try {
+      // Pre-flight blocker check
+      const check = await canDeleteClient(client.id, userProfile.id);
+
+      if (!check.canDelete) {
+        if (check.reason === 'active_session') {
+          Alert.alert(
+            'Cannot Delete',
+            `${formatName(client.name)} has an active session running. Stop the session before deleting.`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'View Sessions',
+                onPress: () => navigation.navigate('ClientHistory', { clientId: client.id })
+              }
+            ]
+          );
+        } else if (check.reason === 'unpaid_balance') {
+          Alert.alert(
+            'Cannot Delete',
+            `${formatName(client.name)} has an outstanding balance of ${formatCurrency(check.unpaidBalance || 0)}. Resolve this before deleting.`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Request Payment',
+                onPress: () => navigation.navigate('ClientHistory', { clientId: client.id })
+              }
+            ]
+          );
+        } else if (check.reason === 'payment_request') {
+          Alert.alert(
+            'Cannot Delete',
+            `${formatName(client.name)} has outstanding payment requests. Resolve these before deleting.`,
+            [{ text: 'OK', style: 'cancel' }]
+          );
+        }
+        return;
+      }
+
+      // No blockers - show confirmation
+      if (Platform.OS === 'ios') {
+        ActionSheetIOS.showActionSheetWithOptions(
+          {
+            title: 'Delete Client',
+            message: `Remove your connection with ${formatName(client.name)}? This will not delete their account or work history.`,
+            options: ['Delete', 'Cancel'],
+            destructiveButtonIndex: 0,
+            cancelButtonIndex: 1,
+            userInterfaceStyle: Appearance.getColorScheme() || 'light',
+          },
+          (buttonIndex) => {
+            if (buttonIndex === 0) handleDeleteConfirm();
+          }
+        );
+      } else {
+        Alert.alert(
+          'Delete Client',
+          `Remove your connection with ${formatName(client.name)}? This will not delete their account or work history.`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Delete', style: 'destructive', onPress: handleDeleteConfirm },
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Delete pre-check failed:', error);
+      Alert.alert('Error', 'Failed to check deletion status. Please try again.');
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!client) return;
+
+    // Haptics on confirm action
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    }
+
+    try {
+      setDeleting(true);
+
+      if (__DEV__) {
+        console.log('🗑️ Attempting to delete client:', {
+          clientId: client.id,
+          clientName: client.name,
+          userProfileId: userProfile?.id
+        });
+      }
+
+      // Call RPC (returns boolean)
+      const deleted = await deleteClientRelationshipSafely(client.id);
+
+      if (__DEV__) {
+        console.log('🗑️ RPC returned:', deleted);
+      }
+
+      // Success message
+      const message = deleted
+        ? `${formatName(client.name)} removed from your clients`
+        : 'This client was already removed';
+
+      // Wait for alert to be dismissed before navigating
+      Alert.alert('Success', message, [
+        {
+          text: 'OK',
+          onPress: () => {
+            // Navigate to ClientList (not just goBack which might go to History)
+            navigation.navigate('ClientList' as never);
+          }
+        }
+      ]);
+
+    } catch (error: any) {
+      console.error('❌ Delete failed:', error);
+
+      if (__DEV__) {
+        console.log('❌ Delete attempt failed:', {
+          clientId: client.id,
+          error: error.message,
+          errorCode: error.code,
+          errorDetails: error.details,
+          errorHint: error.hint,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      Alert.alert(
+        'Cannot Delete',
+        error.message || 'Please resolve active sessions or unpaid items before deleting.'
+      );
+      setDeleting(false);
+    }
   };
 
   if (loading || !client) {
@@ -289,6 +443,27 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
             </>
           )}
         </View>
+
+        {/* Delete Client Section - Only shown in view mode */}
+        {!editing && (
+          <View style={styles.dangerZone}>
+            <Button
+              title={deleting ? 'Deleting...' : 'Delete Client'}
+              onPress={handleDeletePress}
+              variant="danger"
+              size="md"
+              disabled={deleting || !isOnline}
+              style={styles.deleteButton}
+              accessibilityLabel={`Delete your connection with ${client.name}`}
+              accessibilityHint="This action cannot be undone. Will remove this client from your list."
+            />
+            {!isOnline && (
+              <Text style={styles.offlineWarning}>
+                No internet connection
+              </Text>
+            )}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -508,5 +683,18 @@ const styles = StyleSheet.create({
   },
   inviteActionButton: {
     flex: 1,
+  },
+  dangerZone: {
+    marginTop: theme.spacing.xl,
+  },
+  deleteButton: {
+    minHeight: 44, // Apple touch target minimum
+  },
+  offlineWarning: {
+    fontSize: theme.fontSize.footnote,
+    color: theme.colors.text.secondary,
+    fontFamily: theme.typography.fontFamily.primary,
+    textAlign: 'center',
+    marginTop: theme.spacing.sm,
   },
 });

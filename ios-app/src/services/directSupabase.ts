@@ -10,6 +10,10 @@ import {
   isInviteExpired
 } from '../utils/inviteCodeGenerator';
 
+// Blocker status constants - keep client/server aligned
+export const BLOCKER_SESSION_STATUSES = ['active', 'unpaid', 'requested'] as const;
+export const BLOCKER_REQUEST_STATUSES = ['pending', 'sent', 'requested'] as const;
+
 export class DirectSupabaseService {
 
   // Helper to get current authenticated provider ID
@@ -63,24 +67,63 @@ export class DirectSupabaseService {
 
   // Client operations
   async getClients(): Promise<Client[]> {
+    const providerId = await this.getCurrentProviderId();
+
+    if (__DEV__) {
+      console.log('👥 getClients() called with providerId:', providerId);
+    }
+
+    // Query relationships table and join with client user data
+    // Only return clients that have an active relationship with this provider
     const { data, error } = await supabase
-      .from('trackpay_users')
-      .select('id, name, email, hourly_rate, claimed_status')
-      .eq('role', 'client')
-      .order('name');
+      .from('trackpay_relationships')
+      .select(`
+        client_id,
+        trackpay_users!client_id (
+          id,
+          name,
+          email,
+          hourly_rate,
+          claimed_status
+        )
+      `)
+      .eq('provider_id', providerId);
+
+    if (__DEV__) {
+      console.log('👥 Raw relationships query result:', {
+        count: data?.length || 0,
+        relationships: data?.map(r => ({
+          client_id: r.client_id,
+          client_name: (r.trackpay_users as any)?.name
+        }))
+      });
+    }
 
     if (error) {
       console.error('❌ Error fetching clients:', error);
       throw error;
     }
 
-    return (data || []).map(client => ({
-      id: client.id,
-      name: client.name,
-      email: client.email || '',
-      hourlyRate: client.hourly_rate || 0,
-      claimedStatus: client.claimed_status || 'claimed' // Default to claimed for existing clients
-    }));
+    // Map the joined data to Client objects
+    const clients = (data || [])
+      .filter(rel => rel.trackpay_users) // Filter out any null joins
+      .map(rel => {
+        const client = rel.trackpay_users as any;
+        return {
+          id: client.id,
+          name: client.name,
+          email: client.email || '',
+          hourlyRate: client.hourly_rate || 0,
+          claimedStatus: client.claimed_status || 'claimed'
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name)); // Sort by name client-side
+
+    if (__DEV__) {
+      console.log('👥 Returning clients:', clients.map(c => ({ id: c.id, name: c.name })));
+    }
+
+    return clients;
   }
 
   async addClient(name: string, hourlyRate: number, email?: string): Promise<Client & { inviteCode?: string }> {
@@ -1106,6 +1149,101 @@ export class DirectSupabaseService {
     } catch (error) {
       console.error('❌ Error fetching service providers:', error);
       return [];
+    }
+  }
+
+  // Delete client relationship operations
+  async deleteClientRelationshipSafely(clientId: string): Promise<boolean> {
+    try {
+      if (__DEV__) {
+        console.log('🔧 Calling RPC delete_client_relationship_safely with:', {
+          p_client_id: clientId
+        });
+      }
+
+      const { data, error } = await supabase.rpc('delete_client_relationship_safely', {
+        p_client_id: clientId
+      });
+
+      if (__DEV__) {
+        console.log('🔧 RPC response:', { data, error });
+      }
+
+      if (error) {
+        console.error('❌ Error deleting client relationship:', error);
+        console.error('❌ Error details:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
+        throw error;
+      }
+
+      // Returns true if deleted, false if already gone
+      const result = Boolean(data);
+      if (__DEV__) {
+        console.log('🔧 Deletion result:', result);
+      }
+      return result;
+    } catch (error) {
+      console.error('❌ Delete client relationship failed:', error);
+      throw error;
+    }
+  }
+
+  async canDeleteClient(clientId: string, providerId: string): Promise<{
+    canDelete: boolean;
+    reason?: 'active_session' | 'unpaid_balance' | 'payment_request';
+    unpaidBalance?: number;
+  }> {
+    try {
+      // Check sessions for blockers
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('trackpay_sessions')
+        .select('status, amount_due')
+        .eq('provider_id', providerId)
+        .eq('client_id', clientId)
+        .in('status', BLOCKER_SESSION_STATUSES);
+
+      if (sessionsError) {
+        console.error('❌ Error checking sessions:', sessionsError);
+        throw sessionsError;
+      }
+
+      if (sessions && sessions.length > 0) {
+        const hasActive = sessions.some(s => s.status === 'active');
+        if (hasActive) {
+          return { canDelete: false, reason: 'active_session' };
+        }
+
+        const unpaidBalance = sessions.reduce((sum, s) => sum + (s.amount_due || 0), 0);
+        if (unpaidBalance > 0) {
+          return { canDelete: false, reason: 'unpaid_balance', unpaidBalance };
+        }
+      }
+
+      // Check payment requests for blockers
+      const { data: requests, error: requestsError } = await supabase
+        .from('trackpay_requests')
+        .select('status')
+        .eq('provider_id', providerId)
+        .eq('client_id', clientId)
+        .in('status', BLOCKER_REQUEST_STATUSES);
+
+      if (requestsError) {
+        console.error('❌ Error checking payment requests:', requestsError);
+        throw requestsError;
+      }
+
+      if (requests && requests.length > 0) {
+        return { canDelete: false, reason: 'payment_request' };
+      }
+
+      return { canDelete: true };
+    } catch (error) {
+      console.error('❌ Can delete client check failed:', error);
+      throw error;
     }
   }
 }
