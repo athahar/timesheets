@@ -5,7 +5,7 @@
 
 ---
 
-## Quick Setup (5 Steps)
+## Quick Setup (5 Steps, ~45 minutes)
 
 ### Step 1: Create Production Supabase Project
 
@@ -50,7 +50,18 @@ For each table in staging (trackpay_users, trackpay_relationships, trackpay_sess
 
 ### Step 3: Run Migrations in Production (IN ORDER)
 
-Open Production SQL Editor and run these **one at a time**:
+Open Production SQL Editor and run these **one at a time** in this exact order:
+
+#### 3.0 Install Extensions (CRITICAL - RUN FIRST!)
+```bash
+# Open: scripts/000_extensions.sql
+# Run entire file
+```
+
+**What this does:**
+- Installs `pgcrypto` (UUID generation)
+- Installs `pg_stat_statements` (query monitoring)
+- Required for table defaults and performance analysis
 
 #### 3.1 Create Tables
 ```sql
@@ -91,6 +102,58 @@ Open Production SQL Editor and run these **one at a time**:
 - Includes provider ID lookup fix
 - Adds blocker checks and audit logging
 
+#### 3.5 Enable Realtime
+```bash
+# Open: scripts/010_realtime.sql
+# Run entire file
+```
+
+**What this does:**
+- Adds all 8 TrackPay tables to `supabase_realtime` publication
+- Enables real-time subscriptions for live updates in app
+
+#### 3.6 Create RLS Helper Function (CRITICAL!)
+```bash
+# Open: scripts/015_rls_helper.sql
+# Run entire file
+```
+
+**What this does:**
+- Creates `current_trackpay_user_id()` helper function
+- Maps `auth.uid()` → `trackpay_users.id` (required for RLS)
+- Adds unique constraint on `auth_user_id` (prevents ghost users)
+
+**Why this is critical:**
+- Auth pattern: `auth.uid()` returns `auth.users.id`
+- Our FKs use `trackpay_users.id` (different UUID!)
+- Helper bridges the gap for RLS policies
+
+#### 3.7 Enable RLS Policies
+```bash
+# Open: scripts/020_rls_policies.sql
+# Run entire file
+```
+
+**What this does:**
+- Enables Row Level Security on all 8 tables
+- Creates policies using `current_trackpay_user_id()` helper
+- Providers can only see/modify their own data
+- Clients can view sessions/payments involving them
+- Prevents unauthorized data access
+
+#### 3.8 Create Performance Indexes
+```bash
+# Open: scripts/030_indexes.sql
+# Run entire file
+```
+
+**What this does:**
+- Creates indexes for blocker checks (delete operations)
+- Indexes for history screens (client/provider views)
+- Activity feed indexes
+- Invite management indexes
+- ~14 total indexes for optimal query performance
+
 ---
 
 ### Step 4: Verify Production Schema
@@ -116,7 +179,91 @@ ORDER BY tablename;
 - trackpay_sessions
 - trackpay_users
 
-#### 4.2 Check FK Constraints
+#### 4.2 Check Extensions Installed
+```sql
+SELECT extname, extversion
+FROM pg_extension
+WHERE extname IN ('pgcrypto', 'pg_stat_statements');
+```
+
+**Expected:**
+- pgcrypto (version 1.3+)
+- pg_stat_statements (version 1.7+)
+
+#### 4.3 Check Realtime Publication
+```sql
+SELECT tablename
+FROM pg_publication_tables
+WHERE pubname = 'supabase_realtime'
+  AND tablename LIKE 'trackpay_%'
+ORDER BY tablename;
+```
+
+**Expected: All 8 TrackPay tables in realtime publication**
+
+#### 4.4 Check RLS Helper Function
+```sql
+SELECT proname, prosecdef as is_security_definer
+FROM pg_proc
+WHERE proname IN ('current_trackpay_user_id', 'delete_client_relationship_safely');
+```
+
+**Expected:**
+- `current_trackpay_user_id` - `is_security_definer = true`
+- `delete_client_relationship_safely` - `is_security_definer = true`
+
+#### 4.5 Check Unique Constraint on auth_user_id
+```sql
+SELECT indexname, indexdef
+FROM pg_indexes
+WHERE indexname = 'ux_trackpay_users_auth_user';
+```
+
+**Expected:**
+- Index exists with UNIQUE constraint on `auth_user_id`
+- **Critical:** Prevents ghost user bugs
+
+#### 4.6 Check RLS Enabled
+```sql
+SELECT tablename, rowsecurity
+FROM pg_tables
+WHERE schemaname = 'public'
+  AND tablename LIKE 'trackpay_%';
+```
+
+**Expected: All 8 tables show `rowsecurity = true`**
+
+#### 4.7 Check RLS Policies
+```sql
+SELECT tablename, policyname, cmd
+FROM pg_policies
+WHERE schemaname = 'public'
+  AND tablename LIKE 'trackpay_%'
+ORDER BY tablename, policyname;
+```
+
+**Expected: ~18 policies across all tables**
+- Each table should have SELECT policy
+- Most tables have INSERT/UPDATE policies
+- DELETE policies removed (use RPC instead)
+
+#### 4.8 Check Performance Indexes
+```sql
+SELECT tablename, indexname
+FROM pg_indexes
+WHERE schemaname = 'public'
+  AND tablename LIKE 'trackpay_%'
+  AND indexname LIKE 'idx_%'
+ORDER BY tablename, indexname;
+```
+
+**Expected: ~14 custom indexes**
+- Blocker check indexes (sessions, requests)
+- History screen indexes
+- Activity feed indexes
+- Invite management indexes
+
+#### 4.9 Check FK Constraints
 ```sql
 SELECT
   conrelid::regclass AS table_name,
@@ -146,18 +293,19 @@ ORDER BY table_name, conname;
 | trackpay_invites | client_id, provider_id | CASCADE ⚠️ | Ephemeral - cleanup OK |
 | trackpay_invites | claimed_by | SET NULL ✅ | Preserve invite record |
 
-#### 4.3 Check RPC Function
-```sql
-SELECT proname, prosecdef as is_security_definer
-FROM pg_proc
-WHERE proname = 'delete_client_relationship_safely';
+#### 4.10 Run Complete Manifest Check
+```bash
+# Open: scripts/040_manifest.sql
+# Run entire file
 ```
 
-**Expected:**
-- Function exists
-- `is_security_definer = true`
+**What this does:**
+- Generates complete object inventory (tables, indexes, functions, policies, constraints)
+- Shows expected vs actual object counts
+- Verifies all critical objects exist
+- **Save output for drift detection**
 
-#### 4.4 Test RPC (Should Fail - Correct Behavior)
+#### 4.11 Test RPC (Should Fail - Correct Behavior)
 ```sql
 -- This should fail with "Not authenticated" - that's correct!
 SELECT delete_client_relationship_safely('00000000-0000-0000-0000-000000000000');
@@ -305,23 +453,50 @@ The app will connect to production database with:
 ## Files You Need
 
 All in `ios-app/scripts/`:
-1. `20251015_fix_fk_SAFE_SEQUENTIAL.sql` - FK constraint fixes
-2. `20251015_fix_session_fk_cascades.sql` - Session FK fixes
-3. `20251016_fix_delete_rpc_provider_lookup.sql` - Delete RPC
-4. `trackpay_schema.sql` - Table definitions (you'll create this)
+
+**Production Hardening Migrations (NEW):**
+1. `000_extensions.sql` - PostgreSQL extensions (pgcrypto, pg_stat_statements)
+2. `010_realtime.sql` - Realtime publication setup
+3. `015_rls_helper.sql` - RLS helper function + auth_user_id unique constraint
+4. `020_rls_policies.sql` - Row Level Security policies
+5. `030_indexes.sql` - Performance indexes
+6. `040_manifest.sql` - Schema drift detection queries
+
+**Original Migrations:**
+7. `20251015_fix_fk_SAFE_SEQUENTIAL.sql` - FK constraint fixes
+8. `20251015_fix_session_fk_cascades.sql` - Session FK fixes
+9. `20251016_fix_delete_rpc_provider_lookup.sql` - Delete RPC
+
+**Schema Export (You'll Create):**
+10. `trackpay_schema.sql` - Table definitions (created via pg_dump)
 
 ---
 
 ## Summary
 
-**Time Required:** ~30 minutes
+**Time Required:** ~45 minutes
 
 **Steps:**
 1. Create production project (5 min)
 2. Export schema from staging (2 min)
-3. Run 4 migrations in production (10 min)
-4. Verify schema (5 min)
+3. Run 10 migrations in production (20 min)
+   - Extensions
+   - Tables
+   - FK fixes (3 files)
+   - Realtime
+   - RLS helper
+   - RLS policies
+   - Indexes
+4. Verify schema (10 min - comprehensive checks)
 5. Update app config (5 min)
 6. Test (3 min)
 
-**Result:** Production-ready database with correct schema, no data migration needed!
+**Result:** Production-ready database with:
+- ✅ Clean schema
+- ✅ Correct FK constraints
+- ✅ Row Level Security enabled
+- ✅ Performance indexes
+- ✅ Realtime subscriptions
+- ✅ Secure delete function
+- ✅ Audit logging
+- ✅ Fresh data (no staging baggage)
