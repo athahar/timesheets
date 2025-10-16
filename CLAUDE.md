@@ -296,12 +296,15 @@ ios-app/
 ├── package.json          # Dependencies
 └── .env                  # Local environment (not in git)
 
-spec/                     # Feature specifications
+docs/spec/                # Feature specifications
 ├── database-migration-plan.md      # Supabase migration roadmap
 ├── client-invitation-system.md     # Invite flow spec
 ├── APPLE_DEPLOYMENT_SPEC.md        # iOS deployment checklist
 ├── APP_UX_REDESIGN.md              # Native iOS design patterns
 └── BILINGUAL_IMPLEMENTATION_PLAN.md # i18n implementation
+
+scripts/prod-migrate/     # Production database migrations
+└── (see Production Database Migration section below)
 ```
 
 ## Migration Status
@@ -324,7 +327,7 @@ spec/                     # Feature specifications
 - Phase 7: UI Polish & Bug Fixes
 - Phase 8: Testing & Deployment
 
-See `spec/database-migration-plan.md` for complete roadmap.
+See `docs/spec/database-migration-plan.md` for complete roadmap.
 
 ## Troubleshooting
 
@@ -364,7 +367,7 @@ npx expo start --clear
 
 ## Feature Specifications
 
-Detailed specs are in the `spec/` directory:
+Detailed specs are in the `docs/spec/` directory:
 - **Database Migration**: `database-migration-plan.md`
 - **Apple Deployment**: `APPLE_DEPLOYMENT_SPEC.md`
 - **UX Redesign**: `APP_UX_REDESIGN.md`
@@ -393,7 +396,7 @@ This is the **authoritative guide** for setting up a production Supabase databas
 - ✅ Audit logging
 - ✅ Schema drift detection
 
-**Migration Files:** All located in `ios-app/scripts/prod-migrate/`
+**Migration Files:** All located in `scripts/prod-migrate/` (repository root)
 
 | File | Purpose |
 |------|---------|
@@ -426,7 +429,7 @@ The `current_trackpay_user_id()` helper function bridges this gap. See `docs/pro
 ### 📋 Quick Start
 
 1. Read `docs/prod-migrate/plan.md` (comprehensive guide)
-2. Run migrations from `ios-app/scripts/prod-migrate/` in order
+2. Run migrations from `scripts/prod-migrate/` in order
 3. Verify with `040_manifest.sql`
 4. Update app config (`.env` and EAS secrets)
 5. Test thoroughly

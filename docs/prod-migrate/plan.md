@@ -89,7 +89,7 @@ USING (provider_id = current_trackpay_user_id())  -- ✅ Correct!
 ```
 
 **Evidence from existing code:**
-See `ios-app/scripts/prod-migrate/20251016_fix_delete_rpc_provider_lookup.sql`:
+See `scripts/prod-migrate/20251016_fix_delete_rpc_provider_lookup.sql`:
 ```sql
 v_auth_id uuid := auth.uid();  -- Gets auth.users.id
 
@@ -105,7 +105,7 @@ WHERE auth_user_id = v_auth_id AND role = 'provider';
 
 ## Migration Files
 
-All files located in: `ios-app/scripts/prod-migrate/`
+All files located in: `scripts/prod-migrate/`
 
 ### Production Hardening Migrations (Run in Order)
 
@@ -143,7 +143,7 @@ All files located in: `ios-app/scripts/prod-migrate/`
 - [ ] Supabase account with ability to create new projects
 - [ ] Access to staging database (for schema export)
 - [ ] `pg_dump` installed (for schema export)
-- [ ] All migration files from `ios-app/scripts/prod-migrate/`
+- [ ] All migration files from `scripts/prod-migrate/`
 
 ---
 
@@ -212,7 +212,7 @@ Run these migrations **one at a time** in this **exact order**:
 #### 3.0 Install Extensions (RUN FIRST!) ✅
 
 ```bash
-# File: ios-app/scripts/prod-migrate/000_extensions.sql
+# File: scripts/prod-migrate/000_extensions.sql
 # Copy entire file contents, paste in SQL Editor, click "Run"
 ```
 
@@ -254,7 +254,7 @@ ORDER BY tablename;
 #### 3.2 Fix FK Constraints (CRITICAL!) 🔒
 
 ```bash
-# File: ios-app/scripts/prod-migrate/20251015_fix_fk_SAFE_SEQUENTIAL.sql
+# File: scripts/prod-migrate/20251015_fix_fk_SAFE_SEQUENTIAL.sql
 # Run EACH SECTION separately (1-12)
 # Read comments in file for section boundaries
 ```
@@ -288,7 +288,7 @@ ORDER BY table_name;
 #### 3.3 Fix Session FK Constraints
 
 ```bash
-# File: ios-app/scripts/prod-migrate/20251015_fix_session_fk_cascades.sql
+# File: scripts/prod-migrate/20251015_fix_session_fk_cascades.sql
 # Run entire file
 ```
 
@@ -310,7 +310,7 @@ WHERE conname LIKE '%session%fkey';
 #### 3.4 Create Delete Client RPC
 
 ```bash
-# File: ios-app/scripts/prod-migrate/20251016_fix_delete_rpc_provider_lookup.sql
+# File: scripts/prod-migrate/20251016_fix_delete_rpc_provider_lookup.sql
 # Run entire file
 ```
 
@@ -332,7 +332,7 @@ WHERE proname = 'delete_client_relationship_safely';
 #### 3.5 Enable Realtime 📡
 
 ```bash
-# File: ios-app/scripts/prod-migrate/010_realtime.sql
+# File: scripts/prod-migrate/010_realtime.sql
 # Run entire file
 ```
 
@@ -354,7 +354,7 @@ ORDER BY tablename;
 #### 3.6 Create RLS Helper Function (CRITICAL!) 🔐
 
 ```bash
-# File: ios-app/scripts/prod-migrate/015_rls_helper.sql
+# File: scripts/prod-migrate/015_rls_helper.sql
 # Run entire file
 ```
 
@@ -384,7 +384,7 @@ SELECT indexname FROM pg_indexes WHERE indexname = 'ux_trackpay_users_auth_user'
 #### 3.7 Enable RLS Policies 🛡️
 
 ```bash
-# File: ios-app/scripts/prod-migrate/020_rls_policies.sql
+# File: scripts/prod-migrate/020_rls_policies.sql
 # Run entire file
 ```
 
@@ -415,7 +415,7 @@ ORDER BY tablename;
 #### 3.8 Create Performance Indexes ⚡
 
 ```bash
-# File: ios-app/scripts/prod-migrate/030_indexes.sql
+# File: scripts/prod-migrate/030_indexes.sql
 # Run entire file
 ```
 
@@ -446,7 +446,7 @@ ORDER BY tablename, indexname;
 Run the comprehensive manifest check:
 
 ```bash
-# File: ios-app/scripts/prod-migrate/040_manifest.sql
+# File: scripts/prod-migrate/040_manifest.sql
 # Run entire file in SQL Editor
 ```
 
@@ -795,10 +795,10 @@ After major changes, rotate staging keys:
 
 ## Support & References
 
-**Migration Files:** `ios-app/scripts/prod-migrate/`
+**Migration Files:** `scripts/prod-migrate/`
 **Documentation:** `docs/prod-migrate/plan.md` (this file)
-**Auth Pattern Analysis:** `ios-app/scripts/prod-migrate/CHATGPT_CORRECTIONS.md`
-**Detailed Guide:** `ios-app/scripts/prod-migrate/PRODUCTION_SETUP_CLEAN.md`
+**Auth Pattern Analysis:** `scripts/prod-migrate/CHATGPT_CORRECTIONS.md`
+**Detailed Guide:** `scripts/prod-migrate/PRODUCTION_SETUP_CLEAN.md`
 
 **Supabase Documentation:**
 - Database migrations: https://supabase.com/docs/guides/database/migrations
