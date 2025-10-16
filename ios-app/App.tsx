@@ -42,6 +42,8 @@ const validateEnvironment = () => {
 };
 
 export default function App() {
+  const [isReady, setIsReady] = React.useState(false);
+
   useEffect(() => {
     const initializeApp = async () => {
       try {
@@ -85,6 +87,9 @@ export default function App() {
           console.log('  - No sync queue needed - everything saves directly to Supabase!');
         }
 
+        // Mark app as ready
+        setIsReady(true);
+
       } catch (error) {
         if (__DEV__) {
           console.error('❌ TrackPay: Error during app initialization:', error);
@@ -97,11 +102,19 @@ export default function App() {
             [{ text: 'OK' }]
           );
         }
+
+        // Still mark as ready to prevent infinite loading
+        setIsReady(true);
       }
     };
 
     initializeApp();
   }, []);
+
+  // Show nothing while initializing (prevents white flash)
+  if (!isReady) {
+    return null;
+  }
 
   return (
     <ErrorBoundary>

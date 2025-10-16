@@ -26,10 +26,8 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: any) {
     // Log to error reporting service in production
-    if (!__DEV__) {
-      // You can log to Sentry, Bugsnag, etc.
-      console.error('Error caught by boundary:', error, errorInfo);
-    }
+    // NOTE: In production, integrate with Sentry, Bugsnag, etc. instead of console.error
+    // Example: Sentry.captureException(error, { contexts: { react: errorInfo } });
 
     if (__DEV__) {
       console.error('ErrorBoundary caught error:', error, errorInfo);
