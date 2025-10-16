@@ -147,6 +147,50 @@ These are referenced in `ios-app/eas.json` via `$VARIABLE_NAME` syntax.
 
 4. **Build Number** - Increment `buildNumber` in ios-app/app.json for each build
 
+---
+
+### 📱 iOS DEPLOYMENT PROTOCOL
+
+**CRITICAL**: When user requests iOS deployment preparation, App Store readiness, or similar:
+
+**ALWAYS use and update:** `docs/deploy/ios.md`
+
+**Trigger Phrases:**
+- "get ready for iOS deploy"
+- "prep for iOS build"
+- "prepare for App Store"
+- "TestFlight build"
+- "iOS deployment"
+- "App Store submission"
+
+**Your Actions:**
+1. **Read** `docs/deploy/ios.md` for current deployment checklist
+2. **Follow** the Critical Pre-Build Checklist (7 mandatory steps)
+3. **Verify** build number increment (MANDATORY before ANY Apple submission!)
+4. **Run** project health snapshot commands
+5. **Update** `docs/deploy/ios.md` if any new issues or learnings emerge
+6. **Document** build-specific notes in deployment history section
+
+**Key Requirements from Guide:**
+- ✅ Console statement audit (babel plugin or manual wrapping)
+- ✅ TypeScript strict check (`npx tsc --noEmit`)
+- ✅ Expo Doctor (0 issues required)
+- ✅ EAS secrets verification
+- ✅ iOS permissions review
+- ✅ Build number increment (CRITICAL!)
+- ✅ Error boundary verification
+
+**Never:**
+- ❌ Create build-specific deployment files in `ios-app/`
+- ❌ Skip build number increment
+- ❌ Ignore TypeScript errors without acknowledging technical debt
+- ❌ Deploy without running health checks
+
+**Single Source of Truth:** `docs/deploy/ios.md`
+**Based on:** WaddlePlay proven approach (21+ successful deployments)
+
+---
+
 ### Testing Philosophy
 
 **NEVER** claim a feature works without:
