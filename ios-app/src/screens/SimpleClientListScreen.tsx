@@ -290,45 +290,6 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
       const clientIds = clientsData.map(client => client.id);
       const moneyStates = await getClientsMoneyState(clientIds);
 
-            return {
-              ...client,
-              unpaidHours: summary.unpaidHours,
-              requestedHours: summary.requestedHours,
-              unpaidBalance: summary.unpaidBalance,
-              requestedBalance: summary.requestedBalance,
-              totalUnpaidBalance: summary.totalUnpaidBalance,
-              totalHours: summary.totalHours,
-              hasUnpaidSessions: summary.hasUnpaidSessions,
-              hasRequestedSessions: summary.hasRequestedSessions,
-              paymentStatus: summary.paymentStatus,
-              hasActiveSession: !!activeSession,
-              activeSessionTime: activeSession ?
-                (Date.now() - new Date(activeSession.startTime).getTime()) / 1000 : 0,
-            };
-          } catch (error) {
-            if (__DEV__) {
-              if (__DEV__) {
-                console.warn('⚠️ Failed to load summary for client:', client.name, error.message);
-              }
-            }
-            return {
-              ...client,
-              unpaidHours: 0,
-              requestedHours: 0,
-              unpaidBalance: 0,
-              requestedBalance: 0,
-              totalUnpaidBalance: 0,
-              totalHours: 0,
-              hasUnpaidSessions: false,
-              hasRequestedSessions: false,
-              paymentStatus: 'paid' as const,
-              hasActiveSession: false,
-              activeSessionTime: 0,
-            };
-          }
-        })
-      );
-
       // Merge client data with batched money states
       const clientsWithSummary = clientsData.map(client => {
         const moneyState = moneyStates.find(state => state.clientId === client.id);
@@ -455,39 +416,6 @@ export const SimpleClientListScreen: React.FC<ClientListScreenProps> = ({ naviga
       </View>
     );
   };
-
-
-    return (
-      <TouchableOpacity
-        onPress={() => handleClientPress(item)}
-        style={[
-          styles.clientCard,
-          isActive && styles.clientCardActive
-        ]}
-        activeOpacity={0.8}
-        accessibilityRole="button"
-        accessibilityLabel={`${item.name}, ${item.totalUnpaidBalance > 0 ? `Due ${formatCurrency(item.totalUnpaidBalance)}` : 'Paid up'}`}
-      >
-        {/* Left Side: Client Info */}
-        <View style={styles.clientLeft}>
-          <Text style={styles.clientName}>{formatName(item.name)}</Text>
-          <Text style={styles.clientRate}>
-            ${item.hourlyRate}/hour
-          </Text>
-          {item.claimedStatus === 'unclaimed' && (
-            <TouchableOpacity
-              onPress={(e) => {
-                e.stopPropagation();
-                handleShowInvite(item);
-              }}
-              activeOpacity={0.7}
-              style={styles.inviteButton}
-            >
-              <Text style={styles.inviteButtonText}>{t('clientList.invite')}</Text>
-            </TouchableOpacity>
-          )}
-          {renderActiveChip(item)}
-        </View>
 
   // PERFORMANCE: Mark first paint completion when data is ready
   useEffect(() => {
