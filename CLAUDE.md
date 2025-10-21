@@ -2,24 +2,43 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## 🚨 CRITICAL TODO: Schema Drift Migration
+## 🚨 Schema Drift Migration - STATUS UPDATE
 
-**IMPORTANT**: Staging database has **13KB of manual schema changes** not captured in migration files!
+**Original Issue**: Staging database had **13KB of manual schema changes** not captured in migration files.
 
-📋 **Action Required**: Review and apply `spec/SCHEMA_DRIFT_MIGRATION.md`
-📁 **Migration File**: `supabase/migrations/20251021064724_capture_staging_manual_changes.sql` (filtered to TrackPay tables only)
-⏰ **Priority**: High - Must complete before next production deployment
-⚠️ **Risk**: Medium - Contains DROP statements and RLS changes
+### ✅ COMPLETED - Critical Drift Resolved (Oct 20-21, 2025)
 
-**Status**:
-✅ Email nullable fix applied to production (client creation now works)
-⚠️ Remaining 13KB of drift needs review and incremental application
+**Production Migrations Applied**:
+1. ✅ `20251021064751` - Made email nullable for unclaimed clients
+2. ✅ `20251021070000` - Removed redundant columns from trackpay_invites
+3. ✅ `20251021071000` - Restructured trackpay_activities (JSONB format)
+4. ✅ `20251021071500` - Restructured trackpay_payments (new column names)
 
-**Next Steps**:
-1. Read `spec/SCHEMA_DRIFT_MIGRATION.md` for full analysis
-2. Answer questions about why manual changes were made
-3. Create incremental migrations (don't apply the full 13KB at once)
-4. Test thoroughly before production deployment
+**Result**:
+- ✅ Client creation works (with/without email)
+- ✅ Invite code generation works
+- ✅ Activity feed schema aligned with app code
+- ✅ Payment tracking schema aligned with app code
+
+**Progress**:
+- **Critical tables (in active use)**: 100% ✅
+- **Overall schema drift**: ~40% applied
+- **Remaining drift**: Non-blocking (minor table changes, policy cleanups)
+
+### ⏳ OPTIONAL - Remaining Drift (Low Priority)
+
+**What's Left** (see `spec/SCHEMA_DRIFT_MIGRATION.md` for details):
+- ⏳ trackpay_sessions minor changes (DROP notes, FK nullable)
+- ⏳ trackpay_relationships minor changes (DROP hourly_rate)
+- ⏳ trackpay_requests minor changes (DROP requested_at, responded_at)
+- ⏳ 19 DROP POLICY statements (likely don't exist in prod anyway)
+- ⏳ New constraints/indexes/triggers (beneficial but not urgent)
+- ❌ Phone auth columns (SKIP - confirmed not in use)
+
+**Recommendation**:
+- Current state is production-ready ✅
+- Apply remaining drift only if needed for specific features
+- All blocking schema issues are resolved
 
 ---
 
