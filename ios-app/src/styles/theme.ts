@@ -34,18 +34,18 @@ export const theme = {
     textSecondary: '#6B7280',
     textTertiary: '#9AA1A9',
 
-    // Brand colors (keep original iOS blue for auth screens)
-    accent: '#007AFF', // Original iOS blue
+    // Brand colors - TrackPay v2 green branding
+    accent: palette.green,
     accentTeal: palette.teal,
     warn: palette.amber,
     danger: palette.red,
     requested: palette.purple,
-    brand: '#007AFF', // Original iOS blue
-    brandPressed: '#0051D5',
-    focusRing: 'rgba(0,122,255,0.25)',
+    brand: '#22C55E', // TrackPay green
+    brandPressed: '#16A34A',
+    focusRing: 'rgba(34,197,94,0.25)',
 
     // Professional button system
-    btnPrimaryBg: '#007AFF',
+    btnPrimaryBg: '#22C55E',
     btnPrimaryText: '#FFFFFF',
     btnSecondaryBg: '#FFFFFF',
     btnSecondaryText: '#111827',
@@ -53,12 +53,12 @@ export const theme = {
     btnLinkText: '#10B981',
 
     // Money and warnings
-    money: '#10B981', // Keep green for money (universal color for cash)
+    money: '#22C55E',
     warnBg: '#FFFBEB',
     warnText: '#B45309',
 
-    // Button system - complete variants (original iOS blue)
-    btnPrimaryBg: '#007AFF',
+    // Button system - complete variants
+    btnPrimaryBg: '#22C55E',
     btnPrimaryText: '#FFFFFF',
     btnDangerBg: '#EF4444',
     btnDangerText: '#FFFFFF',
@@ -67,7 +67,7 @@ export const theme = {
     btnSecondaryBorder: '#E5E7EB',
 
     // Interactive states
-    btnPrimaryBgPressed: '#0051D5',
+    btnPrimaryBgPressed: '#16A34A',
     btnDangerBgPressed: '#DC2626',
     btnSecondaryBorderPressed: '#D1D5DB',
 
