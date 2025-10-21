@@ -167,11 +167,11 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (activeSession) {
-      // Update every 5 seconds instead of every second to reduce polling
+      // Update every minute (60000ms) for timer display
       interval = setInterval(() => {
         const elapsed = Math.floor((Date.now() - activeSession.startTime.getTime()) / 1000);
         setSessionTime(elapsed);
-      }, 5000);
+      }, 60000);
 
       // Set initial time immediately
       const elapsed = Math.floor((Date.now() - activeSession.startTime.getTime()) / 1000);
@@ -335,6 +335,9 @@ const handleCrewAdjust = async (delta: number) => {
 
       // Silent refetch to update timeline (no full-page spinner)
       await loadData(true);
+
+      // Show success toast
+      showSuccess(t('common.sessionStarted'));
     } catch (error) {
       Alert.alert(t('clientHistory.errorTitle'), t('clientHistory.sessionStartError'));
     } finally {
@@ -346,6 +349,11 @@ const handleCrewAdjust = async (delta: number) => {
     if (!activeSession || isSessionLoading) return; // Prevent double-tap
     try {
       setIsSessionLoading(true);
+
+      // Calculate duration before ending session
+      const durationSeconds = Math.floor((Date.now() - activeSession.startTime.getTime()) / 1000);
+      const durationHours = durationSeconds / 3600;
+
       await endSession(activeSession.id);
 
       // Optimistic update - clear active session
@@ -353,6 +361,9 @@ const handleCrewAdjust = async (delta: number) => {
 
       // Silent refetch to update timeline and summary
       await loadData(true);
+
+      // Show success toast with duration
+      showSuccess(`${t('common.sessionEnded')} - ${formatHours(durationHours)}`);
     } catch (error) {
       Alert.alert(t('clientHistory.errorTitle'), t('clientHistory.sessionEndError'));
     } finally {
@@ -705,7 +716,10 @@ const handleCrewAdjust = async (delta: number) => {
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <Text style={styles.footerActionButtonText}>
-              {activeSession ? t('common.stop') : t('common.start')}
+              {activeSession
+                ? `${t('common.stop')} - ${formatHours(sessionTime / 3600)}`
+                : t('common.start')
+              }
             </Text>
           )}
         </TouchableOpacity>

@@ -26,9 +26,12 @@ import { Client } from '../types';
 import { Button } from '../components/Button';
 import { HowItWorksModal } from '../components/HowItWorksModal';
 import { useAuth } from '../contexts/AuthContext';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, formatHours } from '../utils/formatters';
 import { TPTotalOutstandingCard } from '../components/v2/TPTotalOutstandingCard';
 import { TPClientRow } from '../components/v2/TPClientRow';
+import { Toast } from '../components/Toast';
+import { useToast } from '../hooks/useToast';
+import { StickyActionBar, FOOTER_HEIGHT } from '../components/StickyActionBar';
 import {
   getClients,
   addClient,
@@ -72,9 +75,12 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [actioningClientId, setActioningClientId] = useState<string | null>(null);
   const [, forceUpdate] = useState(0); // Force re-render for language changes
+  const [sessionTimers, setSessionTimers] = useState<Record<string, number>>({}); // clientId -> elapsed hours
+  const sectionListRef = useRef<SectionList>(null);
 
   const { userProfile, signOut } = useAuth();
   const insets = useSafeAreaInsets();
+  const { toast, showSuccess, showError, hideToast } = useToast();
 
   const loadClients = useCallback(async (silent = false) => {
     try {
@@ -136,6 +142,33 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
       }
     }, [initialLoad, loadClients])
   );
+
+  // Timer for active sessions (updates every minute)
+  useEffect(() => {
+    const updateTimers = async () => {
+      const clientsData = await getClients();
+      const timers: Record<string, number> = {};
+
+      for (const client of clientsData) {
+        const activeSession = await getActiveSession(client.id);
+        if (activeSession) {
+          const elapsedSeconds = (Date.now() - activeSession.startTime.getTime()) / 1000;
+          const elapsedHours = elapsedSeconds / 3600;
+          timers[client.id] = elapsedHours;
+        }
+      }
+
+      setSessionTimers(timers);
+    };
+
+    // Update immediately
+    updateTimers();
+
+    // Then update every minute (60000ms)
+    const interval = setInterval(updateTimers, 60000);
+
+    return () => clearInterval(interval);
+  }, [sections]); // Re-run when sections change (session started/stopped)
 
   // Keyboard listeners
   useEffect(() => {
@@ -211,13 +244,26 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
 
       // Silent refetch - no full-page spinner
       await loadClients(true);
+
+      // Show success toast
+      showSuccess(simpleT('common.sessionStarted'));
+
+      // Auto-scroll to Work In Progress section after reload completes
+      setTimeout(() => {
+        sectionListRef.current?.scrollToLocation({
+          sectionIndex: 0,
+          itemIndex: 0,
+          animated: true,
+          viewPosition: 0,
+        });
+      }, 100);
     } catch (error) {
       if (__DEV__) console.error('Error starting session:', error);
-      Alert.alert(simpleT('common.error'), simpleT('clientList.errorStartSession'));
+      showError(simpleT('clientList.errorStartSession'));
     } finally {
       setActioningClientId(null);
     }
-  }, [actioningClientId, loadClients]);
+  }, [actioningClientId, loadClients, showSuccess, showError]);
 
   const handleStopSession = useCallback(async (client: ClientWithSummary) => {
     if (actioningClientId) return; // Prevent double-tap
@@ -230,21 +276,28 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
 
       const activeSession = await getActiveSession(client.id);
       if (!activeSession) {
-        Alert.alert(simpleT('common.error'), simpleT('clientList.errorNoActiveSession'));
+        showError(simpleT('clientList.errorNoActiveSession'));
         return;
       }
+
+      // Calculate duration
+      const durationSeconds = Math.floor((Date.now() - activeSession.startTime.getTime()) / 1000);
+      const durationHours = durationSeconds / 3600;
 
       await endSession(activeSession.id);
 
       // Silent refetch - no full-page spinner
       await loadClients(true);
+
+      // Show success toast with duration
+      showSuccess(`${simpleT('common.sessionEnded')} - ${formatHours(durationHours)}`);
     } catch (error) {
       if (__DEV__) console.error('Error stopping session:', error);
-      Alert.alert(simpleT('common.error'), simpleT('clientList.errorStopSession'));
+      showError(simpleT('clientList.errorStopSession'));
     } finally{
       setActioningClientId(null);
     }
-  }, [actioningClientId, loadClients]);
+  }, [actioningClientId, loadClients, showSuccess, showError]);
 
   const renderLeftActions = useCallback((item: ClientWithSummary) => {
     const isLoading = actioningClientId === item.id;
@@ -285,24 +338,32 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
 
     const isActive = item.hasActiveSession;
     const isLoading = actioningClientId === item.id;
+    const elapsedHours = sessionTimers[item.id] || 0;
+
+    // Format button label with timer for Stop button
+    const buttonLabel = isActive
+      ? `${simpleT('common.stop')} - ${formatHours(elapsedHours)}`
+      : `▶ ${simpleT('common.start')}`;
 
     return (
-      <View style={[item.hasActiveSession && styles.activeSessionIndicator]}>
-        <TPClientRow
-          client={clientForRow}
-          onPress={() => handleClientPress(item)}
-          showDivider={false}
-          actionButton={{
-            label: isActive ? simpleT('common.stop') : `▶ ${simpleT('common.start')}`,
-            variant: isActive ? 'stop' : 'start',
-            onPress: () => isActive ? handleStopSession(item) : handleStartSession(item),
-            loading: isLoading,
-          }}
-          showStatusPill={false}
-        />
+      <View style={styles.clientCardWrapper}>
+        <View style={styles.clientCard}>
+          <TPClientRow
+            client={clientForRow}
+            onPress={() => handleClientPress(item)}
+            showDivider={false}
+            actionButton={{
+              label: buttonLabel,
+              variant: isActive ? 'stop' : 'start',
+              onPress: () => isActive ? handleStopSession(item) : handleStartSession(item),
+              loading: isLoading,
+            }}
+            showStatusPill={false}
+          />
+        </View>
       </View>
     );
-  }, [actioningClientId, handleStartSession, handleStopSession]);
+  }, [actioningClientId, handleStartSession, handleStopSession, handleClientPress, sessionTimers]);
 
   const renderSectionHeader = useCallback(({ section }: { section: ClientSection }) => {
     const isMyClientsSection = section.titleKey === 'myClients';
@@ -447,6 +508,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
         renderZeroState()
       ) : (
         <SectionList
+          ref={sectionListRef}
           sections={sections}
           renderItem={renderClientCard}
           renderSectionHeader={renderSectionHeader}
@@ -506,7 +568,6 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
                       placeholderTextColor={theme.color.textSecondary}
                       style={styles.input}
                       autoCapitalize="words"
-                      inputAccessoryViewID="addClientDone"
                       returnKeyType="next"
                       onSubmitEditing={() => {
                         // Focus rate input when return is pressed
@@ -525,9 +586,8 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
                         onChangeText={setNewClientRate}
                         placeholder={simpleT('addClient.ratePlaceholder')}
                         placeholderTextColor={theme.color.textSecondary}
-                        keyboardType="numeric"
+                        keyboardType="decimal-pad"
                         style={styles.rateInput}
-                        inputAccessoryViewID="addClientDone"
                         returnKeyType="done"
                         onSubmitEditing={Keyboard.dismiss}
                       />
@@ -537,38 +597,32 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
                 </View>
               </View>
             </ScrollView>
-
-            {/* Add Button - Always visible above keyboard */}
-            <View style={styles.modalFooter}>
-              <Button
-                title={simpleT('addClient.addClient')}
-                onPress={handleAddClient}
-                variant="primary"
-                size="lg"
-              />
-            </View>
           </KeyboardAvoidingView>
-        </SafeAreaView>
 
-        {/* iOS Keyboard Accessory - Done Button */}
-        {Platform.OS === 'ios' && (
-          <InputAccessoryView nativeID="addClientDone">
-            <View style={styles.keyboardAccessory}>
-              <TouchableOpacity
-                onPress={Keyboard.dismiss}
-                style={styles.keyboardDoneButton}
-              >
-                <Text style={styles.keyboardDoneText}>{simpleT('common.done')}</Text>
-              </TouchableOpacity>
-            </View>
-          </InputAccessoryView>
-        )}
+          {/* Sticky Action Bar - Glides up with keyboard */}
+          <StickyActionBar>
+            <Button
+              title={simpleT('addClient.addClient')}
+              onPress={handleAddClient}
+              variant="primary"
+              size="lg"
+            />
+          </StickyActionBar>
+        </SafeAreaView>
       </Modal>
 
       {/* How It Works Modal */}
       <HowItWorksModal
         visible={showHowItWorks}
         onClose={() => setShowHowItWorks(false)}
+      />
+
+      {/* Toast Notifications */}
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={hideToast}
       />
     </SafeAreaView>
   );
@@ -614,20 +668,34 @@ const styles = StyleSheet.create({
     paddingBottom: TP.spacing.x16,
   },
 
-  // Active session indicator (for v2 client row)
-  activeSessionIndicator: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#22C55E', // TP green for active session
+  // Client card wrapper - matches header padding exactly
+  clientCardWrapper: {
+    marginHorizontal: TP.spacing.x16,
+    marginBottom: TP.spacing.x12,
+  },
+  clientCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: TP.radius.card,
+    borderWidth: 1,
+    borderColor: TP.color.divider,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    overflow: 'hidden',
   },
 
-  // Section Header
+  // Section Header (with improved spacing)
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: TP.spacing.x12,
+    paddingTop: 20,
+    paddingBottom: 20,
     paddingHorizontal: TP.spacing.x16,
     backgroundColor: TP.color.appBg,
+    marginTop: 10,
   },
   sectionTitle: {
     fontSize: TP.font.footnote,
@@ -744,9 +812,8 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  // List Content (when not zero state)
+  // List Content (when not zero state) - no horizontal padding, cards handle their own margins
   listContent: {
-    padding: theme.space.x16,
     paddingTop: 0,
   },
 
@@ -759,11 +826,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalScrollView: {
-    flex: 1,
+    // Don't use flex: 1 - let it take only the content height
+    // This allows modalFooter to be visible at the bottom
   },
   modalScrollContent: {
     paddingHorizontal: theme.space.x16,
-    paddingBottom: theme.space.x24,
+    paddingBottom: 140, // Enough space for StickyActionBar (prevent inputs from hiding)
   },
   modalHeader: {
     flexDirection: 'row',
@@ -845,36 +913,7 @@ const styles = StyleSheet.create({
     paddingRight: theme.space.x16,
     fontFamily: theme.typography.fontFamily.primary,
   },
-  modalFooter: {
-    paddingHorizontal: theme.space.x16,
-    paddingTop: theme.space.x16,
-    paddingBottom: theme.space.x16,
-    backgroundColor: theme.color.appBg,
-    borderTopWidth: 1,
-    borderTopColor: theme.color.border,
-  },
-
-  // Keyboard Accessory Styles
-  keyboardAccessory: {
-    backgroundColor: TP.color.cardBg,
-    borderTopWidth: 1,
-    borderTopColor: TP.color.divider,
-    paddingHorizontal: TP.spacing.x16,
-    paddingVertical: TP.spacing.x8,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  keyboardDoneButton: {
-    paddingVertical: TP.spacing.x8,
-    paddingHorizontal: TP.spacing.x16,
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  keyboardDoneText: {
-    fontSize: TP.font.body,
-    fontWeight: TP.weight.semibold,
-    color: TP.color.brand,
-  },
+  // modalFooter and keyboard accessory styles removed - now using StickyActionBar component
 
   // Section Divider
   sectionDivider: {

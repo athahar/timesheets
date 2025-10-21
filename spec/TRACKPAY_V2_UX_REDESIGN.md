@@ -1717,3 +1717,140 @@ CLAUDE.md                                # UPDATED - Add v2 section
 ---
 
 _This specification provides the complete blueprint for TrackPay v2 UX redesign. Review, approve, and we'll begin implementation!_
+
+
+
+------------------
+need these changes ----
+Design Issues 
+  Identified:
+
+  1. ClientListScreen 
+  (Provider Dashboard)
+
+  Current issues:
+  - Missing "Work In
+  Progress" section when
+   session is active
+  - Client cards need
+  "▶ Start" button
+  (currently missing or
+  different)
+  - Stop button should
+  be red/maroon with "⏹
+   Stop (1:15)" format
+  - Avatars and layout
+  need refinement
+
+  Figma design shows:
+  - "Total Outstanding"
+  card at top ✓
+  - "Work In Progress"
+  section (when active
+  session exists)
+  - "My Clients" / "Your
+   Clients" section
+  - Each client card:
+  Avatar + Name + "Due:
+  $X.XX (X hrs)" + Black
+   "▶ Start" button
+  - Active session card:
+   Avatar + Name + "Due:
+   $0.00" + Red "⏹ Stop
+   (1:15)" button
+
+  2. ClientHistoryScreen
+   (Client 
+  Details/Activity)
+
+  Current issues:
+  - Activity timeline
+  cards not matching
+  design
+  - Missing proper card
+  styling
+  - Timeline items need
+  cleaner format
+
+  Figma design shows:
+  - Header with avatar +
+   name + settings gear
+  - "Total Outstanding"
+  card with "⚡ Request
+  Payment" button (white
+   button with black
+  border)
+  - Date headers (e.g.,
+  "Oct 14, 2025")
+  - Timeline cards with:
+    - "Work Session"
+  title
+    - Metadata:
+  "Complete • 4 hours •
+  1 person" or "Active
+  since 9:34am • 1
+  person"
+    - "Payment
+  Requested" cards:
+  "Total: $100.50 •
+  3.5hours"
+  - Bottom button: Black
+   "▶ Start Session" or
+   Red "⏹ Stop Session"
+
+  Let me update the todo
+   list with these
+  specific issues:
+
+⏺ Yes, I'm clear on what
+   needs to be done!
+
+  Summary of Required 
+  Changes:
+
+  ClientListScreen 
+  needs:
+  1. ✅ "Total
+  Outstanding" card
+  (already exists)
+  2. ❌ "Work In
+  Progress" section -
+  NEW - shows active
+  session with red Stop
+  button
+  3. ❌ "My Clients"
+  section - client cards
+   with black "▶ Start"
+   buttons
+  4. ❌ Proper button
+  styling and layout
+  matching Figma exactly
+
+  ClientHistoryScreen 
+  needs:
+  1. ❌ Cleaner timeline
+   cards (simpler,
+  matching Figma)
+  2. ❌ "Request
+  Payment" as WHITE
+  button with BLACK
+  border (not black bg)
+  3. ❌ Bottom floating
+  "Start Session"
+  (black) / "Stop
+  Session" (red) button
+  4. ❌ Simplified
+  timeline items: "Work
+  Session" / "Payment
+  Requested" titles
+  5. ❌ Better metadata
+  format: "Complete • 4
+  hours • 1 person"
+
+  Should I start with
+  ClientListScreen first
+   since it's the main
+  dashboard? This will
+  have the most visual
+  impact and is what
+  users see first.

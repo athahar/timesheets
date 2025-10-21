@@ -10,14 +10,17 @@ import {
   StyleSheet,
   Platform,
   Keyboard,
-  InputAccessoryView,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../styles/theme';
 import { TP } from '../styles/themeV2';
 import { TPButton } from '../components/v2/TPButton';
+import { Toast } from '../components/Toast';
+import { useToast } from '../hooks/useToast';
 import { simpleT, getCurrentLanguageSimple, changeLanguageSimple } from '../i18n/simple';
 import { useAuth } from '../contexts/AuthContext';
+import { StickyActionBar, FOOTER_HEIGHT } from '../components/StickyActionBar';
 
 interface SettingsScreenProps {
   navigation: any;
@@ -25,6 +28,8 @@ interface SettingsScreenProps {
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const { userProfile, signOut, updateProfile } = useAuth();
+  const insets = useSafeAreaInsets();
+  const { toast, showSuccess, showError, hideToast } = useToast();
 
   // State - track both current saved values and pending edits
   const [savedLang] = useState(getCurrentLanguageSimple()); // What's currently saved
@@ -35,6 +40,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
 
   // Translation function
   const t = simpleT;
+
+  // Calculate footer padding for scroll content
+  const footerPad = FOOTER_HEIGHT + (insets.bottom || 12) + 16;
 
   // Track unsaved changes (name OR language)
   useEffect(() => {
@@ -67,11 +75,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
         await changeLanguageSimple(pendingLang);
       }
 
-      Alert.alert(t('common.success'), t('settings.successUpdated'));
+      showSuccess(t('settings.successUpdated'));
       setHasUnsavedChanges(false);
     } catch (error) {
       if (__DEV__) console.error('Error updating settings:', error);
-      Alert.alert(t('common.error'), t('settings.errorUpdateFailed'));
+      showError(t('settings.errorUpdateFailed'));
       // Reset to original values on error
       setEditableName(userProfile?.name || '');
       setPendingLang(savedLang);
@@ -126,7 +134,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: footerPad }]}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
@@ -142,7 +150,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
                 placeholder={userProfile?.name || t('settings.namePlaceholder')}
                 placeholderTextColor={theme.color.textSecondary}
                 editable={!isSaving}
-                inputAccessoryViewID={Platform.OS === 'ios' ? 'settingsDone' : undefined}
                 returnKeyType="done"
                 onSubmitEditing={Keyboard.dismiss}
               />
@@ -202,8 +209,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
         </View>
       </ScrollView>
 
-      {/* Save Button - Bottom Action */}
-      <View style={styles.bottomAction}>
+      {/* Sticky Save Button - Glides up with keyboard */}
+      <StickyActionBar>
         <TPButton
           title={isSaving ? t('common.saving') : t('common.save')}
           onPress={handleSave}
@@ -211,21 +218,15 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
           size="md"
           disabled={!hasUnsavedChanges || isSaving}
         />
-      </View>
+      </StickyActionBar>
 
-      {/* iOS Keyboard Accessory - Done Button */}
-      {Platform.OS === 'ios' && (
-        <InputAccessoryView nativeID="settingsDone">
-          <View style={styles.keyboardAccessory}>
-            <TouchableOpacity
-              onPress={Keyboard.dismiss}
-              style={styles.keyboardDoneButton}
-            >
-              <Text style={styles.keyboardDoneText}>{t('common.done')}</Text>
-            </TouchableOpacity>
-          </View>
-        </InputAccessoryView>
-      )}
+      {/* Toast Notifications */}
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={hideToast}
+      />
     </SafeAreaView>
   );
 };
@@ -256,7 +257,7 @@ const styles = StyleSheet.create({
   headerButtonText: {
     fontSize: TP.font.body,
     fontWeight: TP.weight.semibold,
-    color: TP.color.brand,
+    color: TP.color.btn.dangerBg, // Red for destructive action
   },
   headerCenter: {
     flex: 1,
@@ -271,7 +272,8 @@ const styles = StyleSheet.create({
 
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: TP.spacing.x24,
+    // Dynamic padding based on footer height + safe area
+    // No hardcoded value - computed from FOOTER_HEIGHT constant
   },
   content: {
     flex: 1,
@@ -354,36 +356,5 @@ const styles = StyleSheet.create({
     textAlignVertical: 'center',
     paddingVertical: TP.spacing.x12,
   },
-
-  // Bottom Action Button
-  bottomAction: {
-    paddingHorizontal: TP.spacing.x16,
-    paddingTop: TP.spacing.x16,
-    paddingBottom: TP.spacing.x16,
-    backgroundColor: TP.color.appBg,
-    borderTopWidth: 1,
-    borderTopColor: TP.color.divider,
-  },
-
-  // Keyboard Accessory Styles
-  keyboardAccessory: {
-    backgroundColor: TP.color.cardBg,
-    borderTopWidth: 1,
-    borderTopColor: TP.color.divider,
-    paddingHorizontal: TP.spacing.x16,
-    paddingVertical: TP.spacing.x8,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  keyboardDoneButton: {
-    paddingVertical: TP.spacing.x8,
-    paddingHorizontal: TP.spacing.x16,
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  keyboardDoneText: {
-    fontSize: TP.font.body,
-    fontWeight: TP.weight.semibold,
-    color: TP.color.brand,
-  },
+  // bottomAction and keyboard accessory styles removed - now using StickyActionBar component
 });
