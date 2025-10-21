@@ -40,6 +40,64 @@ git push origin --delete feature/my-feature
 
 **See full strategy:** [`docs/deploy/BRANCHING_STRATEGY.md`](docs/deploy/BRANCHING_STRATEGY.md)
 
+## 🗂️ Documentation Organization
+
+**CRITICAL:** All documentation files MUST be organized in `/docs` subdirectories. Never create `.md` files in the repository root.
+
+### **Documentation Structure:**
+```
+docs/
+├── deploy/          # Deployment, environment, and operations guides
+│   ├── BRANCHING_STRATEGY.md
+│   ├── ENV_SWITCHING_GUIDE.md
+│   ├── PRODUCTION_DEPLOYMENT_COMPLETE.md
+│   └── ios.md
+├── spec/            # Feature specifications and requirements
+├── ux-design/       # UX design specifications
+├── engg-arch/       # Engineering architecture docs
+└── migration/       # Database migration documentation
+    └── database/
+```
+
+### **Rules for Creating Documentation:**
+- ✅ **Always** place `.md` files in appropriate `/docs` subdirectory
+- ✅ Deployment/operations docs → `docs/deploy/`
+- ✅ Feature specs → `docs/spec/`
+- ✅ Architecture docs → `docs/engg-arch/`
+- ✅ UX/design → `docs/ux-design/`
+- ❌ **Never** create `.md` files in repository root (except CLAUDE.md, README.md, PROJECT_SUMMARY.md)
+- ❌ **Never** create `.md` files in `ios-app/` root
+
+### **Repository Root - Only These Files Allowed:**
+- `CLAUDE.md` - AI guidance (this file)
+- `README.md` - Project overview
+- `PROJECT_SUMMARY.md` - Project summary
+
+**All other documentation belongs in `/docs`!**
+
+## 🔄 Environment Switching
+
+**Quick database environment switching:** See [`docs/deploy/ENV_SWITCHING_GUIDE.md`](docs/deploy/ENV_SWITCHING_GUIDE.md)
+
+```bash
+cd ios-app
+
+# Development (staging DB - safe for testing)
+npm run start:dev
+npm run web:dev
+
+# Production (⚠️ real user data - use carefully!)
+npm run start:prod
+npm run web:prod
+
+# Check which environment you're using
+npm run env:check
+```
+
+**Environments:**
+- **Development** → Staging DB (qpoqeqasefatyrjeronp) - Safe for daily work
+- **Production** → Production DB (ddxggihlncanqdypzsnn) - Real user data ⚠️
+
 ## Development Commands
 
 All commands must be run from the `ios-app/` directory:
