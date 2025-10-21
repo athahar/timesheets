@@ -90,12 +90,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     role: 'provider' | 'client'
   ): Promise<UserProfile | null> => {
     try {
-      const newProfile: Omit<UserProfile, 'created_at' | 'updated_at'> = {
+      const newProfile: Omit<UserProfile, 'created_at' | 'updated_at' | 'display_name'> = {
         id: generateUUID(),
         auth_user_id: authUser.id,
         email: authUser.email!,
         name: displayName,
-        display_name: displayName,
         role,
       };
 
@@ -240,10 +239,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
 
+      if (__DEV__) {
+        console.log('🔐 SignIn: Starting login attempt...');
+        console.log('📧 Email:', email.toLowerCase().trim());
+        console.log('🌐 Supabase URL:', process.env.EXPO_PUBLIC_SUPABASE_URL);
+        console.log('🔑 Anon Key exists:', !!process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY);
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.toLowerCase().trim(),
         password,
       });
+
+      if (__DEV__) {
+        console.log('📡 SignIn: Response received');
+        console.log('✅ Has user data:', !!data?.user);
+        console.log('❌ Has error:', !!error);
+        if (error) {
+          console.error('❌ Error details:', error);
+          console.error('❌ Error name:', error.name);
+          console.error('❌ Error message:', error.message);
+          console.error('❌ Error status:', error.status);
+          console.error('❌ Full error object:', JSON.stringify(error, null, 2));
+        }
+      }
 
       if (error) {
         return { error: error.message };
@@ -252,11 +271,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Profile loading will be handled by the auth state change listener
       // Just log success here
       if (data.user) {
+        if (__DEV__) {
+          console.log('✅ SignIn successful for user:', data.user.id);
+        }
       }
 
       return {};
     } catch (error) {
-      return { error: 'An unexpected error occurred' };
+      if (__DEV__) {
+        console.error('💥 SignIn: Unexpected error caught:', error);
+        console.error('Error type:', error?.constructor?.name);
+        console.error('Error message:', (error as Error)?.message);
+      }
+      return { error: 'An unexpected error occurred: ' + (error as Error)?.message };
     } finally {
       setIsLoading(false);
     }

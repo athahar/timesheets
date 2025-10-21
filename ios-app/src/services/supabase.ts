@@ -8,6 +8,13 @@ import { Platform, AppState } from 'react-native';
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
+if (__DEV__) {
+  console.log('🔧 Supabase Client Initialization:');
+  console.log('   URL:', supabaseUrl);
+  console.log('   Anon Key (first 20 chars):', supabaseAnonKey?.substring(0, 20) + '...');
+  console.log('   Platform:', Platform.OS);
+}
+
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
     'Missing Supabase environment variables. Please check your .env file and ensure:\n' +
