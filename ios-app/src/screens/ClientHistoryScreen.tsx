@@ -200,6 +200,15 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
         timestamp: i.timestamp.toISOString(),
         isValid: !isNaN(i.timestamp.getTime())
       })));
+
+      // Debug payment request data specifically
+      const paymentRequests = items.filter(i => i.type === 'payment_request');
+      if (paymentRequests.length > 0) {
+        console.log('💰 Payment request data:', paymentRequests.map(pr => ({
+          type: pr.type,
+          data: pr.data
+        })));
+      }
     }
 
     return items;
@@ -371,28 +380,9 @@ const handleCrewAdjust = async (delta: number) => {
         }
       }
 
-      // Create the payment request (this will mark sessions as 'requested')
+      // Create the payment request (this will mark sessions as 'requested' AND create activity)
+      // Note: requestPayment() already creates the activity with correct personHours
       await requestPayment(clientId, unpaidSessions.map(s => s.id));
-
-      // Calculate total person-hours for the payment request
-      const totalPersonHours = unpaidSessions.reduce((sum, s) => {
-        const durationHours = s.durationMinutes ? s.durationMinutes / 60 : 0;
-        const crewSize = s.crewSize || 1;
-        return sum + (durationHours * crewSize);
-      }, 0);
-
-      // Add consolidated activity for the batch
-      await addActivity({
-        type: 'payment_request_created',
-        clientId,
-        data: {
-          amount: unpaidAmount,
-          sessionCount: unpaidSessions.length,
-          personHours: totalPersonHours,
-          batchId,
-          sessionIds: unpaidSessions.map(s => s.id)
-        }
-      });
 
       if (__DEV__) {
         if (__DEV__) {
