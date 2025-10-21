@@ -4,8 +4,8 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
-    "start:dev": "cp .env.development .env && expo start",
-    "start:dev:clear": "cp .env.development .env && expo start --clear",
+    "start:dev": "mv .env.development.backup .env.development 2>/dev/null || true && cp .env.development .env && expo start",
+    "start:dev:clear": "mv .env.development.backup .env.development 2>/dev/null || true && cp .env.development .env && expo start --clear",
     "start:staging": "cp .env.staging .env && expo start",
     "start:staging:clear": "cp .env.staging .env && expo start --clear",
     "start:prod": "mv .env.development .env.development.backup 2>/dev/null || true && cp .env.production .env && expo start",
