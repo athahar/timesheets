@@ -88,7 +88,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       setLoading(true);
       const clientData = await getClientById(clientId);
       if (!clientData) {
-        Alert.alert(t('clientHistory.errorTitle'), t('clientHistory.clientNotFound'));
+        Alert.alert(simpleT('clientHistory.errorTitle'), simpleT('clientHistory.clientNotFound'));
         navigation.goBack();
         return;
       }
@@ -129,11 +129,11 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       }
     } catch (error) {
       console.error('Error loading data:', error);
-      Alert.alert(t('clientHistory.errorTitle'), t('clientHistory.loadError'));
+      Alert.alert(simpleT('clientHistory.errorTitle'), simpleT('clientHistory.loadError'));
     } finally {
       setLoading(false);
     }
-  }, [clientId, navigation, t]); // Add all dependencies
+  }, [clientId]); // Only depend on clientId - navigation and simpleT are stable
 
   useFocusEffect(
     useCallback(() => {
