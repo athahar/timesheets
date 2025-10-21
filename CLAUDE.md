@@ -1,490 +1,586 @@
-# Timesheet App Development Guidelines
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
-A two-sided time tracking and payment request app built with Expo (React Native), featuring service provider and client views with real-time activity feeds. Uses AsyncStorage for persistence with plans to migrate to Supabase.
 
-## Development Best Practices
+**TrackPay** (formerly "timesheets-app") is a two-sided time tracking and payment request app built with Expo (React Native). It features service provider and client views with real-time activity feeds, bilingual support (English/Spanish), and a hybrid storage architecture.
 
-### CRITICAL: Test Before Declaring Ready
-- **NEVER** claim a feature works without actually testing it visually
-- **ALWAYS** take screenshots and compare against design requirements
-- **VERIFY** that styles are actually rendering, not just code compiling
-- **TEST** the app in the browser before saying it's complete
-- **RESEARCH DEPENDENCIES**: Understand all dependencies and potential side effects before implementing
-- **NO EXCUSES**: If you don't test it properly and it breaks, it's YOUR fault - research dependencies upfront
+**⚠️ IMPORTANT**: The actual app code lives in the `ios-app/` subdirectory. Always run npm commands from `ios-app/` directory, not the repository root.
 
-### ❌ CRITICAL: NEVER MAKE PERFORMANCE OPTIMIZATIONS WITHOUT VERIFICATION
-- **NEVER** implement performance optimizations without testing them first
-- **ALWAYS** verify TypeScript compilation passes after making changes
-- **ALWAYS** test that the app actually runs before claiming improvements
-- **VERIFY** that optimizations provide actual measurable benefits
-- **TEST** all functionality still works after optimization changes
-- **MEASURE** performance before and after to validate improvements
-- **NO PERFORMANCE CLAIMS** without proof that changes actually work
-- This includes: memoization, lazy loading, query optimization, bundle changes
+## Development Commands
 
-### Testing Strategy
-- **Visual Testing**: Compare screenshots against mockups/designs
-- **Functional Testing**: Test time tracking, payments, navigation flows
-- **Cross-Platform Testing**: Verify on both web (Expo Web) and mobile (Expo Go)
-- **Data Persistence**: Test AsyncStorage functionality across sessions
-- **Edge Cases**: Test with no data, error states, partial payments
+All commands must be run from the `ios-app/` directory:
 
-### Styling Approach Consistency
-- **Choose ONE**: Either use nativewind/Tailwind OR React Native StyleSheet
-- **NO MIXING**: Don't mix className and style props in same project
-- **Theme System**: Use consistent colors, spacing, typography
-- **Test Styles**: Verify styles actually render in browser, not just compile
+```bash
+cd ios-app
 
-### Commit Guidelines
-- **Descriptive Messages**: Explain what actually changed and why
-- **Visual Changes**: Include before/after screenshots when relevant
-- **Test Results**: Note if feature was actually tested
-- **Conventional Format**: `type(scope): description`
-  - `feat`: New features
-  - `fix`: Bug fixes
-  - `style`: Visual/styling changes
-  - `refactor`: Code restructuring
-  - `test`: Adding tests
-  - `docs`: Documentation
-- **Example**: `feat(session-tracking): implement Apple-style cards with shadows - tested visually`
+# Development
+npm run web              # Start Expo web (http://localhost:8081)
+npm start               # Start with QR code for mobile (Expo Go)
+npm run ios             # iOS simulator
+npm run android         # Android emulator
+npx expo start --clear  # Clear Metro cache and restart
 
-### Code Quality Standards
+# EAS Build & Deploy
+npx expo-doctor                              # Pre-flight health check
+eas build --platform ios --profile preview   # TestFlight build
+eas submit --platform ios                    # Submit to App Store
+
+# Production pre-flight check (CRITICAL before iOS builds)
+grep -r "console\." src/ --include="*.tsx" --include="*.ts" | grep -v "__DEV__" | grep -v "console.error"
+# Must return 0 results or app will crash on iOS
+```
+
+## Architecture Overview
+
+### Storage & Data Layer
+
+The app uses a **hybrid storage architecture** during the Supabase migration:
+
+- **Legacy Mode**: Pure AsyncStorage (backward compatible)
+- **Hybrid Mode**: Dual writes to both AsyncStorage + Supabase
+- **Supabase Tables**:
+  - `trackpay_users` - providers & clients
+  - `trackpay_relationships` - provider-client associations
+  - `trackpay_sessions` - work tracking (duration in minutes)
+  - `trackpay_payments` - payment records
+  - `trackpay_requests` - payment request workflow
+  - `trackpay_activities` - activity feed
+
+**Key Files**:
+- `src/services/storage.ts` - Legacy AsyncStorage layer
+- `src/services/supabase.ts` - Supabase client with TypeScript support
+- `src/services/hybridStorage.ts` - Dual storage operations
+- `src/services/storageAdapter.ts` - Type conversion between legacy/new schemas
+- `src/services/storageService.ts` - Drop-in facade maintaining API compatibility
+
+### Authentication & User Management
+
+- **AuthContext** (`src/contexts/AuthContext.tsx`) - App-wide auth state
+- **Supabase Auth** - Email/password authentication with session persistence
+- **User Roles**: Provider (service provider) and Client
+- **Navigation**: Role-based routing after authentication
+
+### Navigation Structure
+
+- **Stack Navigator**: Auth flow (Welcome → Login → Register)
+- **Bottom Tab Navigator**: Main app (Clients, Activity, History, Settings)
+- **Role-specific screens**:
+  - **Provider**: ClientListScreen, SessionTrackingScreen, HistoryScreen
+  - **Client**: ServiceProviderListScreen, ClientHistoryScreen
+
+### Internationalization (i18n)
+
+- **Supported Languages**: English, Spanish
+- **Implementation**: react-i18next with expo-localization
+- **Translation Files**: `src/i18n/simple.ts`
+- **Hook**: `useLocale()` for language switching
+- **Formatters**: `src/utils/localeFormatters.ts` (currency, dates, numbers)
+
+### Styling System
+
+- **Primary**: nativewind (Tailwind CSS for React Native)
+- **Theme**: `src/styles/theme.ts` - iOS-style design system
+- **Colors**: #007AFF (primary), #34C759 (success), #FF9500 (warning)
+- **Spacing**: 8pt grid system
+- **Border Radius**: 12px buttons, 16px cards
+- **RULE**: Never mix `className` (nativewind) and `style` (StyleSheet) props
+
+## Multi-Crew Feature (Current Development)
+
+**Branch**: `multi-crew`
+
+This branch implements support for multiple team members (crews) working together on sessions. Key changes involve:
+- Session tracking with multiple participants
+- Crew member management and assignment
+- History view showing crew compositions
+- Timeline view with crew-related events
+
+## Environment Setup
+
+### Required Files
+
+**ios-app/.env** (not in git):
+```bash
+EXPO_PUBLIC_SUPABASE_URL=your-supabase-url
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+EXPO_PUBLIC_APP_NAME=TrackPay
+```
+
+Copy from template:
+```bash
+cd ios-app
+cp .env.sample .env
+# Edit .env with your Supabase credentials
+```
+
+### EAS Build Environment
+
+For production builds, environment variables MUST be set as EAS secrets:
+```bash
+eas secret:create --name SUPABASE_URL --value "your-url"
+eas secret:create --name SUPABASE_ANON_KEY --value "your-key"
+eas secret:create --name APP_DISPLAY_NAME --value "TrackPay"
+```
+
+These are referenced in `ios-app/eas.json` via `$VARIABLE_NAME` syntax.
+
+## Critical Development Rules
+
+### 🚨 PRODUCTION iOS BUILD REQUIREMENTS
+
+**Before ANY EAS build**, verify:
+
+1. **Console Statement Audit** - iOS production builds crash on unguarded console.log:
+   ```bash
+   grep -r "console\." src/ --include="*.tsx" --include="*.ts" | grep -v "__DEV__" | grep -v "console.error"
+   ```
+   Must return **0 results**. All console.log must be wrapped:
+   ```typescript
+   if (__DEV__) { console.log('debug info'); }
+   ```
+
+2. **Error Boundary** - Wrap App.tsx with `<ErrorBoundary>` to prevent white screens
+
+3. **Environment Variables** - Must be in eas.json, not just .env file
+
+4. **Build Number** - Increment `buildNumber` in ios-app/app.json for each build
+
+---
+
+### 📱 iOS DEPLOYMENT PROTOCOL
+
+**CRITICAL**: When user requests iOS deployment preparation, App Store readiness, or similar:
+
+**ALWAYS use and update:** `docs/deploy/ios.md`
+
+**Trigger Phrases:**
+- "get ready for iOS deploy"
+- "prep for iOS build"
+- "prepare for App Store"
+- "TestFlight build"
+- "iOS deployment"
+- "App Store submission"
+
+**Your Actions:**
+1. **Read** `docs/deploy/ios.md` for current deployment checklist
+2. **Follow** the Critical Pre-Build Checklist (7 mandatory steps)
+3. **Verify** build number increment (MANDATORY before ANY Apple submission!)
+4. **Run** project health snapshot commands
+5. **Update** `docs/deploy/ios.md` if any new issues or learnings emerge
+6. **Document** build-specific notes in deployment history section
+
+**Key Requirements from Guide:**
+- ✅ Console statement audit (babel plugin or manual wrapping)
+- ✅ TypeScript strict check (`npx tsc --noEmit`)
+- ✅ Expo Doctor (0 issues required)
+- ✅ EAS secrets verification
+- ✅ iOS permissions review
+- ✅ Build number increment (CRITICAL!)
+- ✅ Error boundary verification
+
+**Never:**
+- ❌ Create build-specific deployment files in `ios-app/`
+- ❌ Skip build number increment
+- ❌ Ignore TypeScript errors without acknowledging technical debt
+- ❌ Deploy without running health checks
+
+**Single Source of Truth:** `docs/deploy/ios.md`
+**Based on:** WaddlePlay proven approach (21+ successful deployments)
+
+---
+
+### ⚠️ LESSONS LEARNED: Build 7 White Screen Crash (Oct 2025)
+
+**CRITICAL BUG** - White screen on TestFlight Build 7 caused by unguarded console statements.
+
+#### Root Cause Analysis
+
+**Primary Issue**: Console statements executing in iOS production builds cause immediate crashes.
+
+**Three critical mistakes:**
+
+1. **ErrorBoundary.tsx (MOST CRITICAL)**
+   ```typescript
+   // ❌ WRONG - Runs ONLY in production, crashes immediately
+   componentDidCatch(error: Error, errorInfo: any) {
+     if (!__DEV__) {
+       console.error('Error caught:', error);  // CRASHES iOS!
+     }
+   }
+   ```
+
+2. **AuthContext.tsx** - 9 unguarded `console.error` statements in:
+   - `loadUserProfile()`
+   - `createUserProfile()`
+   - Auth state listeners
+   - Error handlers
+
+3. **App initialization** - Rendered before i18n completed initialization
+
+#### The Fix (Build 8)
+
+**Dual-Layer Protection:**
+
+1. **Primary Defense**: Wrap ALL console statements with `if (__DEV__)` guards
+   ```typescript
+   // ✅ CORRECT - Only runs in development
+   if (__DEV__) {
+     console.error('Error caught:', error);
+   }
+   // In production: silent handling, integrate Sentry/Bugsnag here
+   ```
+
+2. **Backup Defense**: Babel plugin strips ALL console.* in production
+   ```javascript
+   // babel.config.js
+   isProd && [
+     'transform-remove-console',
+     { exclude: [] }  // Remove ALL console methods
+   ]
+   ```
+
+3. **Initialization Fix**: Added `isReady` state in App.tsx
+   ```typescript
+   const [isReady, setIsReady] = React.useState(false);
+
+   // Wait for i18n + storage init
+   useEffect(() => {
+     await initSimpleI18n();
+     await initializeWithSeedData();
+     setIsReady(true);
+   }, []);
+
+   if (!isReady) return null;  // Prevent early render
+   ```
+
+#### Prevention Checklist
+
+**NEVER AGAIN:**
+- ❌ NEVER use `if (!__DEV__)` with console statements
+- ❌ NEVER use unguarded console.error, console.log, console.warn anywhere
+- ❌ NEVER render before async initialization completes
+
+**ALWAYS:**
+- ✅ ALWAYS wrap console statements: `if (__DEV__) { console.log(...) }`
+- ✅ ALWAYS run console audit before EAS builds (see Pre-Build Checklist)
+- ✅ ALWAYS test with `npx expo start --no-dev --minify` before building
+- ✅ ALWAYS wait for initialization (i18n, storage) before rendering
+
+#### Testing in Production Mode
+
+**Proper way to simulate production locally:**
+```bash
+cd ios-app
+npx expo start --no-dev --minify --clear
+```
+
+**What to verify:**
+- No console output (all statements guarded)
+- App loads without white screen
+- Navigation works smoothly
+- No crashes on errors (ErrorBoundary catches them)
+
+**Note**: You'll see React Native's RedBox in dev environment even with `--no-dev`. In real EAS production builds, RedBox doesn't exist and ErrorBoundary properly displays fallback UI.
+
+#### Files Modified (Commit 4ed4a58)
+- `ios-app/src/components/ErrorBoundary.tsx` - Fixed critical console.error in production block
+- `ios-app/src/contexts/AuthContext.tsx` - Wrapped 9 console.error statements
+- `ios-app/App.tsx` - Added isReady state for proper initialization
+- `ios-app/babel.config.js` - Enhanced console stripping configuration
+
+---
+
+### Testing Philosophy
+
+**NEVER** claim a feature works without:
+1. ✅ Actually running the app and testing it visually
+2. ✅ Taking screenshots and comparing to design specs
+3. ✅ Verifying database state before/after operations
+4. ✅ Testing as BOTH provider AND client users
+5. ✅ Checking browser console for errors
+6. ✅ Testing cross-user functionality (provider action → client sees update)
+
+**"App compiles" ≠ "Feature works"**
+
+### Business Logic Validation
+
+Before implementing ANY feature involving data:
+
+1. **Understand Complete Flow** - Map entire user journey and data states
+2. **Check Existing Data** - Query Supabase to understand current state
+3. **Verify Data Operations** - Are you creating new records when you should be updating existing ones?
+4. **Database Verification** - Check database before AND after every operation
+5. **Multi-User Testing** - Test as provider, then as client, verify relationships
+
+**Common Anti-Pattern**: Creating duplicate records instead of claiming/updating existing ones (e.g., invite systems).
+
+### 🚨 Permission Protocol
+
+**CRITICAL RULE**: NEVER make changes that weren't explicitly requested by the user.
+
+Before making ANY code change, ask yourself:
+1. **Did the user explicitly ask for this?** - If no, STOP and ask permission first
+2. **Am I changing existing behavior?** - If yes, verify this was requested
+3. **Am I modifying navigation, data flow, or business logic?** - If yes, ensure this is part of the stated requirements
+
+**Examples of UNAUTHORIZED changes**:
+- Changing which screen a navigation goes to (e.g., ClientHistory → ClientProfile)
+- Modifying data structures or API responses
+- Altering business logic or calculations
+- Removing or adding features that weren't mentioned
+- Changing UX flows without explicit instruction
+
+**When in doubt**: ASK the user before proceeding.
+
+**Consequence**: Unauthorized changes break working functionality and erode trust.
+
+### END-TO-END TESTING CHECKLIST
+
+When testing is requested, this means COMPLETE end-to-end testing:
+
+#### Provider Testing:
+- [ ] Register as Provider → verify profile in database
+- [ ] Login → land on ClientList screen
+- [ ] Add Client → verify client record created
+- [ ] Start Session → verify session record with start time
+- [ ] Stop Session → verify session updated with end time and amount
+- [ ] Request Payment → verify status change in database
+- [ ] View History → see correct data and amounts
+- [ ] Activity Feed → all actions appear
+
+#### Client Testing:
+- [ ] Claim Invite → create account
+- [ ] Login → land on correct screen
+- [ ] View Providers → see assigned providers
+- [ ] View Sessions → see work tracked for them
+- [ ] Mark Payment Sent → verify status updates
+- [ ] Activity Timeline → see work and payment history
+
+#### Cross-User Testing:
+- [ ] Provider creates session → Client sees it immediately
+- [ ] Client marks payment → Provider sees update
+- [ ] Real-time updates work both ways
+- [ ] Data consistency across users
+
+#### Technical Verification:
+- [ ] No console errors (only expected dev logs)
+- [ ] No white screens
+- [ ] Proper navigation transitions
+- [ ] Data persists after refresh
+- [ ] Error states show proper messages
+- [ ] Loading indicators during async operations
+
+### Code Quality Requirements
+
 - **TypeScript**: Strict types, proper interfaces
-- **Error Handling**: Graceful error states and user feedback
-- **Performance**: Efficient state management and re-renders
-- **Accessibility**: Proper touch targets and labels
-- **Consistency**: Follow existing patterns in codebase
+- **Error Handling**: Graceful error states with user feedback
+- **Offline-First**: App must work when Supabase is unreachable
+- **Performance**: Efficient re-renders, avoid unnecessary state updates
+- **Consistency**: Study existing patterns before creating new ones
 
-### Architecture Patterns
-- **Follow Existing**: Study current components before creating new ones
-- **AsyncStorage**: Use established storage service patterns
-- **Navigation**: Follow React Navigation patterns
-- **State Management**: Use React hooks consistently
-- **File Organization**: Maintain `/src` folder structure
+### Commit Message Format
 
-### Development Workflow
-1. **Understand Requirements**: Study mockups and specifications
-2. **Check Existing Code**: See how similar features are implemented
-3. **Choose Styling Approach**: Use consistent method throughout
-4. **Implement Incrementally**: Build and test small pieces
-5. **Visual Verification**: Take screenshots and compare to requirements
-6. **Functional Testing**: Test all user flows work correctly
-7. **Cross-Platform Check**: Verify on web and mobile if possible
+```
+type(scope): description
 
-### Quality Gates - Definition of Done
-A feature is only complete when:
-- [ ] Functionality works as specified
-- [ ] Visual design matches requirements/mockups
-- [ ] No console errors in browser
-- [ ] Styles actually render (not just compile)
-- [ ] Navigation flows work correctly
-- [ ] Data persistence functions properly
-- [ ] Screenshots verify visual quality
-- [ ] Code follows project patterns
+feat(session-tracking): implement multi-crew session support - tested visually
+fix(auth): resolve duplicate user creation on invite claim
+style(client-list): update card shadows to match iOS design
+refactor(storage): consolidate AsyncStorage operations
+```
 
-### Commands Reference
-- `npm run web` - Start Expo web development
-- `npm start` - Start Expo with QR code for mobile
-- `npx expo start --clear` - Clear cache and restart
-- `npm run android` - Android development
-- `npm run ios` - iOS development
+Types: `feat`, `fix`, `style`, `refactor`, `test`, `docs`, `chore`
 
-### Environment Setup
-- **Expo CLI**: Use for development and building
-- **AsyncStorage**: For local data persistence
-- **React Navigation**: For app navigation
-- **StyleSheet vs nativewind**: Choose one approach consistently
+## Test Accounts
 
-### Troubleshooting
-- **Styling Issues**: Check if classes/styles actually apply in browser
-- **Metro Issues**: Clear cache with `--clear` flag
-- **Import Errors**: Verify file paths and extensions
-- **Navigation Issues**: Check navigator setup and route params
-- **AsyncStorage**: Use debugging to verify data persistence
+**Provider**:
+- Email: athahar+lucy@gmail.com
+- Password: lucy123456
 
-## Specific App Guidelines
+**Clients** (all use password: `demo123$`):
+- ath.sub.007+kel@gmail.com
+- ath.sub.007+molly@gmail.com
+- athmash247@gmail.com
+- ath.sub.007+sarah@gmail.com
 
-### Design System
+## Key Files & Directories
+
+```
+ios-app/
+├── src/
+│   ├── components/       # Reusable UI components
+│   │   ├── ErrorBoundary.tsx      # Production error handling
+│   │   ├── Toast.tsx              # Toast notification system
+│   │   └── SimplifiedSyncStatus.tsx  # Storage sync indicator
+│   ├── contexts/         # React contexts
+│   │   └── AuthContext.tsx        # Auth state management
+│   ├── navigation/       # Navigation configuration
+│   │   └── AppNavigator.tsx       # Root navigator with auth flow
+│   ├── screens/          # Main app screens
+│   │   ├── ClientListScreen.tsx           # Provider: client management
+│   │   ├── SessionTrackingScreen.tsx      # Provider: time tracking
+│   │   ├── ServiceProviderListScreen.tsx  # Client: view providers
+│   │   └── ClientHistoryScreen.tsx        # Client: session history
+│   ├── services/         # Data & API layer
+│   │   ├── storage.ts              # Legacy AsyncStorage
+│   │   ├── supabase.ts             # Supabase client
+│   │   ├── hybridStorage.ts        # Dual storage manager
+│   │   └── storageAdapter.ts       # Type converters
+│   ├── i18n/             # Internationalization
+│   │   ├── index.ts                # i18next setup
+│   │   └── simple.ts               # EN/ES translations
+│   ├── utils/            # Utility functions
+│   │   ├── localeFormatters.ts     # Currency/date formatting
+│   │   └── inviteCodeGenerator.ts  # Client invite codes
+│   └── types/            # TypeScript definitions
+│       └── index.ts                # Shared types
+├── app.json              # Expo configuration
+├── eas.json              # EAS Build configuration
+├── package.json          # Dependencies
+└── .env                  # Local environment (not in git)
+
+docs/spec/                # Feature specifications
+├── database-migration-plan.md      # Supabase migration roadmap
+├── client-invitation-system.md     # Invite flow spec
+├── APPLE_DEPLOYMENT_SPEC.md        # iOS deployment checklist
+├── APP_UX_REDESIGN.md              # Native iOS design patterns
+└── BILINGUAL_IMPLEMENTATION_PLAN.md # i18n implementation
+
+scripts/prod-migrate/     # Production database migrations
+└── (see Production Database Migration section below)
+```
+
+## Migration Status
+
+### ✅ Phase 1-2 Complete (Database + Storage Abstraction)
+- Supabase schema created with 6 tables
+- Hybrid storage layer operational
+- AsyncStorage + Supabase dual writes working
+- Type-safe database operations
+
+### 🚧 Current Phase: Phase 3 - Parallel Mode Implementation
+- Real-time subscriptions setup
+- Conflict resolution strategies
+- UI sync indicators
+
+### 📋 Remaining Phases
+- Phase 4: Authentication Integration
+- Phase 5: Core Data Migration
+- Phase 6: Real-time Features
+- Phase 7: UI Polish & Bug Fixes
+- Phase 8: Testing & Deployment
+
+See `docs/spec/database-migration-plan.md` for complete roadmap.
+
+## Troubleshooting
+
+### Metro Bundle Issues
+```bash
+cd ios-app
+npx expo start --clear
+```
+
+### Styling Not Rendering
+- Check if mixing `className` and `style` props (DON'T)
+- Verify nativewind config in tailwind.config.js
+- Clear Metro cache
+
+### Supabase Connection Issues
+- Verify .env file has correct URL and anon key
+- Check browser console for connection errors
+- Test Supabase queries in SQL Editor first
+
+### White Screen on iOS Production Build
+- 99% caused by unguarded console.log statements
+- Run console audit command (see Production iOS Build Requirements)
+- Wrap all console statements with `if (__DEV__) { }`
+
+### Navigation Issues
+- Ensure all navigation dependencies installed
+- Check React Navigation version compatibility
+- Verify route names match navigator configuration
+
+## Design System
+
 - **Colors**: iOS-style colors (primary: #007AFF, success: #34C759, warning: #FF9500)
 - **Typography**: Apple system fonts with proper hierarchy
 - **Spacing**: 8pt grid system (8, 16, 24, 32px)
 - **Shadows**: Subtle shadows for cards and buttons
 - **Border Radius**: 12px for buttons, 16px for cards
 
-### Key Features
-- **Time Tracking**: Start/stop sessions with live timer
-- **Payment Requests**: Request and mark payments as paid
-- **Activity Feed**: Real-time updates between service provider and client
-- **Client Management**: Add clients with hourly rates
-- **History**: View past sessions and payment status
+## Feature Specifications
 
-### Data Flow
-- **AsyncStorage**: All data persisted locally
-- **Real-time Updates**: Activity feed updates when actions occur
-- **State Management**: React hooks for component state
-- **Navigation**: React Navigation with tabs and stack
+Detailed specs are in the `docs/spec/` directory:
+- **Database Migration**: `database-migration-plan.md`
+- **Apple Deployment**: `APPLE_DEPLOYMENT_SPEC.md`
+- **UX Redesign**: `APP_UX_REDESIGN.md`
+- **Bilingual Support**: `BILINGUAL_IMPLEMENTATION_PLAN.md`
+- **Invite System**: `client-invitation-system.md`
 
-### END-TO-END TESTING CHECKLIST (MANDATORY)
+Read these specs BEFORE implementing related features.
 
-When Claude says "please test it" - this means COMPLETE end-to-end testing, not just "app compiles". NO SHORTCUTS OR EXCUSES.
+---
 
-#### PROVIDER (Service Provider) Testing:
-- [ ] **Register as Provider**: Create account, verify profile created in database
-- [ ] **Login as Provider**: Login successfully, land on correct screen (ClientList)
-- [ ] **Add Client**: Create new client, verify client record in database
-- [ ] **Start Session**: Begin tracking time for client, verify session record created
-- [ ] **Stop Session**: End session, verify session updated with end time and amount
-- [ ] **View Session History**: See past sessions with correct data and amounts
-- [ ] **Request Payment**: Mark session as "requested", verify status change
-- [ ] **Activity Feed**: Check that all actions appear in timeline
-- [ ] **Client Profile**: View and edit client details, hourly rates
+## Production Database Migration
 
-#### CLIENT Testing:
-- [ ] **Claim Invite**: Use invite code from provider, create account
-- [ ] **Login as Client**: Login successfully, land on correct screen
-- [ ] **View Service Providers**: See Lucy and other providers
-- [ ] **View Work Sessions**: See sessions provider tracked for them
-- [ ] **View Activity Timeline**: See work history and payment timeline
-- [ ] **Mark Payment Sent**: Mark payments as paid, verify status updates
-- [ ] **Payment History**: View past payments and outstanding amounts
+### 🚀 Production-Ready Migration Plan
 
-#### CROSS-USER TESTING:
-- [ ] **Provider creates session** → **Client sees it immediately**
-- [ ] **Client marks payment** → **Provider sees payment update**
-- [ ] **Real-time updates**: Actions by one user visible to other user
-- [ ] **Data consistency**: Same session shows same data for both users
+**Location:** `docs/prod-migrate/plan.md`
 
-#### DATABASE VERIFICATION (REQUIRED):
-- [ ] **Before/After States**: Check database before and after each action
-- [ ] **Record Counts**: Verify expected number of records (no duplicates)
-- [ ] **Relationships**: Verify foreign keys and data linking works
-- [ ] **Data Integrity**: All fields populated correctly with expected values
+This is the **authoritative guide** for setting up a production Supabase database with correct schema, RLS, and performance optimizations.
 
-#### TECHNICAL VERIFICATION:
-- [ ] **No Console Errors**: Browser console shows only expected development logs
-- [ ] **No White Screens**: App never shows blank/white screens
-- [ ] **Proper Navigation**: All screen transitions work smoothly
-- [ ] **Data Persistence**: Refresh browser, data still there
-- [ ] **Error Handling**: Invalid actions show proper error messages
+**Key Features:**
+- ✅ Schema-only migration (no data transfer)
+- ✅ Correct auth pattern (auth.uid() → trackpay_users.id mapping)
+- ✅ Row Level Security with helper function
+- ✅ Performance indexes for all query patterns
+- ✅ Realtime subscriptions enabled
+- ✅ Foreign key protection (RESTRICT for business data)
+- ✅ Audit logging
+- ✅ Schema drift detection
 
-#### VISUAL VERIFICATION:
-- [ ] **UI Matches Design**: Screenshots match intended design
-- [ ] **Responsive Layout**: Works on different screen sizes
-- [ ] **Loading States**: Proper loading indicators during async operations
-- [ ] **Touch Targets**: All buttons and inputs are accessible
-- [ ] **Typography**: Text is readable and properly styled
+**Migration Files:** All located in `scripts/prod-migrate/` (repository root)
 
-### TESTING FAILURE CRITERIA:
-❌ **INCOMPLETE** if ANY of these happen:
-- "App compiles" without testing user flows
-- Testing only "happy path" without edge cases
-- Not verifying database state changes
-- Not testing as both Provider AND Client
-- Assuming features work without actually clicking through them
-- Not checking browser console for errors
-- Not verifying cross-user functionality
+| File | Purpose |
+|------|---------|
+| `000_extensions.sql` | Install pgcrypto + pg_stat_statements |
+| `010_realtime.sql` | Enable realtime for all 8 tables |
+| `015_rls_helper.sql` | **CRITICAL** - Auth helper function + unique constraint |
+| `020_rls_policies.sql` | RLS policies with correct auth pattern |
+| `030_indexes.sql` | 14 performance indexes |
+| `040_manifest.sql` | Schema drift detection |
+| `20251015_fix_fk_SAFE_SEQUENTIAL.sql` | FK constraint fixes |
+| `20251015_fix_session_fk_cascades.sql` | Session FK fixes |
+| `20251016_fix_delete_rpc_provider_lookup.sql` | Delete client RPC |
 
-### OLD BASIC CHECKLIST (INSUFFICIENT):
-- [ ] Session tracking works (start/stop/timer)
-- [ ] Payment flow works (request/mark paid)
-- [ ] Client management works (add/view clients)
-- [ ] Activity feed updates properly
-- [ ] Navigation between screens works
-- [ ] Data persists between app restarts
-- [ ] Visual design matches mockups
-- [ ] No console errors
-- [ ] App loads without crashes
+### ⚠️ CRITICAL: Auth Pattern
 
-## ⚠️ CRITICAL: Business Logic Validation Requirements
+**The production database MUST use the correct auth pattern or RLS will lock everyone out!**
 
-### Before Implementing ANY Feature:
-1. **Understand the Complete Business Flow**
-   - Draw out the entire user journey from start to finish
-   - Identify ALL data states and transitions
-   - Question: "What records exist before this action, and what should happen to them?"
+```sql
+-- WRONG (will fail in production):
+USING (provider_id = auth.uid())  -- ❌
 
-2. **Database State Analysis** (MANDATORY for any CRUD operations)
-   - Check existing data in Supabase BEFORE coding
-   - Understand what records should be created, updated, or linked
-   - Verify that my implementation matches the intended data flow
-   - Ask: "Am I creating new records when I should be updating existing ones?"
-
-3. **End-to-End Logic Verification**
-   - Trace through the ENTIRE flow with sample data
-   - For invite systems: Provider creates → Client claims → Verify ONE record exists
-   - For auth systems: Registration → Profile creation/linking → Login → Verify correct user state
-
-### Testing Methodology (NON-NEGOTIABLE):
-1. **Test with REAL Data States**
-   - Don't just test "happy path" - test with actual existing data
-   - For invites: Create unclaimed record → Test claiming process → Verify database state
-   - Check database BEFORE and AFTER each operation
-
-2. **Database Verification Required**
-   - After every test, check the actual database records
-   - Count records: "Should there be 1 user or 2? Why?"
-   - Verify IDs, relationships, and data integrity
-
-3. **Multi-User Flow Testing**
-   - Test as Provider: Create invite, check database
-   - Test as Client: Use invite, register, check database
-   - Verify the relationship works correctly
-
-### Code Review Questions (Ask BEFORE claiming "tested"):
-- [ ] Did I check the database state before and after my changes?
-- [ ] Does my implementation create duplicates when it should update existing records?
-- [ ] Did I test the complete user journey, not just individual functions?
-- [ ] Do the database records match what the business logic requires?
-- [ ] If this involves claiming/linking, am I updating the right existing record?
-
-### Specific Anti-Patterns to Avoid:
-❌ **Creating new records when existing ones should be claimed/updated**
-❌ **Testing only individual functions without full user flows**
-❌ **Claiming "tested" without checking database state**
-❌ **Implementing auth/profile logic without understanding existing data relationships**
-
-✅ **Always understand what data exists BEFORE implementing changes**
-✅ **Test complete flows with realistic data scenarios**
-✅ **Verify database state matches business requirements**
-✅ **Think: "Am I modifying the right existing records, or incorrectly creating new ones?"**
-
-### Common Pitfalls
-- **Styling Not Rendering**: Verify approach (nativewind vs StyleSheet) works
-- **Missing Dependencies**: Install required packages for chosen approach
-- **Cache Issues**: Clear Metro cache when making major changes
-- **Platform Differences**: Test behavior on both web and mobile
-- **AsyncStorage**: Handle async operations properly with try/catch
-
-## TrackPay Migration Status
-
-### ✅ Phase 1 Complete: Database Foundation (September 21, 2025)
-
-**🎯 Completed Tasks:**
-- ✅ App rebranded from "timesheets-app" to "TrackPay" (v2.0.0)
-- ✅ Supabase dependencies installed and configured
-- ✅ Environment variables properly set up (URL + anon key only)
-- ✅ Complete database schema created with 6 tables:
-  - `trackpay_users` (providers & clients) - 5 sample records
-  - `trackpay_relationships` (provider-client associations)
-  - `trackpay_sessions` (work tracking with duration in minutes)
-  - `trackpay_payments` (payment records)
-  - `trackpay_requests` (payment request workflow)
-  - `trackpay_activities` (activity feed)
-- ✅ Computed views and indexes for performance
-- ✅ Row Level Security (RLS) configured (temporarily open for development)
-- ✅ Abstract storage interface designed for hybrid operations
-- ✅ Supabase client with TypeScript support and error handling
-- ✅ Hybrid storage service foundation built
-
-**📁 Key Files Created:**
-- `.env` - Supabase configuration (excluded from git)
-- `database/schema.sql` - Complete database schema
-- `database/create-tables.sql` - Optimized for Supabase SQL Editor
-- `src/services/database.interface.ts` - Abstract storage interface
-- `src/services/supabase.ts` - Type-safe Supabase client
-- `src/services/hybridStorage.ts` - Dual storage implementation
-- `DATABASE_SETUP.md` - Complete setup and troubleshooting guide
-- `spec/database-migration-plan.md` - Migration specification
-
-
-**📁 Spec Files Created:**
-- "spec/" - folder for all specs to refer and udpate
-- "spec/APP_UX_REDESIGN.md" - app ux redesign for native ios app like feel
-- "spec/ZERO_STATE_SPEC.md" - zero state spec
-- "spec/APPLE_DEPLOYMENT_SPEC.md" - what is required for apple ios app deployment
-- "spec/MULTI_LINGUAL_SUPPORT.md" - english and spanish support in the app
-- "spec/SETTINGS_PAGE.md" - settings page for both service provider and clients after login
-- "spec/PHONENUMBER_AUTH.md" - replace email with phone auth
-
-
-
-**🔧 Technical Foundation:**
-- Offline-first architecture with AsyncStorage fallback
-- Type-safe database operations with full TypeScript support
-- Real-time subscription capability ready for Phase 6
-- Progressive migration strategy preserving existing functionality
-- Security-first approach with proper credential management
-
-### ✅ Phase 2 Complete: Storage Layer Abstraction (September 21, 2025)
-
-**🎯 Completed Tasks:**
-- ✅ Analyzed existing storage.ts operations and patterns
-- ✅ Created StorageAdapter with type converters and legacy compatibility
-- ✅ Implemented complete legacy API in HybridStorageService
-- ✅ Built StorageService facade for seamless API compatibility
-- ✅ Updated App.tsx to use hybrid storage for initialization
-- ✅ Verified app functionality with new storage layer
-
-**📁 New Files Created:**
-- `src/services/storageAdapter.ts` - Type conversion and legacy compatibility
-- `src/services/storageService.ts` - Drop-in replacement facade for storage.ts
-- Updated `src/services/hybridStorage.ts` - Full legacy API implementation
-
-**🔧 Technical Achievements:**
-- **Perfect API Compatibility**: Existing components work unchanged
-- **Dual Storage Operation**: AsyncStorage + Supabase working in parallel
-- **Offline-First Design**: App works even when Supabase is unreachable
-- **Type Safety**: Full TypeScript support with legacy and new schemas
-- **Progressive Enhancement**: Supabase features when online, AsyncStorage fallback
-
-**📋 Next Phase Ready:** Phase 3 - Parallel Mode Implementation
-
-### 🚀 Migration Phases Remaining:
-- **Phase 3:** Parallel Mode Implementation (Days 5-7)
-- **Phase 4:** Authentication Integration (Days 8-9)
-- **Phase 5:** Core Data Migration (Days 10-12)
-- **Phase 6:** Real-time Features (Days 13-14)
-- **Phase 7:** UI Polish & Bug Fixes (Days 15-16)
-- **Phase 8:** Testing & Deployment (Days 17-18)
-
-### 🔍 Current Status:
-- **Database:** ✅ Fully operational with sample data
-- **Connection:** ✅ Supabase client working perfectly
-- **Legacy App:** ✅ Now running on hybrid storage (backwards compatible)
-- **Storage Layer:** ✅ Abstracted and ready for parallel mode
-- **Ready for:** Phase 3 implementation
-
-## Emergency Recovery
-If the app is broken or styles aren't working:
-1. Check console for errors
-2. Clear Metro cache: `npx expo start --clear`
-3. Verify all dependencies are installed
-4. Check if styling approach is consistent
-5. Compare working version with current code
-6. Test with minimal example first
-7. **NEW:** Check Supabase connection status in console
-8. **NEW:** Verify `.env` file has correct credentials
-
-## 🚀 iOS Production Build Requirements (App Store/TestFlight)
-
-### CRITICAL PRE-BUILD CHECKLIST - MUST BE COMPLETED BEFORE EAS BUILD
-
-#### **1. Console Statement Audit** 🚨 CRITICAL
-- [ ] **NO unguarded console.log statements** - These cause white screens/crashes in production iOS
-- [ ] All console.log/warn/info/debug wrapped with `if (__DEV__) { ... }`
-- [ ] console.error statements can remain (for crash reporting)
-- **Command to check:** `grep -r "console\." src/ --include="*.tsx" --include="*.ts" | grep -v "__DEV__" | grep -v "console.error"`
-- **Must return 0 results** or app will crash on iOS
-
-#### **2. Error Boundary Implementation** 🛡️ CRITICAL
-- [ ] ErrorBoundary component created in `src/components/ErrorBoundary.tsx`
-- [ ] App.tsx wrapped with `<ErrorBoundary>` to prevent crashes
-- [ ] Graceful error handling for runtime errors
-- [ ] User-friendly error messages instead of white screen
-
-#### **3. Environment Variables Configuration** 🔐 CRITICAL
-- [ ] **Environment variables added to eas.json** (not just .env file)
-- [ ] Production Supabase credentials configured in both preview and production profiles
-- [ ] No hardcoded localhost URLs or development-only endpoints
-- [ ] `EXPO_PUBLIC_ENV` set to "production" in eas.json
-
-#### **4. App Configuration Validation**
-- [ ] app.json bundle ID matches Apple Developer account
-- [ ] Version and build numbers incremented for new builds
-- [ ] App icon configured (1024x1024px PNG)
-- [ ] Splash screen configured
-- [ ] `ITSAppUsesNonExemptEncryption: false` in iOS config
-- [ ] Proper iOS permissions in infoPlist
-- [ ] buildNumber incremented in the app.json
-
-#### **5. Dependencies & SDK Compatibility**
-- [ ] All peer dependencies installed (`react-native-gesture-handler`, `react-native-worklets`)
-- [ ] Package versions aligned with Expo SDK
-- [ ] `npx expo-doctor` shows 0 issues
-- [ ] No deprecated or incompatible packages
-
-#### **6. Asset Optimization**
-- [ ] App icon optimized (≤1MB, 1024x1024px)
-- [ ] No oversized images that could cause memory issues
-- [ ] All assets properly referenced in app.json
-
-#### **7. Production Code Safety**
-- [ ] No test data or development-only code paths
-- [ ] AsyncStorage operations properly error-handled
-- [ ] Network requests have proper timeout and error handling
-- [ ] No undefined variables or null pointer exceptions
-
-### EAS BUILD CONFIGURATION
-
-#### **Required Files:**
-
-**eas.json** (with environment variables):
-```json
-{
-  "build": {
-    "preview": {
-      "distribution": "internal",
-      "ios": { "resourceClass": "m1-medium" },
-      "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "your-supabase-url",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "your-anon-key",
-        "EXPO_PUBLIC_APP_NAME": "TrackPay",
-        "EXPO_PUBLIC_ENV": "production"
-      }
-    },
-    "production": {
-      "ios": { "resourceClass": "m1-medium" },
-      "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "your-supabase-url",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "your-anon-key",
-        "EXPO_PUBLIC_APP_NAME": "TrackPay",
-        "EXPO_PUBLIC_ENV": "production"
-      }
-    }
-  }
-}
+-- CORRECT (uses helper function):
+USING (provider_id = current_trackpay_user_id())  -- ✅
 ```
 
-### PRODUCTION BUILD COMMANDS
+**Why?** Our auth pattern is: `auth.users.id` → `trackpay_users.auth_user_id` → `trackpay_users.id`
 
-```bash
-# 1. Pre-flight checks
-npx expo-doctor
-grep -r "console\." src/ --include="*.tsx" --include="*.ts" | grep -v "__DEV__" | grep -v "console.error"
+The `current_trackpay_user_id()` helper function bridges this gap. See `docs/prod-migrate/plan.md` for full explanation.
 
-# 2. Build for TestFlight
-eas build --platform ios --profile preview
+### 📋 Quick Start
 
-# 3. Submit to TestFlight
-eas submit --platform ios
-```
+1. Read `docs/prod-migrate/plan.md` (comprehensive guide)
+2. Run migrations from `scripts/prod-migrate/` in order
+3. Verify with `040_manifest.sql`
+4. Update app config (`.env` and EAS secrets)
+5. Test thoroughly
 
-### COMMON FAILURE POINTS (WHAT KILLED YOUR PREVIOUS BUILD)
+**Estimated Time:** ~45 minutes for complete setup
 
-1. **White Screen Issue = Unguarded Console Statements**
-   - iOS production builds crash on console.log
-   - Wrap ALL console statements with `__DEV__` checks
+---
 
-2. **Environment Variables Missing**
-   - .env file is NOT bundled in production builds
-   - Must add to eas.json env section
-
-3. **Dependency Mismatches**
-   - Run `npx expo install --check` before building
-   - Ensure all peer dependencies installed
-
-4. **Missing Error Boundaries**
-   - Any uncaught error = white screen
-   - Wrap app in ErrorBoundary component
-
-### POST-BUILD TESTING
-
-After TestFlight upload:
-- [ ] App launches without white screen
-- [ ] Environment variables accessible
-- [ ] Database connections work
-- [ ] No console errors in production
-- [ ] Navigation flows work correctly
-- [ ] All features functional
-
-### EMERGENCY DEBUGGING
-
-If production build fails:
-1. Check console output during build
-2. Verify eas.json environment variables
-3. Ensure no unguarded console statements
-4. Test locally with production-like settings
-5. Check asset file sizes and formats
-
-Remember: **Ship working, beautiful features. Test everything. Be honest about current state.**
+**Remember**: Test everything. Verify database state. Be honest about feature status. Ship working, beautiful features.

@@ -13,8 +13,7 @@ import { Client, Session } from '../types';
 import { Button } from '../components/Button';
 import { theme } from '../styles/theme';
 import { simpleT } from '../i18n/simple';
-import { formatCurrency, formatTimer } from '../utils/formatters';
-import { debug } from '../utils/debug';
+import { formatCurrency, formatHours } from '../utils/formatters';
 import {
   getClientById,
   getActiveSession,
@@ -23,6 +22,7 @@ import {
   getClientSummary,
   requestPayment,
   getSessionsByClient,
+  updateSessionCrewSize,
 } from '../services/storageService';
 
 // Helper function to format names in proper sentence case
@@ -56,6 +56,21 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
   const [unpaidBalance, setUnpaidBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [sessionTime, setSessionTime] = useState(0);
+  const [crewSize, setCrewSize] = useState(1);
+  const [crewMessage, setCrewMessage] = useState<string | null>(null);
+  const [isUpdatingCrew, setIsUpdatingCrew] = useState(false);
+
+  useEffect(() => {
+    if (!crewMessage) return;
+    const timer = setTimeout(() => setCrewMessage(null), 4000);
+    return () => clearTimeout(timer);
+  }, [crewMessage]);
+
+  const currentCrewSize = activeSession?.crewSize ?? crewSize;
+  const perPersonHours = sessionTime / 3600;
+  const totalPersonHours = perPersonHours * currentCrewSize;
+  const crewLabel = `${currentCrewSize} ${currentCrewSize === 1 ? 'person' : 'people'}`;
+  const ratePerPerson = client ? formatCurrency(client.hourlyRate) : formatCurrency(0);
 
   const loadData = async () => {
     try {
@@ -70,6 +85,7 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
 
       const activeSessionData = await getActiveSession(clientId);
       setActiveSession(activeSessionData);
+      setCrewSize(activeSessionData?.crewSize || 1);
 
       const summary = await getClientSummary(clientId);
       setUnpaidHours(summary.unpaidHours);
@@ -93,35 +109,94 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
     }, [clientId])
   );
 
-  // PERFORMANCE: Optimized timer with proper cleanup
+  // Timer effect for active session
   useEffect(() => {
-    if (!activeSession) {
-      setSessionTime(0);
+    let interval: NodeJS.Timeout;
+    if (activeSession) {
+      interval = setInterval(() => {
+        const elapsed = (Date.now() - new Date(activeSession.startTime).getTime()) / 1000;
+        setSessionTime(elapsed);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [activeSession]);
+
+  const handleCrewAdjust = async (delta: number) => {
+    const targetSize = Math.max(1, currentCrewSize + delta);
+    if (targetSize === currentCrewSize) {
       return;
     }
 
-    // Start with current elapsed time
-    const elapsed = (Date.now() - new Date(activeSession.startTime).getTime()) / 1000;
-    setSessionTime(elapsed);
+    if (activeSession) {
+      setIsUpdatingCrew(true);
+      try {
+        const updatedSession = await updateSessionCrewSize(activeSession.id, targetSize);
+        const normalizedSize = updatedSession.crewSize || targetSize;
+        setActiveSession(prev => prev ? { ...prev, crewSize: normalizedSize } : prev);
+        setCrewSize(normalizedSize);
+        setCrewMessage(`Crew updated to ${normalizedSize} ${normalizedSize === 1 ? 'person' : 'people'}. Totals now include everyone from the start of this session.`);
+      } catch (error) {
+        console.error('Error updating crew size:', error);
+        Alert.alert(
+          t('sessionTracking.errorTitle'),
+          'Unable to update crew size. Please try again.'
+        );
+      } finally {
+        setIsUpdatingCrew(false);
+      }
+    } else {
+      setCrewSize(targetSize);
+      setCrewMessage(`Crew set to ${targetSize} ${targetSize === 1 ? 'person' : 'people'} for the next session.`);
+    }
+  };
 
-    // Set up interval for updates
-    const timer = setInterval(() => {
-      const newElapsed = (Date.now() - new Date(activeSession.startTime).getTime()) / 1000;
-      setSessionTime(newElapsed);
-    }, 1000);
+  const renderCrewSelector = () => {
+    const minusDisabled = currentCrewSize <= 1 || isUpdatingCrew;
+    const plusDisabled = isUpdatingCrew;
 
-    debug('⏱️ Timer started for session:', activeSession.id.substring(0, 8));
-
-    return () => {
-      clearInterval(timer);
-      debug('⏱️ Timer cleaned up for session');
-    };
-  }, [!!activeSession]); // Use boolean to avoid unnecessary effect runs
+    return (
+      <View style={styles.crewSelector}>
+        <Text style={styles.crewLabel}>Crew size</Text>
+        <View style={styles.crewStepper}>
+          <TouchableOpacity
+            onPress={() => handleCrewAdjust(-1)}
+            disabled={minusDisabled}
+            style={[
+              styles.crewButton,
+              minusDisabled && styles.crewButtonDisabled
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Decrease crew size"
+          >
+            <Text style={styles.crewButtonText}>-</Text>
+          </TouchableOpacity>
+          <Text style={styles.crewValue}>{currentCrewSize}</Text>
+          <TouchableOpacity
+            onPress={() => handleCrewAdjust(1)}
+            disabled={plusDisabled}
+            style={[
+              styles.crewButton,
+              plusDisabled && styles.crewButtonDisabled
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Increase crew size"
+          >
+            <Text style={styles.crewButtonText}>+</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.crewHint}>
+          {activeSession ? 'Applies to entire session' : 'Set before starting'}
+        </Text>
+        {crewMessage ? <Text style={styles.crewMessage}>{crewMessage}</Text> : null}
+      </View>
+    );
+  };
 
   const handleStartSession = async () => {
     try {
-      const newSession = await startSession(clientId);
+      const newSession = await startSession(clientId, crewSize);
       setActiveSession(newSession);
+      setCrewSize(newSession.crewSize || crewSize);
       setSessionTime(0);
     } catch (error) {
       console.error('Error starting session:', error);
@@ -212,16 +287,24 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
         {/* Main Session Card */}
         <View style={[styles.mainCard, theme.shadows.card]}>
           {activeSession ? (
-            <View style={styles.activeSessionContent}>
-              <Text style={styles.timerText}>
-                {formatTime(sessionTime)}
-              </Text>
-              <Text style={styles.sessionStatus}>
-                Started at {new Date(activeSession.startTime).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </Text>
+            <>
+              <View style={styles.activeSessionContent}>
+                <Text style={styles.timerText}>
+                  {formatTime(sessionTime)}
+                </Text>
+                <Text style={styles.sessionStatus}>
+                  Started at {new Date(activeSession.startTime).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </Text>
+                {perPersonHours > 0 && (
+                  <Text style={styles.sessionTotals}>
+                    {`${formatHours(perPersonHours)} each • ${crewLabel} = ${formatHours(totalPersonHours)} total`}
+                  </Text>
+                )}
+              </View>
+              {renderCrewSelector()}
               <Button
                 title="I'm Done"
                 onPress={handleEndSession}
@@ -229,10 +312,13 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
                 size="lg"
                 style={styles.actionButton}
               />
-            </View>
+            </>
           ) : (
-            <View style={styles.readyContent}>
-              <Text style={styles.readyText}>Ready to start?</Text>
+            <>
+              <View style={styles.readyContent}>
+                <Text style={styles.readyText}>Ready to start?</Text>
+              </View>
+              {renderCrewSelector()}
               <Button
                 title="I'm Here"
                 onPress={handleStartSession}
@@ -240,7 +326,7 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
                 size="lg"
                 style={styles.actionButton}
               />
-            </View>
+            </>
           )}
         </View>
 
@@ -250,15 +336,15 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
           <View style={[styles.summaryCard, theme.shadows.card]}>
             <Text style={styles.summaryLabel}>Balance</Text>
             <Text style={styles.balanceAmount}>
-              ${unpaidBalance.toFixed(0)}
+              {formatCurrency(unpaidBalance)}
             </Text>
           </View>
 
           {/* Unpaid Hours Card */}
           <View style={[styles.summaryCard, theme.shadows.card]}>
-            <Text style={styles.summaryLabel}>Unpaid Hours</Text>
+            <Text style={styles.summaryLabel}>Unpaid Person-Hours</Text>
             <Text style={styles.unpaidHours}>
-              {unpaidHours.toFixed(1)}h
+              {formatHours(unpaidHours)}
             </Text>
           </View>
         </View>
@@ -266,7 +352,7 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
         {/* Request Payment Button */}
         {unpaidBalance > 0 && (
           <Button
-            title={`Request $${unpaidBalance.toFixed(0)}`}
+            title={`Request ${formatCurrency(unpaidBalance)} • ${formatHours(unpaidHours)} person-hours`}
             onPress={handleRequestPayment}
             variant="primary"
             size="lg"
@@ -281,10 +367,13 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
               Current Session Value
             </Text>
             <Text style={styles.sessionValueAmount}>
-              {t('sessionTracking.totalEarned', { amount: formatCurrency(((sessionTime / 3600) * client.hourlyRate)) })}
+              {formatCurrency(totalPersonHours * client.hourlyRate)}
             </Text>
             <Text style={styles.sessionValueDetail}>
-              {(sessionTime / 3600).toFixed(2)} hours × {t('sessionTracking.hourlyRate', { rate: client.hourlyRate })}
+              {`${formatHours(perPersonHours)} each × ${crewLabel} = ${formatHours(totalPersonHours)} total`}
+            </Text>
+            <Text style={styles.sessionValueDetail}>
+              {`${ratePerPerson} per person / hour`}
             </Text>
           </View>
         )}
@@ -361,8 +450,15 @@ const styles = StyleSheet.create({
   sessionStatus: {
     fontSize: theme.fontSize.body,
     color: theme.colors.text.secondary,
-    marginBottom: theme.spacing.xxl,
+    marginBottom: theme.spacing.lg,
     fontFamily: theme.typography.fontFamily.primary,
+  },
+  sessionTotals: {
+    fontSize: theme.fontSize.footnote,
+    color: theme.colors.text.secondary,
+    fontFamily: theme.typography.fontFamily.primary,
+    marginBottom: theme.spacing.xl,
+    textAlign: 'center',
   },
   readyContent: {
     alignItems: 'center',
@@ -376,6 +472,63 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     width: '100%',
+  },
+  crewSelector: {
+    marginBottom: theme.spacing.xl,
+  },
+  crewLabel: {
+    fontSize: theme.fontSize.subheadline,
+    fontWeight: theme.fontWeight.medium,
+    color: theme.colors.text.primary,
+    fontFamily: theme.typography.fontFamily.primary,
+    marginBottom: theme.spacing.sm,
+  },
+  crewStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.md,
+  },
+  crewButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.card,
+  },
+  crewButtonDisabled: {
+    opacity: 0.4,
+  },
+  crewButtonText: {
+    fontSize: theme.fontSize.title,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text.primary,
+    fontFamily: theme.typography.fontFamily.display,
+  },
+  crewValue: {
+    minWidth: 48,
+    textAlign: 'center',
+    fontSize: theme.fontSize.title,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text.primary,
+    fontFamily: theme.typography.fontFamily.display,
+  },
+  crewHint: {
+    marginTop: theme.spacing.sm,
+    fontSize: theme.fontSize.footnote,
+    color: theme.colors.text.secondary,
+    textAlign: 'center',
+    fontFamily: theme.typography.fontFamily.primary,
+  },
+  crewMessage: {
+    marginTop: theme.spacing.sm,
+    fontSize: theme.fontSize.footnote,
+    color: theme.colors.primary,
+    textAlign: 'center',
+    fontFamily: theme.typography.fontFamily.primary,
   },
   summaryRow: {
     flexDirection: 'row',

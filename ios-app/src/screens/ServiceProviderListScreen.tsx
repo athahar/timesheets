@@ -279,9 +279,13 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
   };
 
   const formatHours = (hours: number) => {
-    const h = Math.floor(hours);
-    const m = Math.round((hours - h) * 60);
-    return `${h}hr ${m}min`;
+    const wholeHours = Math.floor(hours);
+    const minutes = Math.round((hours - wholeHours) * 60);
+    if (wholeHours === 0) {
+      return `${minutes}min person-hours`;
+    }
+    const minutePart = minutes > 0 ? ` ${minutes}min` : '';
+    return `${wholeHours}hr${minutePart} person-hours`;
   };
 
   const renderProviderCard = ({ item }: { item: ServiceProvider }) => (

@@ -67,7 +67,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .limit(1);
 
       if (error) {
-        console.error('Error loading user profile:', error);
+        if (__DEV__) {
+          console.error('Error loading user profile:', error);
+        }
         return null;
       }
 
@@ -78,7 +80,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       return null;
     } catch (error) {
-      console.error('Error loading user profile:', error);
+      if (__DEV__) {
+        console.error('Error loading user profile:', error);
+      }
       return null;
     }
   };
@@ -105,14 +109,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .single();
 
       if (error) {
-        console.error('Error creating user profile:', error);
-        console.error('Full error details:', JSON.stringify(error, null, 2));
+        if (__DEV__) {
+          console.error('Error creating user profile:', error);
+          console.error('Full error details:', JSON.stringify(error, null, 2));
+        }
         return null;
       }
 
       return data as UserProfile;
     } catch (error) {
-      console.error('Error creating user profile:', error);
+      if (__DEV__) {
+        console.error('Error creating user profile:', error);
+      }
       return null;
     }
   };
@@ -127,7 +135,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error) {
-          console.error('Error getting session:', error);
+          if (__DEV__) {
+            console.error('Error getting session:', error);
+          }
           setIsLoading(false);
           return;
         }
@@ -156,7 +166,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         }
       } catch (error) {
-        console.error('Error initializing auth:', error);
+        if (__DEV__) {
+          console.error('Error initializing auth:', error);
+        }
       } finally {
         if (mounted) {
           setIsLoading(false);
@@ -202,7 +214,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
               return profile;
             } catch (error) {
-              console.error('Profile loading error:', error);
+              if (__DEV__) {
+                console.error('Profile loading error:', error);
+              }
               return null;
             }
           };
@@ -352,7 +366,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       await supabase.auth.signOut();
       // State will be cleared by the auth state change listener
     } catch (error) {
-      console.error('Error signing out:', error);
+      if (__DEV__) {
+        console.error('Error signing out:', error);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -407,7 +423,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const profile = await loadUserProfile(targetUserId);
       setUserProfile(profile);
     } catch (error) {
-      console.error('Error reloading user profile:', error);
+      if (__DEV__) {
+        console.error('Error reloading user profile:', error);
+      }
     }
   };
 

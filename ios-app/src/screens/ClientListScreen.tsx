@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  FlatList,
+  SectionList,
   TextInput,
   Modal,
   Alert,
@@ -11,8 +11,16 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Platform,
+  Keyboard,
+  Appearance,
+  ActionSheetIOS,
+  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Swipeable } from 'react-native-gesture-handler';
+import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { Client } from '../types';
 import { Button } from '../components/Button';
@@ -22,7 +30,11 @@ import { formatCurrency } from '../utils/formatters';
 import {
   getClients,
   addClient,
-  getClientSummary,
+  getClientSummariesForClients,
+  getActiveSessionsForClients,
+  startSession,
+  endSession,
+  getActiveSession,
 } from '../services/storageService';
 import { theme } from '../styles/theme';
 
@@ -34,37 +46,60 @@ interface ClientWithSummary extends Client {
   unpaidHours: number;
   unpaidBalance: number;
   totalHours: number;
+  hasActiveSession: boolean;
+  paymentStatus: 'unpaid' | 'requested' | 'paid';
+}
+
+interface ClientSection {
+  title: string;
+  data: ClientWithSummary[];
 }
 
 export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }) => {
-  const [clients, setClients] = useState<ClientWithSummary[]>([]);
+  const [sections, setSections] = useState<ClientSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [newClientName, setNewClientName] = useState('');
   const [newClientRate, setNewClientRate] = useState('');
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [actioningClientId, setActioningClientId] = useState<string | null>(null);
 
   const { userProfile, signOut } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const loadClients = async () => {
     try {
       const clientsData = await getClients();
-      const clientsWithSummary = await Promise.all(
-        clientsData.map(async (client) => {
-          const summary = await getClientSummary(client.id);
-          return {
-            ...client,
-            unpaidHours: summary.unpaidHours,
-            unpaidBalance: summary.unpaidBalance,
-            totalHours: summary.totalHours,
-          };
-        })
-      );
+      const clientIds = clientsData.map(c => c.id);
 
-      // Sort alphabetically to ensure stable ordering
-      const sortedClients = clientsWithSummary.sort((a, b) => a.name.localeCompare(b.name));
-      setClients(sortedClients);
+      // Only 2 batch queries for ANY number of clients!
+      const [summaries, activeSet] = await Promise.all([
+        getClientSummariesForClients(clientIds),
+        getActiveSessionsForClients(clientIds),
+      ]);
+
+      const sumById = new Map(summaries.map(s => [s.id, s]));
+
+      const clientsWithSummary: ClientWithSummary[] = clientsData.map(c => {
+        const summary = sumById.get(c.id) ?? { unpaidHours: 0, unpaidBalance: 0, totalHours: 0, paymentStatus: 'paid' as const };
+        return {
+          ...c,
+          ...summary,
+          hasActiveSession: activeSet.has(c.id),
+        };
+      });
+
+      const byName = (a: ClientWithSummary, b: ClientWithSummary) => a.name.localeCompare(b.name);
+      const active = clientsWithSummary.filter(c => c.hasActiveSession).sort(byName);
+      const other = clientsWithSummary.filter(c => !c.hasActiveSession).sort(byName);
+
+      const newSections: ClientSection[] = [];
+      if (active.length > 0) newSections.push({ title: 'Active', data: active });
+      if (other.length > 0) newSections.push({ title: 'Other Clients', data: other });
+
+      setSections(newSections);
     } catch (error) {
       console.error('Error loading clients:', error);
       Alert.alert('Error', 'Failed to load clients');
@@ -79,6 +114,23 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
       loadClients();
     }, [])
   );
+
+  // Keyboard listeners
+  useEffect(() => {
+    const showListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    const hideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
+
+    return () => {
+      showListener.remove();
+      hideListener.remove();
+    };
+  }, []);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -110,10 +162,10 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   };
 
   const handleClientPress = (client: Client) => {
-    navigation.navigate('ClientProfile', { clientId: client.id });
+    navigation.navigate('ClientHistory', { clientId: client.id });
   };
 
-  const handleSignOut = async () => {
+  const handleSignOutConfirm = async () => {
     Alert.alert(
       'Sign Out',
       'Are you sure you want to sign out?',
@@ -134,78 +186,191 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     );
   };
 
-  const renderClientCard = ({ item }: { item: ClientWithSummary }) => (
-    <TouchableOpacity
-      onPress={() => handleClientPress(item)}
-      style={styles.clientCard}
+  const handleGearPress = useCallback(() => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Settings', 'Sign Out', 'Cancel'],
+          cancelButtonIndex: 2,
+          destructiveButtonIndex: 1,
+          userInterfaceStyle: Appearance.getColorScheme() || 'light',
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 0) navigation.navigate('Settings');
+          if (buttonIndex === 1) handleSignOutConfirm();
+        }
+      );
+    } else {
+      Alert.alert('Account', 'Manage your settings or sign out', [
+        { text: 'Settings', onPress: () => navigation.navigate('Settings') },
+        { text: 'Sign Out', style: 'destructive', onPress: handleSignOutConfirm },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
+  }, [navigation]);
+
+  const handleAddClientPress = useCallback(() => {
+    if (Platform.OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    setShowAddModal(true);
+  }, []);
+
+  const handleStartSession = useCallback(async (client: ClientWithSummary) => {
+    if (actioningClientId) return; // Prevent double-tap
+
+    try {
+      setActioningClientId(client.id);
+      if (Platform.OS === 'ios') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+
+      await startSession(client.id, 1); // Start with 1-person crew
+      await loadClients(); // Reload to update UI
+    } catch (error) {
+      console.error('Error starting session:', error);
+      Alert.alert('Error', 'Failed to start session');
+    } finally {
+      setActioningClientId(null);
+    }
+  }, [actioningClientId]);
+
+  const handleStopSession = useCallback(async (client: ClientWithSummary) => {
+    if (actioningClientId) return; // Prevent double-tap
+
+    try {
+      setActioningClientId(client.id);
+      if (Platform.OS === 'ios') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+
+      const activeSession = await getActiveSession(client.id);
+      if (!activeSession) {
+        Alert.alert('Error', 'No active session found');
+        return;
+      }
+
+      await endSession(activeSession.id);
+      await loadClients(); // Reload to update UI
+    } catch (error) {
+      console.error('Error stopping session:', error);
+      Alert.alert('Error', 'Failed to stop session');
+    } finally {
+      setActioningClientId(null);
+    }
+  }, [actioningClientId]);
+
+  const renderLeftActions = useCallback((item: ClientWithSummary) => {
+    const isLoading = actioningClientId === item.id;
+    const isActive = item.hasActiveSession;
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.swipeAction,
+          isActive ? styles.swipeActionStop : styles.swipeActionStart
+        ]}
+        onPress={() => isActive ? handleStopSession(item) : handleStartSession(item)}
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <ActivityIndicator color="#FFFFFF" />
+        ) : (
+          <Text style={styles.swipeActionText}>
+            {isActive ? '■ Stop' : '▶ Start'}
+          </Text>
+        )}
+      </TouchableOpacity>
+    );
+  }, [actioningClientId, handleStartSession, handleStopSession]);
+
+  const renderClientCard = useCallback(({ item }: { item: ClientWithSummary }) => (
+    <Swipeable
+      renderLeftActions={() => renderLeftActions(item)}
+      overshootLeft={false}
     >
-      <View style={styles.clientCardHeader}>
-        <View style={styles.clientInfo}>
-          <Text style={styles.clientName}>{item.name}</Text>
-          <View style={styles.rateRow}>
-            <Text style={styles.rateAmount}>${item.hourlyRate}</Text>
-            <Text style={styles.rateLabel}>/hour</Text>
+      <TouchableOpacity
+        onPress={() => handleClientPress(item)}
+        style={[
+          styles.clientCard,
+          item.hasActiveSession && styles.clientCardActive
+        ]}
+        accessible
+        accessibilityLabel={item.hasActiveSession ? `${item.name}, active session` : item.name}
+      >
+        <View style={styles.clientCardHeader}>
+          <View style={styles.clientInfo}>
+            <Text style={styles.clientName}>{item.name}</Text>
+            <View style={styles.rateRow}>
+              <Text style={styles.rateAmount}>${item.hourlyRate}</Text>
+              <Text style={styles.rateLabel}>/hour</Text>
+            </View>
+          </View>
+
+          <View style={styles.clientStatus}>
+            {item.unpaidBalance > 0 ? (
+              <View style={styles.dueSection}>
+                <View style={[styles.statusPill, styles.duePill]}>
+                  <Text style={[styles.statusPillText, styles.duePillText]}>
+                    Due: {formatCurrency(item.unpaidBalance)}
+                  </Text>
+                </View>
+                {item.paymentStatus === 'requested' && (
+                  <Text style={styles.requestedText}>Requested</Text>
+                )}
+              </View>
+            ) : item.totalHours > 0 ? (
+              <View style={[styles.statusPill, styles.paidPill]}>
+                <Text style={[styles.statusPillText, styles.paidPillText]}>
+                  Paid up
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
+      </TouchableOpacity>
+    </Swipeable>
+  ), [renderLeftActions]);
 
-        <View style={styles.clientStatus}>
-          {item.unpaidBalance > 0 ? (
-            <View style={[styles.statusPill, styles.duePill]}>
-              <Text style={[styles.statusPillText, styles.duePillText]}>
-                {formatCurrency(item.unpaidBalance)}
-              </Text>
-            </View>
-          ) : item.totalHours > 0 ? (
-            <View style={[styles.statusPill, styles.paidPill]}>
-              <Text style={[styles.statusPillText, styles.paidPillText]}>
-                Paid up
-              </Text>
-            </View>
-          ) : null}
+  const renderSectionHeader = useCallback(({ section }: { section: ClientSection }) => {
+    if (section.title === 'Other Clients') {
+      return (
+        <View style={styles.sectionDivider}>
+          <View style={styles.dividerLine} />
         </View>
-      </View>
+      );
+    }
+    return null;
+  }, []);
 
-      {item.unpaidHours > 0 && (
-        <View style={styles.unpaidHoursCard}>
-          <Text style={styles.unpaidHoursText}>
-            ⏱️ {item.unpaidHours.toFixed(1)} unpaid hours
-          </Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
-
-  const totalUnpaid = clients.reduce((sum, client) => sum + client.unpaidBalance, 0);
-  const totalHoursAcrossClients = clients.reduce((sum, client) => sum + client.totalHours, 0);
-  const isZeroState = clients.length === 0; // Restore proper zero-state logic
-  const showOutstanding = !isZeroState && (clients.length > 0 || totalUnpaid > 0);
+  const allClients = useMemo(() => sections.flatMap(s => s.data), [sections]);
+  const totalUnpaid = useMemo(() => allClients.reduce((sum, client) => sum + client.unpaidBalance, 0), [allClients]);
+  const totalHoursAcrossClients = useMemo(() => allClients.reduce((sum, client) => sum + client.totalHours, 0), [allClients]);
+  const isZeroState = allClients.length === 0;
+  const showOutstanding = !isZeroState && (allClients.length > 0 || totalUnpaid > 0);
 
   const renderHeader = () => (
     <View style={styles.header}>
-      {/* User Info and Logout Row */}
+      {/* User Info Row with Gear Icon */}
       <View style={styles.userInfoRow}>
         <View style={styles.userInfo}>
           <Text style={styles.welcomeText}>Welcome!</Text>
           <Text style={styles.userName}>{userProfile?.name || userProfile?.email}</Text>
         </View>
-        <TouchableOpacity onPress={handleSignOut} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Sign Out</Text>
+        <TouchableOpacity
+          onPress={handleGearPress}
+          accessibilityRole="button"
+          accessibilityLabel="Settings and account options"
+          accessibilityHint="Opens menu to access settings or sign out"
+          style={styles.headerIconButton}
+          hitSlop={{ top: 6, left: 6, right: 6, bottom: 6 }}
+        >
+          <Feather name="settings" size={20} color={theme.color.text} />
         </TouchableOpacity>
       </View>
 
-      {/* App Title and Add Client Row */}
-      <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>TrackPay</Text>
-        {!isZeroState && (
-          <TouchableOpacity
-            onPress={() => setShowAddModal(true)}
-            style={styles.addClientButton}
-          >
-            <Feather name="plus" size={16} color={theme.color.brand} />
-            <Text style={styles.addClientButtonText}>Add Client</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      {/* App Title */}
+      <Text style={styles.headerTitle}>TrackPay</Text>
 
       {showOutstanding && (
         <View style={styles.outstandingCard}>
@@ -309,19 +474,44 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     <SafeAreaView style={styles.container}>
       {renderHeader()}
 
-      {isZeroState ? (
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.color.brand} />
+        </View>
+      ) : isZeroState ? (
         renderZeroState()
       ) : (
-        <FlatList
-          data={clients}
+        <SectionList
+          sections={sections}
           renderItem={renderClientCard}
+          renderSectionHeader={renderSectionHeader}
           keyExtractor={(item) => item.id}
+          initialNumToRender={20}
+          maxToRenderPerBatch={10}
+          windowSize={10}
+          removeClippedSubviews={Platform.OS === 'android'}
+          stickySectionHeadersEnabled={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
           }
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: 72 + insets.bottom }]}
           showsVerticalScrollIndicator={false}
         />
+      )}
+
+      {/* Floating Action Button */}
+      {!keyboardVisible && (
+        <TouchableOpacity
+          onPress={handleAddClientPress}
+          style={[styles.fab, { bottom: 16 + Math.max(insets.bottom, 12) }]}
+          accessibilityRole="button"
+          accessibilityLabel="Add client"
+          accessibilityHint="Opens form to add a new client"
+          hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+          activeOpacity={0.8}
+        >
+          <Feather name="plus" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
       )}
 
       {/* Add Client Modal */}
@@ -417,9 +607,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingBottom: theme.space.x16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.color.border,
     marginBottom: theme.space.x16,
   },
   userInfo: {
@@ -436,51 +623,12 @@ const styles = StyleSheet.create({
     color: theme.color.text,
     fontFamily: theme.typography.fontFamily.primary,
   },
-  logoutButton: {
-    backgroundColor: theme.color.cardBg,
-    borderRadius: theme.radius.button,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    paddingHorizontal: theme.space.x16,
-    paddingVertical: theme.space.x8,
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  logoutText: {
-    fontSize: theme.font.body,
-    color: theme.color.text,
-    fontFamily: theme.typography.fontFamily.primary,
-    fontWeight: '500',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: theme.space.x16,
-  },
   headerTitle: {
     fontSize: theme.font.large,
     fontWeight: '700',
     color: theme.color.text,
     fontFamily: theme.typography.fontFamily.display,
-  },
-  addClientButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.color.cardBg,
-    borderRadius: theme.radius.button,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    paddingHorizontal: theme.space.x12,
-    paddingVertical: theme.space.x8,
-    minHeight: 44,
-  },
-  addClientButtonText: {
-    fontSize: theme.font.body,
-    fontWeight: '600',
-    color: theme.color.brand,
-    fontFamily: theme.typography.fontFamily.primary,
-    marginLeft: theme.space.x4,
+    marginBottom: theme.space.x16,
   },
 
   // Outstanding Card
@@ -537,6 +685,13 @@ const styles = StyleSheet.create({
   },
   duePillText: {
     color: theme.color.pillDueText,
+  },
+
+  // Loading State
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   // Zero State
@@ -646,6 +801,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.color.border,
   },
+  clientCardActive: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#10B981', // Green accent for active session
+  },
   clientCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -681,18 +840,14 @@ const styles = StyleSheet.create({
   clientStatus: {
     alignItems: 'flex-end',
   },
-  unpaidHoursCard: {
-    backgroundColor: theme.color.pillDueBg,
-    borderWidth: 1,
-    borderColor: theme.color.pillDueBg,
-    borderRadius: theme.space.x8,
-    padding: theme.space.x12,
+  dueSection: {
+    alignItems: 'flex-end',
   },
-  unpaidHoursText: {
+  requestedText: {
     fontSize: theme.font.small,
-    fontWeight: '600',
-    color: theme.color.pillDueText,
+    color: '#9CA3AF',
     fontFamily: theme.typography.fontFamily.primary,
+    marginTop: 4,
   },
 
   // Modal Styles
@@ -784,5 +939,67 @@ const styles = StyleSheet.create({
   modalFooter: {
     paddingTop: theme.space.x24,
     paddingBottom: theme.space.x16,
+  },
+
+  // Gear Icon Button
+  headerIconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Section Divider
+  sectionDivider: {
+    paddingVertical: theme.space.x12,
+  },
+  dividerLine: {
+    height: 1,
+    backgroundColor: theme.color.border,
+  },
+
+  // Floating Action Button
+  fab: {
+    position: 'absolute',
+    right: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: theme.color.brand,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+
+  // Swipe Actions
+  swipeAction: {
+    width: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: theme.space.x12,
+    borderRadius: theme.radius.card,
+  },
+  swipeActionStart: {
+    backgroundColor: '#10B981', // Green
+  },
+  swipeActionStop: {
+    backgroundColor: '#EF4444', // Red
+  },
+  swipeActionText: {
+    color: '#FFFFFF',
+    fontSize: theme.font.body,
+    fontWeight: '600',
+    fontFamily: theme.typography.fontFamily.primary,
   },
 });

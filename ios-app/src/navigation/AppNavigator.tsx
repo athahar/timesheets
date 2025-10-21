@@ -13,13 +13,11 @@ import { RegisterScreen } from '../screens/RegisterScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
 import { InviteClaimScreen } from '../screens/InviteClaimScreen';
 
-// App Screens - Critical path (preloaded)
-import { SimpleClientListScreen } from '../screens/SimpleClientListScreen';
+// App Screens
+import { AccountSelectionScreen } from '../screens/AccountSelectionScreen';
+import { ClientListScreen } from '../screens/ClientListScreen';
 import { ClientHistoryScreen } from '../screens/ClientHistoryScreen';
 import { StyledSessionTrackingScreen } from '../screens/StyledSessionTrackingScreen';
-
-// App Screens - Non-critical (temporarily restored - lazy loading needs proper Suspense setup)
-import { AccountSelectionScreen } from '../screens/AccountSelectionScreen';
 import { ClientProfileScreen } from '../screens/ClientProfileScreen';
 import { ServiceProviderListScreen } from '../screens/ServiceProviderListScreen';
 import { ServiceProviderSummaryScreen } from '../screens/ServiceProviderSummaryScreen';
@@ -174,7 +172,7 @@ const AppNavigator = () => {
         <AppStack.Screen name="AccountSelection">
           {(props) => <SmartAccountSelection {...props} userProfile={userProfile} />}
         </AppStack.Screen>
-        <AppStack.Screen name="ClientList" component={SimpleClientListScreen} />
+        <AppStack.Screen name="ClientList" component={ClientListScreen} />
         <AppStack.Screen name="ClientHistory" component={ClientHistoryScreen} />
         <AppStack.Screen name="SessionTracking" component={StyledSessionTrackingScreen} />
         <AppStack.Screen name="ClientProfile" component={ClientProfileScreen} />

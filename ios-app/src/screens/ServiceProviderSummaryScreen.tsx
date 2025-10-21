@@ -327,7 +327,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
             <Text style={styles.summaryLabel}>{simpleT('providerSummary.balanceDue')}</Text>
             <Text style={[styles.summaryAmount, unpaidBalance === 0 && styles.summaryAmountPaid]}>{formatCurrencyLocal(unpaidBalance)}</Text>
             {unpaidBalance > 0 && (
-              <Text style={styles.summaryHours}> [{formatHours(unpaidHours)}]</Text>
+              <Text style={styles.summaryHours}> [{formatHours(unpaidHours)} person-hours]</Text>
             )}
           </View>
 
@@ -393,7 +393,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                   {dayItems.map((item, index) => (
                     <View key={item.id} style={styles.timelineItem}>
                       {item.type === 'session' ? (
-                        // Work Session Line - Simplified
+                        // Work Session Line with crew context
                         <View style={styles.timelineLine}>
                           <Text style={styles.timelineIcon}>🕒</Text>
                           <View style={styles.timelineContent}>
@@ -401,20 +401,24 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                               {simpleT('providerSummary.workSession')}
                             </Text>
                             <Text style={styles.timelineSubText}>
-                              {item.data.endTime
-                                ? (() => {
-                                    const durationMs = new Date(item.data.endTime).getTime() - new Date(item.data.startTime).getTime();
-                                    const hours = Math.floor(durationMs / (1000 * 60 * 60));
-                                    const minutes = Math.round((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-                                    const startTime = new Date(item.data.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                                    const endTime = new Date(item.data.endTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                                    return `${hours}hr${minutes > 0 ? ` ${minutes}min` : ''} • ${startTime}-${endTime}`;
-                                  })()
-                                : (() => {
-                                    const startTime = new Date(item.data.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                                    return simpleT('providerSummary.activeSession', { time: startTime });
-                                  })()
-                              }
+                              {(() => {
+                                const session = item.data as Session;
+                                const crewSize = session.crewSize || 1;
+                                const crewText = crewSize === 1 ? '1 person' : `${crewSize} people`;
+                                const start = new Date(session.startTime);
+                                const startLabel = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                                if (session.endTime) {
+                                  const end = new Date(session.endTime);
+                                  const endLabel = end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                                  const baseDuration =
+                                    session.duration ??
+                                    ((end.getTime() - start.getTime()) / (1000 * 60 * 60));
+                                  const totalPersonHours =
+                                    session.personHours ?? baseDuration * crewSize;
+                                  return `${crewText} × ${formatHours(baseDuration)} = ${formatHours(totalPersonHours)} • ${startLabel}-${endLabel}`;
+                                }
+                                return `${crewText} • active since ${startLabel}`;
+                              })()}
                             </Text>
                           </View>
                           <View style={styles.timelineRight}>
@@ -438,7 +442,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                               {simpleT('providerSummary.paymentSent')}
                             </Text>
                             <Text style={styles.timelineSubText}>
-                              {formatCurrencyLocal(item.data.data.amount || 0)} • {item.data.data.sessionCount} {item.data.data.sessionCount > 1 ? simpleT('providerSummary.sessions') : simpleT('providerSummary.session')}
+                              {formatCurrencyLocal(item.data.data.amount || 0)} • {item.data.data.sessionCount} {item.data.data.sessionCount > 1 ? simpleT('providerSummary.sessions') : simpleT('providerSummary.session')} • {formatHours(item.data.data.personHours || 0)} total
                             </Text>
                           </View>
                           <View style={styles.timelineRight}>
@@ -456,7 +460,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                               {simpleT('providerSummary.paymentRequested')}
                             </Text>
                             <Text style={styles.timelineSubText}>
-                              {formatCurrencyLocal(item.data.data.amount || 0)} • {item.data.data.sessionCount} {item.data.data.sessionCount > 1 ? simpleT('providerSummary.sessions') : simpleT('providerSummary.session')}
+                              {formatCurrencyLocal(item.data.data.amount || 0)} • {item.data.data.sessionCount} {item.data.data.sessionCount > 1 ? simpleT('providerSummary.sessions') : simpleT('providerSummary.session')} • {formatHours(item.data.data.personHours || 0)} total
                             </Text>
                           </View>
                           <View style={styles.timelineRight}>
