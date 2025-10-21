@@ -4,9 +4,19 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
+    "start:dev": "cp .env.development .env && expo start",
+    "start:staging": "cp .env.staging .env && expo start",
+    "start:prod": "cp .env.production .env && expo start",
+    "web": "expo start --web",
+    "web:dev": "cp .env.development .env && expo start --web",
+    "web:staging": "cp .env.staging .env && expo start --web",
+    "web:prod": "cp .env.production .env && expo start --web",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "env:dev": "cp .env.development .env && echo '✅ Switched to DEVELOPMENT environment'",
+    "env:staging": "cp .env.staging .env && echo '✅ Switched to STAGING environment'",
+    "env:prod": "cp .env.production .env && echo '✅ Switched to PRODUCTION environment'",
+    "env:check": "echo '📋 Current environment:' && grep EXPO_PUBLIC_ENV .env && grep EXPO_PUBLIC_SUPABASE_URL .env"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
