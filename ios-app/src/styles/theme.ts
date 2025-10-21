@@ -1,3 +1,15 @@
+/**
+ * @deprecated Use themeV2 (TP) from './themeV2' instead
+ *
+ * This legacy theme is kept for v1 component compatibility during migration.
+ *
+ * Migration guide:
+ * - Old: import { theme } from '../styles/theme'
+ * - New: import { TP } from '../styles/themeV2'
+ *
+ * Will be removed in next major version after all components are migrated.
+ */
+
 export const palette = {
   green:'#22C55E', teal:'#2DD4BF', amber:'#F59E0B', red:'#EF4444', purple:'#6D28D9',
   ink:'#111827', gray600:'#4B5563', gray500:'#6B7280', gray400:'#9AA1A9',
@@ -6,6 +18,9 @@ export const palette = {
   white:'#FFFFFF', black:'#000000',
 };
 
+/**
+ * @deprecated Use TP from './themeV2' instead
+ */
 export const theme = {
   color: {
     // Core surfaces
