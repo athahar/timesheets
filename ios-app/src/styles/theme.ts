@@ -34,18 +34,18 @@ export const theme = {
     textSecondary: '#6B7280',
     textTertiary: '#9AA1A9',
 
-    // Brand colors
-    accent: palette.green,
+    // Brand colors (keep original iOS blue for auth screens)
+    accent: '#007AFF', // Original iOS blue
     accentTeal: palette.teal,
     warn: palette.amber,
     danger: palette.red,
     requested: palette.purple,
-    brand: '#22C55E',
-    brandPressed: '#16A34A',
-    focusRing: 'rgba(34,197,94,0.25)',
+    brand: '#007AFF', // Original iOS blue
+    brandPressed: '#0051D5',
+    focusRing: 'rgba(0,122,255,0.25)',
 
     // Professional button system
-    btnPrimaryBg: '#22C55E',
+    btnPrimaryBg: '#007AFF',
     btnPrimaryText: '#FFFFFF',
     btnSecondaryBg: '#FFFFFF',
     btnSecondaryText: '#111827',
@@ -53,12 +53,12 @@ export const theme = {
     btnLinkText: '#10B981',
 
     // Money and warnings
-    money: '#22C55E',
+    money: '#10B981', // Keep green for money (universal color for cash)
     warnBg: '#FFFBEB',
     warnText: '#B45309',
 
-    // Button system - complete variants
-    btnPrimaryBg: '#22C55E',
+    // Button system - complete variants (original iOS blue)
+    btnPrimaryBg: '#007AFF',
     btnPrimaryText: '#FFFFFF',
     btnDangerBg: '#EF4444',
     btnDangerText: '#FFFFFF',
@@ -67,7 +67,7 @@ export const theme = {
     btnSecondaryBorder: '#E5E7EB',
 
     // Interactive states
-    btnPrimaryBgPressed: '#16A34A',
+    btnPrimaryBgPressed: '#0051D5',
     btnDangerBgPressed: '#DC2626',
     btnSecondaryBorderPressed: '#D1D5DB',
 
