@@ -7,17 +7,19 @@
 
 ```bash
 # Development/Staging Database (qpoqeqasefatyrjeronp)
-npm run start:dev        # Start Expo with dev/staging DB
-npm run web:dev          # Start web with dev/staging DB
+npm run start:dev:clear        # Start Expo with dev/staging DB (recommended)
+npm run web:dev:clear          # Start web with dev/staging DB (recommended)
 
 # Staging Database (same as dev)
-npm run start:staging    # Start Expo with staging DB
-npm run web:staging      # Start web with staging DB
+npm run start:staging:clear    # Start Expo with staging DB (recommended)
+npm run web:staging:clear      # Start web with staging DB (recommended)
 
 # Production Database (ddxggihlncanqdypzsnn)
-npm run start:prod       # Start Expo with production DB ⚠️
-npm run web:prod         # Start web with production DB ⚠️
+npm run start:prod:clear       # Start Expo with production DB ⚠️ (recommended)
+npm run web:prod:clear         # Start web with production DB ⚠️ (recommended)
 ```
+
+**💡 Pro Tip:** Always use the `:clear` versions when switching environments to avoid cache issues!
 
 ---
 
@@ -29,6 +31,11 @@ npm run start:dev        # Development (staging DB)
 npm run start:staging    # Staging
 npm run start:prod       # Production ⚠️ Be careful!
 
+# Clear cache and start (recommended when switching environments)
+npm run start:dev:clear       # Development with cache clear
+npm run start:staging:clear   # Staging with cache clear
+npm run start:prod:clear      # Production with cache clear ⚠️
+
 # Specify port if 8081 is busy
 PORT=8084 npm run start:dev
 PORT=8084 npm run web:prod
@@ -39,6 +46,11 @@ PORT=8084 npm run web:prod
 npm run web:dev          # Web development mode
 npm run web:staging      # Web staging mode
 npm run web:prod         # Web production mode ⚠️
+
+# Clear cache and start web
+npm run web:dev:clear         # Web development with cache clear
+npm run web:staging:clear     # Web staging with cache clear
+npm run web:prod:clear        # Web production with cache clear ⚠️
 ```
 
 ### **Switch Environment (without starting server):**
@@ -220,7 +232,18 @@ npm run start:dev
 1. Stop the server (Ctrl+C)
 2. Check: `npm run env:check`
 3. Switch: `npm run env:dev`
-4. Restart: `npm run start:dev`
+4. Restart with cache clear: `npm run start:dev:clear`
+
+**Why this happens:** Metro bundler caches environment variables. Always use `:clear` scripts when switching environments.
+
+### **Issue: Cache showing wrong environment**
+**Problem:** Used `npx expo start --clear` but it loaded wrong environment
+
+**Solution:**
+❌ **DON'T:** `npx expo start --clear` (bypasses environment switching)
+✅ **DO:** `npm run start:prod:clear` (copies .env AND clears cache)
+
+**Explanation:** The babel plugin loads `.env.development` by default. You MUST use npm scripts to copy the correct .env file first.
 
 ### **Issue: Port already in use**
 **Problem:** `Port 8081 is running...`
