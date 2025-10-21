@@ -2,6 +2,27 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🚨 CRITICAL TODO: Schema Drift Migration
+
+**IMPORTANT**: Staging database has **13KB of manual schema changes** not captured in migration files!
+
+📋 **Action Required**: Review and apply `spec/SCHEMA_DRIFT_MIGRATION.md`
+📁 **Migration File**: `supabase/migrations/20251021064724_capture_staging_manual_changes.sql` (filtered to TrackPay tables only)
+⏰ **Priority**: High - Must complete before next production deployment
+⚠️ **Risk**: Medium - Contains DROP statements and RLS changes
+
+**Status**:
+✅ Email nullable fix applied to production (client creation now works)
+⚠️ Remaining 13KB of drift needs review and incremental application
+
+**Next Steps**:
+1. Read `spec/SCHEMA_DRIFT_MIGRATION.md` for full analysis
+2. Answer questions about why manual changes were made
+3. Create incremental migrations (don't apply the full 13KB at once)
+4. Test thoroughly before production deployment
+
+---
+
 ## Project Overview
 
 **TrackPay** (formerly "timesheets-app") is a two-sided time tracking and payment request app built with Expo (React Native). It features service provider and client views with real-time activity feeds, bilingual support (English/Spanish), and a hybrid storage architecture.
