@@ -13,6 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 2. ✅ `20251021070000` - Removed redundant columns from trackpay_invites
 3. ✅ `20251021071000` - Restructured trackpay_activities (JSONB format)
 4. ✅ `20251021071500` - Restructured trackpay_payments (new column names)
+5. ✅ `20251021072000` - Disabled RLS on trackpay_activities (fix for missing policy drop)
 
 **Result**:
 - ✅ Client creation works (with/without email)
@@ -39,6 +40,36 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Current state is production-ready ✅
 - Apply remaining drift only if needed for specific features
 - All blocking schema issues are resolved
+
+### 📚 Lessons Learned: Migration Best Practices
+
+**When creating focused migrations from drift files:**
+
+1. ✅ **Include ALL related changes in one migration**:
+   - Column changes (ADD, DROP, ALTER)
+   - Constraint changes (FK, CHECK, UNIQUE)
+   - **RLS policy changes (CREATE, DROP)**
+   - **RLS enable/disable statements**
+   - Index changes
+   - Trigger changes
+
+2. ✅ **Checklist before applying table restructure**:
+   - [ ] Column/type changes
+   - [ ] FK constraints (add/drop/modify)
+   - [ ] RLS policies (what exists in prod vs staging?)
+   - [ ] RLS enabled status (enabled/disabled?)
+   - [ ] Indexes on affected columns
+   - [ ] Triggers on table
+
+3. ❌ **Never rewrite applied migrations** - Once in production, migrations are history
+
+**Example of what went wrong:**
+- Migration `20251021071000` restructured trackpay_activities columns ✅
+- But didn't drop RLS policy `tp_activities_select_party` ❌
+- But didn't disable RLS ❌
+- Required follow-up migration `20251021072000` to fix
+
+**Correct approach:** One complete migration with all related changes.
 
 ---
 
