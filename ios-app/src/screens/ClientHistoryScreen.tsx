@@ -83,8 +83,9 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
   const { toast, showSuccess, showError, hideToast } = useToast();
   const t = simpleT;
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
+      setLoading(true);
       const clientData = await getClientById(clientId);
       if (!clientData) {
         Alert.alert(t('clientHistory.errorTitle'), t('clientHistory.clientNotFound'));
@@ -123,15 +124,8 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       setMoneyState(clientMoneyState);
 
       if (__DEV__) {
-        if (__DEV__) {
-          if (__DEV__) console.debug('[moneyState]', clientId, clientMoneyState);
-          if (__DEV__) console.debug('[pendingRequest]', pendingRequest);
-          if (__DEV__) console.debug('[Request Button Logic] totalUnpaidBalance:', totalUnpaidBalance, 'pendingRequest:', !!pendingRequest, 'moneyState.lastPendingRequest:', !!clientMoneyState?.lastPendingRequest);
-          // Debug SQL verification
-          if (__DEV__) console.debug('[SQL Debug] Use these queries to verify:');
-          if (__DEV__) console.debug(`SELECT * FROM trackpay_requests WHERE client_id = '${clientId}' AND status='pending' ORDER BY created_at DESC LIMIT 1;`);
-          if (__DEV__) console.debug(`SELECT status, COUNT(*), SUM(amount) AS total FROM trackpay_sessions WHERE client_id='${clientId}' AND status IN ('unpaid','requested') GROUP BY status;`);
-        }
+        console.debug('[moneyState]', clientId, clientMoneyState);
+        console.debug('[pendingRequest]', pendingPaymentRequest);
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -139,12 +133,12 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [clientId, navigation, t]); // Add all dependencies
 
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [clientId])
+    }, [loadData]) // Now properly depends on loadData
   );
 
   // Session timer effect - update less frequently to reduce re-renders
@@ -470,11 +464,8 @@ const handleCrewAdjust = async (delta: number) => {
             const hasPendingRequest = pendingRequest || moneyState?.lastPendingRequest;
             const unpaidUnrequestedCents = Math.round((totalUnpaidBalance - requestedBalance) * 100);
 
-            if (__DEV__) {
-              if (__DEV__) {
-                if (__DEV__) console.debug('[Button Logic] totalUnpaidBalance:', totalUnpaidBalance, 'hasPendingRequest:', hasPendingRequest, 'unpaidUnrequestedCents:', unpaidUnrequestedCents);
-              }
-            }
+            // Debug logging removed - was causing render loop spam
+            // if (__DEV__) console.debug('[Button Logic] totalUnpaidBalance:', totalUnpaidBalance, 'hasPendingRequest:', hasPendingRequest, 'unpaidUnrequestedCents:', unpaidUnrequestedCents);
 
             // Case 1: Show Request button (enabled) - now on separate line
             if (!hasPendingRequest && unpaidUnrequestedCents > 0) {
