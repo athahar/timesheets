@@ -1,46 +1,43 @@
-// TrackPay v2 Color Palette
+// TrackPay v2 Color Palette - Minimal Black/White Theme
 // Single source of truth for all colors
-// ChatGPT-refined flat structure for simplicity
+// Design Philosophy: Minimal, professional, Apple Wallet-inspired aesthetic.
+// Primary: Black/white/gray neutrals
+// Accents: Avatar colors (teal, purple, navy)
+// Semantic: Status colors (green=success, amber=warning, etc.)
 
 export const palette = {
-  // Brand & states
+  // Core neutrals (PRIMARY)
+  black:   '#111827',  // Primary buttons, headings
+  white:   '#FFFFFF',
+  gray50:  '#F7F8FA',  // App background
+  gray100: '#E5E7EB',  // Borders
+  gray500: '#6B7280',  // Secondary text
+  gray400: '#9AA1A9',  // Tertiary text (placeholders)
+
+  // Danger (Stop)
+  red500:  '#C23548',  // Deep red/maroon from Figma
+  red600:  '#A82337',  // Pressed
+
+  // Avatar accents (used for initials backgrounds, non-semantic)
+  teal500:   '#40B4A8',
+  purple500: '#8B5CF6',
+  navy500:   '#3B5CCC',
+
+  // Semantic only (NOT branding) – pills, success messages
   green50:  '#ECFDF5',
   green100: '#D1FAE5',
-  green500: '#22C55E',  // Primary brand
-  green600: '#16A34A',  // Pressed state
-  green700: '#047857',  // Pill text
+  green500: '#22C55E',
+  green600: '#16A34A',
+  green700: '#047857',
 
   amber50:  '#FFFBEB',
-  amber500: '#F59E0B',
-  amber700: '#B45309',  // Warning text
+  amber700: '#B45309',
 
   purple50: '#F3E8FF',
-  purple600:'#6D28D9',  // Requested
+  purple600:'#6D28D9',
 
-  teal50:  '#E6FFFA',
-  teal500: '#2DD4BF',  // Active
-  teal700: '#0F766E',  // Active text
-
-  red50:   '#FEF2F2',
-  red500:  '#EF4444',  // Danger
-  red600:  '#DC2626',  // Danger pressed
-
-  // Neutrals (ink system)
-  ink:     '#111827',
-  gray600: '#4B5563',
-  gray500: '#6B7280',  // Secondary text
-  gray400: '#9AA1A9',  // Tertiary text
-  gray300: '#D1D5DB',
-  gray200: '#E6E8EB',  // Border/divider
-  gray100: '#F3F4F6',
-  gray50:  '#F8F9FB',
-
-  // Surfaces
-  white:   '#FFFFFF',
-  black:   '#000000',
-
-  // App surface
-  appBg:   '#F7F8FA',
+  teal50:   '#E6FFFA',
+  teal700:  '#0F766E',
 } as const;
 
 export type Palette = typeof palette;

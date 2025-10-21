@@ -40,57 +40,79 @@ Based on user feedback and Figma designs:
 
 ## 🎯 Design System - TrackPay v2
 
+**Design Philosophy**: Minimal, professional, Apple Wallet-inspired aesthetic. Black/white/gray neutral palette with colored accents only for avatars and semantic states.
+
 ### Color Palette
 
-#### Primary Brand Color
+#### Core Neutrals (PRIMARY)
+
+These are the primary brand colors - black and white create the app's professional foundation:
+
 ```
-Green-500: #22C55E  (Primary brand, CTAs, money, success)
-Green-600: #16A34A  (Pressed state)
+Black:      #111827  (Primary buttons, headings, icons)
+Ink:        #111827  (Same as black - primary text)
+White:      #FFFFFF  (Card backgrounds, button text)
+Gray-50:    #F7F8FA  (App background)
+Gray-100:   #E5E7EB  (Borders, dividers)
+Gray-500:   #6B7280  (Secondary text, metadata)
+Gray-400:   #9AA1A9  (Tertiary text, placeholders)
+```
+
+**Usage**:
+- Primary CTA buttons: Black background, white text
+- Secondary buttons: White background, black border, black text
+- All body text: Black (#111827)
+- Card containers: White with gray border
+
+#### Danger Color (Stop Button)
+
+```
+Red-500: #C23548  (Deep maroon for "Stop Session" button)
+Red-600: #A61D38  (Pressed state)
+```
+
+**Usage**: Only for destructive/stop actions (e.g., "Stop Session" button)
+
+#### Avatar Accent Colors
+
+Colorful accents used ONLY for avatar backgrounds to add visual interest:
+
+```
+Teal-500:    #40B4A8  (Avatar accent 1)
+Purple-500:  #8B5CF6  (Avatar accent 2)
+Navy-500:    #3B5998  (Avatar accent 3)
+```
+
+**Usage**: Randomized avatar background colors based on name hash
+
+#### Semantic Status Colors (NOT Branding)
+
+These colors convey meaning for status pills/badges only - NOT used for primary branding:
+
+**Success/Paid**:
+```
+Green-500: #22C55E  (Success text, "Paid" pill text)
 Green-700: #047857  (Pill text for "Paid")
-Green-100: #D1FAE5  (Light tint)
 Green-50:  #ECFDF5  (Pill background for "Paid")
 ```
 
-#### Supporting Colors
-
-**Warning (Due/Unpaid)**:
+**Warning/Due**:
 ```
 Amber-500: #F59E0B  (Warning color)
 Amber-700: #B45309  (Warning text)
-Amber-50:  #FFFBEB  (Warning background)
+Amber-50:  #FFFBEB  (Warning background for "Due")
 ```
 
-**Requested (Payment Pending)**:
+**Requested**:
 ```
-Purple-600: #6D28D9  (Requested text)
-Purple-50:  #F3E8FF  (Requested background)
-```
-
-**Active (In-Progress)**:
-```
-Teal-500: #2DD4BF  (Active color)
-Teal-700: #0F766E  (Active text)
-Teal-50:  #E6FFFA  (Active background)
+Purple-600: #6D28D9  (Requested pill text)
+Purple-50:  #F3E8FF  (Requested pill background)
 ```
 
-**Danger (Destructive Actions)**:
+**Active Session**:
 ```
-Red-500: #EF4444  (Danger color)
-Red-600: #DC2626  (Danger pressed)
-Red-50:  #FEF2F2  (Error background)
-```
-
-#### Neutral System (Ink Palette)
-
-```
-Ink:        #111827  (Primary text, headings)
-Gray-500:   #6B7280  (Secondary text)
-Gray-400:   #9AA1A9  (Tertiary text, placeholders)
-Gray-200:   #E6E8EB  (Borders, dividers)
-Gray-100:   #F3F4F6  (Disabled backgrounds)
-
-White:      #FFFFFF  (Card backgrounds)
-App BG:     #F7F8FA  (Screen background)
+Teal-700: #0F766E  (Active pill text)
+Teal-50:  #E6FFFA  (Active pill background)
 ```
 
 ### Typography Scale

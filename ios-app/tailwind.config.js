@@ -5,15 +5,19 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // TrackPay v2 Color System
+        // TrackPay v2 Color System - Minimal Black/White Theme
         app: '#F7F8FA',
         ink: '#111827',
         gray: {
-          100:'#F3F4F6',
-          200:'#E6E8EB',
+          100:'#E5E7EB',
           400:'#9AA1A9',
-          500:'#6B7280',
+          500:'#6B7280'
         },
+        red: {
+          500:'#C23548',  // Deep maroon from Figma
+          600:'#A82337'   // Pressed state
+        },
+        // Semantic colors only (NOT branding)
         green: {
           50:'#ECFDF5',
           100:'#D1FAE5',
@@ -23,7 +27,6 @@ module.exports = {
         },
         amber: {
           50:'#FFFBEB',
-          500:'#F59E0B',
           700:'#B45309'
         },
         purple: {
@@ -32,13 +35,7 @@ module.exports = {
         },
         teal: {
           50:'#E6FFFA',
-          500:'#2DD4BF',
           700:'#0F766E'
-        },
-        red: {
-          50:'#FEF2F2',
-          500:'#EF4444',
-          600:'#DC2626'
         },
       },
       borderRadius: {
