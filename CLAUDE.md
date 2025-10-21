@@ -8,6 +8,38 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **⚠️ IMPORTANT**: The actual app code lives in the `ios-app/` subdirectory. Always run npm commands from `ios-app/` directory, not the repository root.
 
+## 🌳 Git Branching Strategy
+
+**CRITICAL:** Follow the branching strategy documented in [`docs/deploy/BRANCHING_STRATEGY.md`](docs/deploy/BRANCHING_STRATEGY.md)
+
+### Quick Reference:
+
+**Branch Structure:**
+- `main` → Production (protected)
+- `develop` → Staging/Integration
+- `feature/*` → Feature branches (delete after merge!)
+- `wip/*` → Work in progress
+
+**Workflow:**
+```bash
+# Always start from develop
+git checkout develop && git pull
+git checkout -b feature/my-feature
+
+# After merge to develop - DELETE immediately
+git branch -d feature/my-feature
+git push origin --delete feature/my-feature
+```
+
+**Rules:**
+- ✅ Always branch from `develop` (even if you think otherwise)
+- ✅ Delete feature branches immediately after merge
+- ✅ Test on `develop` before merging to `main`
+- ❌ Never commit directly to `main` or `develop`
+- ❌ Never keep merged feature branches
+
+**See full strategy:** [`docs/deploy/BRANCHING_STRATEGY.md`](docs/deploy/BRANCHING_STRATEGY.md)
+
 ## Development Commands
 
 All commands must be run from the `ios-app/` directory:
