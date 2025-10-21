@@ -85,14 +85,21 @@ npm run env:check        # Shows current database and environment
 ## ⚙️ How It Works
 
 When you run `npm run start:dev`, it:
-1. Copies `.env.development` → `.env`
-2. Starts Expo server
+1. Sets `NODE_ENV=development`
+2. Expo loads `.env.development` file
 3. App connects to **staging database**
 
 When you run `npm run start:prod`, it:
-1. Copies `.env.production` → `.env`
-2. Starts Expo server
+1. Sets `NODE_ENV=production`
+2. Expo loads `.env.production` file
 3. App connects to **production database** ⚠️
+
+**Expo's Environment File Priority:**
+Expo SDK 54 loads environment files in this order (highest priority first):
+1. `.env.{NODE_ENV}` (e.g., `.env.production` when NODE_ENV=production)
+2. `.env` (generic fallback, lowest priority)
+
+This is why we use `NODE_ENV` instead of copying files - it ensures Expo loads the correct environment file.
 
 ---
 
@@ -110,20 +117,23 @@ EXPO_PUBLIC_ENV=development
 EXPO_PUBLIC_SUPABASE_URL=https://qpoqeqasefatyrjeronp.supabase.co
 ```
 
-### **Method 2: Check .env file**
-```bash
-cat .env | grep EXPO_PUBLIC_SUPABASE_URL
+### **Method 2: Check Expo startup logs**
+When you start Expo, look for this line in the output:
+```
+env: load .env.production .env
 ```
 
 **Development/Staging:**
 ```
-EXPO_PUBLIC_SUPABASE_URL=https://qpoqeqasefatyrjeronp.supabase.co
+env: load .env.development .env
 ```
 
 **Production:**
 ```
-EXPO_PUBLIC_SUPABASE_URL=https://ddxggihlncanqdypzsnn.supabase.co
+env: load .env.production .env
 ```
+
+This shows which environment file Expo is loading (the first one listed has priority).
 
 ### **Method 3: In the app**
 Look at the Supabase client initialization logs in the browser console:
