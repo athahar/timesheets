@@ -12,11 +12,38 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **CRITICAL:** Follow the branching strategy documented in [`docs/deploy/BRANCHING_STRATEGY.md`](docs/deploy/BRANCHING_STRATEGY.md)
 
+### ⛔ CRITICAL RULE - NEVER WORK DIRECTLY ON PROTECTED BRANCHES
+
+**BEFORE MAKING ANY CHANGES:**
+1. **Check current branch:** `git branch --show-current`
+2. **If on `main` or `develop`:** STOP IMMEDIATELY and create a feature branch
+3. **NEVER EVER commit directly to `main` or `develop`**
+
+When user asks to make changes:
+```bash
+# ❌ WRONG - Never do this
+git checkout main
+# make changes...
+git commit -m "changes"
+
+# ✅ CORRECT - Always create feature branch first
+git checkout develop
+git pull origin develop
+git checkout -b feature/descriptive-name
+# make changes...
+git commit -m "changes"
+```
+
+**If user is currently on main/develop:**
+- **STOP** and remind them to create a feature branch
+- **DO NOT** make any code changes until they switch to a feature branch
+- Guide them through creating the branch first
+
 ### Quick Reference:
 
 **Branch Structure:**
-- `main` → Production (protected)
-- `develop` → Staging/Integration
+- `main` → Production (protected - NO DIRECT COMMITS)
+- `develop` → Staging/Integration (protected - NO DIRECT COMMITS)
 - `feature/*` → Feature branches (delete after merge!)
 - `wip/*` → Work in progress
 
@@ -25,6 +52,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Always start from develop
 git checkout develop && git pull
 git checkout -b feature/my-feature
+
+# Make changes, test, commit
+git add .
+git commit -m "feat: descriptive message"
+
+# Push and create PR
+git push origin feature/my-feature
 
 # After merge to develop - DELETE immediately
 git branch -d feature/my-feature
@@ -35,8 +69,9 @@ git push origin --delete feature/my-feature
 - ✅ Always branch from `develop` (even if you think otherwise)
 - ✅ Delete feature branches immediately after merge
 - ✅ Test on `develop` before merging to `main`
-- ❌ Never commit directly to `main` or `develop`
+- ❌ **NEVER EVER commit directly to `main` or `develop`**
 - ❌ Never keep merged feature branches
+- ❌ Never make code changes while on main/develop
 
 **See full strategy:** [`docs/deploy/BRANCHING_STRATEGY.md`](docs/deploy/BRANCHING_STRATEGY.md)
 
