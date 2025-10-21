@@ -374,6 +374,13 @@ const handleCrewAdjust = async (delta: number) => {
       // Create the payment request (this will mark sessions as 'requested')
       await requestPayment(clientId, unpaidSessions.map(s => s.id));
 
+      // Calculate total person-hours for the payment request
+      const totalPersonHours = unpaidSessions.reduce((sum, s) => {
+        const durationHours = s.durationMinutes ? s.durationMinutes / 60 : 0;
+        const crewSize = s.crewSize || 1;
+        return sum + (durationHours * crewSize);
+      }, 0);
+
       // Add consolidated activity for the batch
       await addActivity({
         type: 'payment_request_created',
@@ -381,6 +388,7 @@ const handleCrewAdjust = async (delta: number) => {
         data: {
           amount: unpaidAmount,
           sessionCount: unpaidSessions.length,
+          personHours: totalPersonHours,
           batchId,
           sessionIds: unpaidSessions.map(s => s.id)
         }
