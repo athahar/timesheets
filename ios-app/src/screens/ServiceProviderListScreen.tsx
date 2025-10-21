@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
-import { theme } from '../styles/theme';
+import { TP } from '../styles/themeV2';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import {
@@ -291,7 +291,7 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
   const renderProviderCard = ({ item }: { item: ServiceProvider }) => (
     <TouchableOpacity
       onPress={() => handleProviderPress(item)}
-      style={[styles.providerCard, theme.shadows.card]}
+      style={styles.providerCard}
       activeOpacity={0.8}
     >
       <View style={styles.providerHeader}>
@@ -370,7 +370,7 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
             accessibilityRole="button"
             accessibilityLabel="Settings"
           >
-            <Feather name="settings" size={20} color={theme.color.text} />
+            <Feather name="settings" size={20} color={TP.color.ink} />
           </TouchableOpacity>
           <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
             <Text style={styles.logoutText}>{t('providerList.logout')}</Text>
@@ -422,96 +422,91 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FB',
+    backgroundColor: TP.color.appBg,
   },
   userHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: TP.spacing.x16,
+    paddingTop: TP.spacing.x12,
+    paddingBottom: TP.spacing.x12,
+    backgroundColor: TP.color.cardBg,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: TP.color.border,
   },
   userName: {
     fontSize: 20,
-    fontWeight: '600',
-    color: '#111827',
-    fontFamily: 'System',
+    fontWeight: TP.weight.semibold,
+    color: TP.color.ink,
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: TP.spacing.x16,
   },
   settingsButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: TP.color.cardBg,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: TP.color.border,
   },
   logoutButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: TP.spacing.x8,
+    paddingHorizontal: TP.spacing.x12,
   },
   logoutText: {
-    fontSize: 16,
-    color: '#22C55E',
-    fontFamily: 'System',
+    fontSize: TP.font.body,
+    color: TP.color.ink,
   },
   header: {
-    paddingTop: 16,
-    paddingBottom: 12,
+    paddingTop: TP.spacing.x16,
+    paddingBottom: TP.spacing.x12,
   },
   title: {
     fontSize: 24,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 16,
-    fontFamily: 'System',
+    fontWeight: TP.weight.semibold,
+    color: TP.color.ink,
+    marginBottom: TP.spacing.x16,
   },
   outstandingCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: TP.color.cardBg,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    borderColor: TP.color.border,
+    borderRadius: TP.radius.card,
+    padding: TP.spacing.x16,
+    marginBottom: TP.spacing.x16,
   },
   outstandingLabel: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginBottom: 4,
-    fontFamily: 'System',
+    fontSize: TP.font.footnote,
+    color: TP.color.textSecondary,
+    marginBottom: TP.spacing.x4,
   },
   outstandingAmount: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: TP.weight.bold,
     color: '#EF4444',
-    fontFamily: 'System',
     fontVariant: ['tabular-nums'],
   },
   scrollContainer: {
     flex: 1,
   },
   listContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 32,
+    paddingHorizontal: TP.spacing.x16,
+    paddingBottom: TP.spacing.x32,
     flexGrow: 1,
   },
   providerCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: TP.color.cardBg,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    borderColor: TP.color.border,
+    borderRadius: TP.radius.card,
+    padding: TP.spacing.x16,
+    marginBottom: TP.spacing.x16,
   },
   providerHeader: {
     flexDirection: 'row',
@@ -523,90 +518,80 @@ const styles = StyleSheet.create({
   },
   providerName: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
-    fontFamily: 'System',
+    fontWeight: TP.weight.semibold,
+    color: TP.color.ink,
+    marginBottom: TP.spacing.x4,
   },
   providerSubtitle: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontFamily: 'System',
+    fontSize: TP.font.footnote,
+    color: TP.color.textSecondary,
   },
   balanceSection: {
     alignItems: 'flex-end',
     flex: 1,
   },
   balanceDue: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.semibold,
     color: '#EF4444',
-    fontFamily: 'System',
     fontVariant: ['tabular-nums'],
-    marginBottom: 4,
+    marginBottom: TP.spacing.x4,
   },
   unpaidHoursInline: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontFamily: 'System',
+    fontSize: TP.font.footnote,
+    color: TP.color.textSecondary,
   },
   requestedHoursInline: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontFamily: 'System',
+    fontSize: TP.font.footnote,
+    color: TP.color.textSecondary,
   },
   paidUp: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.medium,
     color: '#22C55E',
-    fontFamily: 'System',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 80,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: TP.color.cardBg,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    margin: 16,
+    borderColor: TP.color.border,
+    borderRadius: TP.radius.card,
+    margin: TP.spacing.x16,
   },
   emptyTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#6B7280',
-    marginBottom: 8,
-    fontFamily: 'System',
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.medium,
+    color: TP.color.textSecondary,
+    marginBottom: TP.spacing.x8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: TP.color.textSecondary,
     textAlign: 'center',
-    fontFamily: 'System',
   },
   requestBadge: {
     backgroundColor: '#FEF3C7',
     borderWidth: 1,
     borderColor: '#F59E0B',
-    borderRadius: 16,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginBottom: 4,
+    borderRadius: TP.spacing.x16,
+    paddingHorizontal: TP.spacing.x8,
+    paddingVertical: TP.spacing.x4,
+    marginBottom: TP.spacing.x4,
     alignSelf: 'flex-end',
   },
   requestBadgeText: {
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: TP.weight.medium,
     color: '#D97706',
-    fontFamily: 'System',
   },
   balanceRequested: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.semibold,
     color: '#F59E0B',
-    fontFamily: 'System',
     fontVariant: ['tabular-nums'],
-    marginBottom: 4,
+    marginBottom: TP.spacing.x4,
   },
 });

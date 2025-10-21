@@ -74,8 +74,8 @@ export const Toast: React.FC<ToastProps> = ({
     switch (type) {
       case 'success':
         return {
-          backgroundColor: theme.color.accent,
-          textColor: theme.color.white,
+          backgroundColor: '#D4EDDA', // Pastel green
+          textColor: '#000000', // Black text
           icon: '✅'
         };
       case 'error':
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   message: {
     flex: 1,
     fontSize: theme.font.body,
-    fontWeight: '500',
+    fontWeight: '600',
     fontFamily: theme.typography.fontFamily.primary,
     lineHeight: 20,
   },

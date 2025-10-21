@@ -1,0 +1,45 @@
+/* TrackPay v2 CSS Variables */
+/* For RN-web support and web-based workflows */
+
+:root {
+  /* Surfaces */
+  --tp-app: #F7F8FA;
+  --tp-card: #FFFFFF;
+  --tp-border: #E6E8EB;
+  --tp-divider: #E6E8EB;
+
+  /* Text */
+  --tp-ink: #111827;
+  --tp-gray-500: #6B7280;
+  --tp-gray-400: #9AA1A9;
+  --tp-gray-200: #E6E8EB;
+  --tp-gray-100: #F3F4F6;
+
+  /* Brand Colors */
+  --tp-green-50: #ECFDF5;
+  --tp-green-100: #D1FAE5;
+  --tp-green-500: #22C55E;
+  --tp-green-600: #16A34A;
+  --tp-green-700: #047857;
+
+  --tp-amber-50: #FFFBEB;
+  --tp-amber-500: #F59E0B;
+  --tp-amber-700: #B45309;
+
+  --tp-purple-50: #F3E8FF;
+  --tp-purple-600: #6D28D9;
+
+  --tp-teal-50: #E6FFFA;
+  --tp-teal-500: #2DD4BF;
+  --tp-teal-700: #0F766E;
+
+  --tp-red-50: #FEF2F2;
+  --tp-red-500: #EF4444;
+  --tp-red-600: #DC2626;
+
+  /* Border Radii */
+  --tp-radius-card: 16px;
+  --tp-radius-button: 12px;
+  --tp-radius-pill: 10px;
+  --tp-radius-input: 12px;
+}

@@ -5,50 +5,56 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Apple-style color palette
-        primary: '#007AFF',      // iOS blue
-        success: '#34C759',      // iOS green
-        warning: '#FF9500',      // iOS orange
-        danger: '#FF3B30',       // iOS red
+        // TrackPay v2 Color System - Minimal Black/White Theme
+        app: '#F7F8FA',
+        ink: '#111827',
+        gray: {
+          100:'#E5E7EB',
+          400:'#9AA1A9',
+          500:'#6B7280'
+        },
+        red: {
+          500:'#C23548',  // Deep maroon from Figma
+          600:'#A82337'   // Pressed state
+        },
+        // Semantic colors only (NOT branding)
+        green: {
+          50:'#ECFDF5',
+          100:'#D1FAE5',
+          500:'#22C55E',
+          600:'#16A34A',
+          700:'#047857'
+        },
+        amber: {
+          50:'#FFFBEB',
+          700:'#B45309'
+        },
         purple: {
-          50: '#F5F3FF',
-          100: '#EDE9FE',
-          200: '#DDD6FE',
-          300: '#C4B5FD',
-          400: '#A78BFA',
-          500: '#8B5CF6',
+          50:'#F3E8FF',
+          600:'#6D28D9'
         },
-        background: '#E6E1F5',   // Light purple background
-        card: '#FFFFFF',         // Pure white cards
-        text: {
-          primary: '#1D1D1F',    // Apple dark text
-          secondary: '#86868B',  // Apple gray text
+        teal: {
+          50:'#E6FFFA',
+          700:'#0F766E'
         },
-        // Legacy colors for compatibility
-        paid: '#34C759',
-        unpaid: '#FF9500',
-        total: '#007AFF',
+      },
+      borderRadius: {
+        card:'16px',
+        btn:'12px',
+        pill:'10px',
+        input:'12px'
+      },
+      boxShadow: {
+        card: '0 3px 6px rgba(0,0,0,0.05)',
+      },
+      fontSize: {
+        display:['34px',{lineHeight:'40px', fontWeight:'700'}],
+        title:  ['22px',{lineHeight:'28px', fontWeight:'700'}],
+        body:   ['16px',{lineHeight:'24px'}],
+        foot:   ['13px',{lineHeight:'18px'}],
       },
       fontFamily: {
         'apple': ['-apple-system', 'BlinkMacSystemFont', 'Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
-      },
-      fontSize: {
-        'display': ['34px', { lineHeight: '41px', fontWeight: '700' }],
-        'title': ['28px', { lineHeight: '34px', fontWeight: '700' }],
-        'headline': ['17px', { lineHeight: '22px', fontWeight: '600' }],
-        'body': ['17px', { lineHeight: '22px', fontWeight: '400' }],
-        'callout': ['16px', { lineHeight: '21px', fontWeight: '400' }],
-        'subhead': ['15px', { lineHeight: '20px', fontWeight: '400' }],
-        'footnote': ['13px', { lineHeight: '18px', fontWeight: '400' }],
-        'caption': ['12px', { lineHeight: '16px', fontWeight: '400' }],
-      },
-      boxShadow: {
-        'card': '0 2px 12px rgba(0, 0, 0, 0.08)',
-        'button': '0 1px 3px rgba(0, 0, 0, 0.12)',
-      },
-      borderRadius: {
-        'card': '16px',
-        'button': '12px',
       },
     },
   },

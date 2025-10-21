@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,9 @@ import {
   ScrollView,
   Platform,
   Keyboard,
-  Appearance,
-  ActionSheetIOS,
+  KeyboardAvoidingView,
   ActivityIndicator,
+  InputAccessoryView,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,7 +26,12 @@ import { Client } from '../types';
 import { Button } from '../components/Button';
 import { HowItWorksModal } from '../components/HowItWorksModal';
 import { useAuth } from '../contexts/AuthContext';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, formatHours } from '../utils/formatters';
+import { TPTotalOutstandingCard } from '../components/v2/TPTotalOutstandingCard';
+import { TPClientRow } from '../components/v2/TPClientRow';
+import { Toast } from '../components/Toast';
+import { useToast } from '../hooks/useToast';
+import { StickyActionBar, FOOTER_HEIGHT } from '../components/StickyActionBar';
 import {
   getClients,
   addClient,
@@ -37,6 +42,8 @@ import {
   getActiveSession,
 } from '../services/storageService';
 import { theme } from '../styles/theme';
+import { TP } from '../styles/themeV2';
+import { simpleT } from '../i18n/simple';
 
 interface ClientListScreenProps {
   navigation: any;
@@ -51,13 +58,15 @@ interface ClientWithSummary extends Client {
 }
 
 interface ClientSection {
-  title: string;
+  titleKey: 'workInProgress' | 'myClients'; // Store key instead of translated string
   data: ClientWithSummary[];
 }
 
 export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }) => {
   const [sections, setSections] = useState<ClientSection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
+  const lastFetchedRef = useRef<number>(0);
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
@@ -65,12 +74,18 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const [newClientRate, setNewClientRate] = useState('');
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [actioningClientId, setActioningClientId] = useState<string | null>(null);
+  const [, forceUpdate] = useState(0); // Force re-render for language changes
+  const [sessionTimers, setSessionTimers] = useState<Record<string, number>>({}); // clientId -> elapsed hours
+  const sectionListRef = useRef<SectionList>(null);
 
   const { userProfile, signOut } = useAuth();
   const insets = useSafeAreaInsets();
+  const { toast, showSuccess, showError, hideToast } = useToast();
 
-  const loadClients = async () => {
+  const loadClients = useCallback(async (silent = false) => {
     try {
+      if (!silent) setLoading(true);
+
       const clientsData = await getClients();
       const clientIds = clientsData.map(c => c.id);
 
@@ -93,27 +108,67 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
 
       const byName = (a: ClientWithSummary, b: ClientWithSummary) => a.name.localeCompare(b.name);
       const active = clientsWithSummary.filter(c => c.hasActiveSession).sort(byName);
-      const other = clientsWithSummary.filter(c => !c.hasActiveSession).sort(byName);
+      const inactive = clientsWithSummary.filter(c => !c.hasActiveSession).sort(byName);
 
       const newSections: ClientSection[] = [];
-      if (active.length > 0) newSections.push({ title: 'Active', data: active });
-      if (other.length > 0) newSections.push({ title: 'Other Clients', data: other });
+      if (active.length > 0) newSections.push({ titleKey: 'workInProgress', data: active });
+      if (inactive.length > 0) newSections.push({ titleKey: 'myClients', data: inactive });
 
       setSections(newSections);
+      lastFetchedRef.current = Date.now();
     } catch (error) {
-      console.error('Error loading clients:', error);
-      Alert.alert('Error', 'Failed to load clients');
+      if (__DEV__) console.error('Error loading clients:', error);
+      Alert.alert(simpleT('common.error'), simpleT('clientList.errorLoadClients'));
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+        setInitialLoad(false);
+      }
       setRefreshing(false);
     }
-  };
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      loadClients();
-    }, [])
+      // Force re-render for language changes (section headers will translate dynamically)
+      forceUpdate(prev => prev + 1);
+
+      if (initialLoad) {
+        // First load - show spinner
+        loadClients(false);
+      } else {
+        // Always reload silently on focus to catch session changes
+        loadClients(true);
+      }
+    }, [initialLoad, loadClients])
   );
+
+  // Timer for active sessions (updates every minute)
+  useEffect(() => {
+    const updateTimers = async () => {
+      const clientsData = await getClients();
+      const timers: Record<string, number> = {};
+
+      for (const client of clientsData) {
+        const activeSession = await getActiveSession(client.id);
+        if (activeSession) {
+          const elapsedSeconds = (Date.now() - activeSession.startTime.getTime()) / 1000;
+          const elapsedHours = elapsedSeconds / 3600;
+          timers[client.id] = elapsedHours;
+        }
+      }
+
+      setSessionTimers(timers);
+    };
+
+    // Update immediately
+    updateTimers();
+
+    // Then update every minute (60000ms)
+    const interval = setInterval(updateTimers, 60000);
+
+    return () => clearInterval(interval);
+  }, [sections]); // Re-run when sections change (session started/stopped)
 
   // Keyboard listeners
   useEffect(() => {
@@ -139,13 +194,13 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
 
   const handleAddClient = async () => {
     if (!newClientName.trim()) {
-      Alert.alert('Error', 'Please enter a client name');
+      Alert.alert(simpleT('common.error'), simpleT('clientList.errorClientName'));
       return;
     }
 
     const rate = parseFloat(newClientRate);
     if (!rate || rate <= 0) {
-      Alert.alert('Error', 'Please enter a valid hourly rate');
+      Alert.alert(simpleT('common.error'), simpleT('clientList.errorHourlyRate'));
       return;
     }
 
@@ -157,7 +212,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
       loadClients();
     } catch (error) {
       console.error('Error adding client:', error);
-      Alert.alert('Error', 'Failed to add client');
+      Alert.alert(simpleT('common.error'), simpleT('clientList.errorAddClient'));
     }
   };
 
@@ -165,48 +220,8 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     navigation.navigate('ClientHistory', { clientId: client.id });
   };
 
-  const handleSignOutConfirm = async () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await signOut();
-            } catch (error) {
-              console.error('Error signing out:', error);
-            }
-          },
-        },
-      ]
-    );
-  };
-
   const handleGearPress = useCallback(() => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Settings', 'Sign Out', 'Cancel'],
-          cancelButtonIndex: 2,
-          destructiveButtonIndex: 1,
-          userInterfaceStyle: Appearance.getColorScheme() || 'light',
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 0) navigation.navigate('Settings');
-          if (buttonIndex === 1) handleSignOutConfirm();
-        }
-      );
-    } else {
-      Alert.alert('Account', 'Manage your settings or sign out', [
-        { text: 'Settings', onPress: () => navigation.navigate('Settings') },
-        { text: 'Sign Out', style: 'destructive', onPress: handleSignOutConfirm },
-        { text: 'Cancel', style: 'cancel' },
-      ]);
-    }
+    navigation.navigate('Settings');
   }, [navigation]);
 
   const handleAddClientPress = useCallback(() => {
@@ -226,14 +241,29 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
       }
 
       await startSession(client.id, 1); // Start with 1-person crew
-      await loadClients(); // Reload to update UI
+
+      // Silent refetch - no full-page spinner
+      await loadClients(true);
+
+      // Show success toast
+      showSuccess(simpleT('common.sessionStarted'));
+
+      // Auto-scroll to Work In Progress section after reload completes
+      setTimeout(() => {
+        sectionListRef.current?.scrollToLocation({
+          sectionIndex: 0,
+          itemIndex: 0,
+          animated: true,
+          viewPosition: 0,
+        });
+      }, 100);
     } catch (error) {
-      console.error('Error starting session:', error);
-      Alert.alert('Error', 'Failed to start session');
+      if (__DEV__) console.error('Error starting session:', error);
+      showError(simpleT('clientList.errorStartSession'));
     } finally {
       setActioningClientId(null);
     }
-  }, [actioningClientId]);
+  }, [actioningClientId, loadClients, showSuccess, showError]);
 
   const handleStopSession = useCallback(async (client: ClientWithSummary) => {
     if (actioningClientId) return; // Prevent double-tap
@@ -246,19 +276,28 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
 
       const activeSession = await getActiveSession(client.id);
       if (!activeSession) {
-        Alert.alert('Error', 'No active session found');
+        showError(simpleT('clientList.errorNoActiveSession'));
         return;
       }
 
+      // Calculate duration
+      const durationSeconds = Math.floor((Date.now() - activeSession.startTime.getTime()) / 1000);
+      const durationHours = durationSeconds / 3600;
+
       await endSession(activeSession.id);
-      await loadClients(); // Reload to update UI
+
+      // Silent refetch - no full-page spinner
+      await loadClients(true);
+
+      // Show success toast with duration
+      showSuccess(`${simpleT('common.sessionEnded')} - ${formatHours(durationHours)}`);
     } catch (error) {
-      console.error('Error stopping session:', error);
-      Alert.alert('Error', 'Failed to stop session');
-    } finally {
+      if (__DEV__) console.error('Error stopping session:', error);
+      showError(simpleT('clientList.errorStopSession'));
+    } finally{
       setActioningClientId(null);
     }
-  }, [actioningClientId]);
+  }, [actioningClientId, loadClients, showSuccess, showError]);
 
   const renderLeftActions = useCallback((item: ClientWithSummary) => {
     const isLoading = actioningClientId === item.id;
@@ -284,64 +323,65 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     );
   }, [actioningClientId, handleStartSession, handleStopSession]);
 
-  const renderClientCard = useCallback(({ item }: { item: ClientWithSummary }) => (
-    <Swipeable
-      renderLeftActions={() => renderLeftActions(item)}
-      overshootLeft={false}
-    >
-      <TouchableOpacity
-        onPress={() => handleClientPress(item)}
-        style={[
-          styles.clientCard,
-          item.hasActiveSession && styles.clientCardActive
-        ]}
-        accessible
-        accessibilityLabel={item.hasActiveSession ? `${item.name}, active session` : item.name}
-      >
-        <View style={styles.clientCardHeader}>
-          <View style={styles.clientInfo}>
-            <Text style={styles.clientName}>{item.name}</Text>
-            <View style={styles.rateRow}>
-              <Text style={styles.rateAmount}>${item.hourlyRate}</Text>
-              <Text style={styles.rateLabel}>/hour</Text>
-            </View>
-          </View>
+  const renderClientCard = useCallback(({ item }: { item: ClientWithSummary }) => {
+    const clientForRow = {
+      id: item.id,
+      name: item.name,
+      imageUri: undefined, // TODO: Add image support when available
+      rate: item.hourlyRate,
+      balance: item.unpaidBalance,
+      hours: item.unpaidHours,
+      status: (item.unpaidBalance > 0
+        ? (item.paymentStatus === 'requested' ? 'requested' : 'due')
+        : 'paid') as 'paid' | 'due' | 'requested',
+    };
 
-          <View style={styles.clientStatus}>
-            {item.unpaidBalance > 0 ? (
-              <View style={styles.dueSection}>
-                <View style={[styles.statusPill, styles.duePill]}>
-                  <Text style={[styles.statusPillText, styles.duePillText]}>
-                    Due: {formatCurrency(item.unpaidBalance)}
-                  </Text>
-                </View>
-                {item.paymentStatus === 'requested' && (
-                  <Text style={styles.requestedText}>Requested</Text>
-                )}
-              </View>
-            ) : item.totalHours > 0 ? (
-              <View style={[styles.statusPill, styles.paidPill]}>
-                <Text style={[styles.statusPillText, styles.paidPillText]}>
-                  Paid up
-                </Text>
-              </View>
-            ) : null}
-          </View>
+    const isActive = item.hasActiveSession;
+    const isLoading = actioningClientId === item.id;
+    const elapsedHours = sessionTimers[item.id] || 0;
+
+    // Format button label with timer for Stop button
+    const buttonLabel = isActive
+      ? `${simpleT('common.stop')} - ${formatHours(elapsedHours)}`
+      : `▶ ${simpleT('common.start')}`;
+
+    return (
+      <View style={styles.clientCardWrapper}>
+        <View style={styles.clientCard}>
+          <TPClientRow
+            client={clientForRow}
+            onPress={() => handleClientPress(item)}
+            showDivider={false}
+            actionButton={{
+              label: buttonLabel,
+              variant: isActive ? 'stop' : 'start',
+              onPress: () => isActive ? handleStopSession(item) : handleStartSession(item),
+              loading: isLoading,
+            }}
+            showStatusPill={false}
+          />
         </View>
-      </TouchableOpacity>
-    </Swipeable>
-  ), [renderLeftActions]);
+      </View>
+    );
+  }, [actioningClientId, handleStartSession, handleStopSession, handleClientPress, sessionTimers]);
 
   const renderSectionHeader = useCallback(({ section }: { section: ClientSection }) => {
-    if (section.title === 'Other Clients') {
-      return (
-        <View style={styles.sectionDivider}>
-          <View style={styles.dividerLine} />
-        </View>
-      );
-    }
-    return null;
-  }, []);
+    const isMyClientsSection = section.titleKey === 'myClients';
+    const titleText = section.titleKey === 'workInProgress'
+      ? simpleT('clientList.workInProgress')
+      : simpleT('clientList.myClients');
+
+    return (
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{titleText}</Text>
+        {isMyClientsSection && (
+          <TouchableOpacity onPress={handleAddClientPress} style={styles.addClientButton}>
+            <Text style={styles.addClientButtonText}>{simpleT('clientList.addNewClient')}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }, [handleAddClientPress]);
 
   const allClients = useMemo(() => sections.flatMap(s => s.data), [sections]);
   const totalUnpaid = useMemo(() => allClients.reduce((sum, client) => sum + client.unpaidBalance, 0), [allClients]);
@@ -350,54 +390,33 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const showOutstanding = !isZeroState && (allClients.length > 0 || totalUnpaid > 0);
 
   const renderHeader = () => (
-    <View style={styles.header}>
-      {/* User Info Row with Gear Icon */}
-      <View style={styles.userInfoRow}>
-        <View style={styles.userInfo}>
-          <Text style={styles.welcomeText}>Welcome!</Text>
-          <Text style={styles.userName}>{userProfile?.name || userProfile?.email}</Text>
-        </View>
+    <>
+      {/* Top Navigation Bar with centered TrackPay */}
+      <View style={styles.topNav}>
+        <View style={styles.navSpacer} />
+        <Text style={styles.navTitle}>{simpleT('common.appName')}</Text>
         <TouchableOpacity
           onPress={handleGearPress}
           accessibilityRole="button"
           accessibilityLabel="Settings and account options"
           accessibilityHint="Opens menu to access settings or sign out"
-          style={styles.headerIconButton}
+          style={styles.navIconButton}
           hitSlop={{ top: 6, left: 6, right: 6, bottom: 6 }}
         >
-          <Feather name="settings" size={20} color={theme.color.text} />
+          <Feather name="settings" size={20} color={TP.color.ink} />
         </TouchableOpacity>
       </View>
 
-      {/* App Title */}
-      <Text style={styles.headerTitle}>TrackPay</Text>
-
       {showOutstanding && (
-        <View style={styles.outstandingCard}>
-          <View style={styles.outstandingContent}>
-            <Text style={styles.outstandingLabel}>Total Outstanding</Text>
-            <View style={styles.outstandingRow}>
-              <Text style={styles.outstandingAmount}>
-                {formatCurrency(totalUnpaid)}
-              </Text>
-              {totalUnpaid > 0 ? (
-                <View style={[styles.statusPill, styles.duePill]}>
-                  <Text style={[styles.statusPillText, styles.duePillText]}>
-                    Due {formatCurrency(totalUnpaid)}
-                  </Text>
-                </View>
-              ) : totalHoursAcrossClients > 0 ? (
-                <View style={[styles.statusPill, styles.paidPill]}>
-                  <Text style={[styles.statusPillText, styles.paidPillText]}>
-                    Paid up
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          </View>
+        <View style={styles.header}>
+          <TPTotalOutstandingCard
+            amount={totalUnpaid}
+            hours={totalHoursAcrossClients}
+            showRequestButton={false}
+          />
         </View>
       )}
-    </View>
+    </>
   );
 
   const renderZeroState = () => (
@@ -408,14 +427,14 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     >
       {/* Hero Card */}
       <View style={styles.heroCard}>
-        <Text style={styles.heroTitle}>Let's set you up</Text>
+        <Text style={styles.heroTitle}>{simpleT('clientList.cta.title')}</Text>
         <Text style={styles.heroSubtitle}>
-          Track hours, request payment, and invite clients to a shared workspace.
+          {simpleT('clientList.cta.subtitle')}
         </Text>
 
         <View style={styles.heroActions}>
           <Button
-            title="Add Client"
+            title={simpleT('clientList.cta.addClient')}
             onPress={() => setShowAddModal(true)}
             variant="primary"
             size="lg"
@@ -426,7 +445,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
             onPress={() => setShowHowItWorks(true)}
             style={styles.heroSecondaryButton}
           >
-            <Text style={styles.heroSecondaryButtonText}>How it works</Text>
+            <Text style={styles.heroSecondaryButtonText}>{simpleT('clientList.howItWorks')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -438,8 +457,8 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
             <Feather name="user-plus" size={28} color={theme.color.text} />
           </View>
           <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Add a client</Text>
-            <Text style={styles.stepDescription}>Name and hourly rate. That's it.</Text>
+            <Text style={styles.stepTitle}>{simpleT('clientList.step1.title')}</Text>
+            <Text style={styles.stepDescription}>{simpleT('clientList.step1.description')}</Text>
           </View>
         </View>
 
@@ -448,9 +467,9 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
             <Feather name="clock" size={28} color={theme.color.text} />
           </View>
           <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Track hours</Text>
+            <Text style={styles.stepTitle}>{simpleT('clientList.step2.title')}</Text>
             <Text style={styles.stepDescription}>
-              Start and stop sessions with precision timing.
+              {simpleT('clientList.step2.description')}
             </Text>
           </View>
         </View>
@@ -460,9 +479,9 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
             <Feather name="send" size={28} color={theme.color.text} />
           </View>
           <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Invite & request payment</Text>
+            <Text style={styles.stepTitle}>{simpleT('clientList.step3.title')}</Text>
             <Text style={styles.stepDescription}>
-              Share your workspace, send requests, get notified when they confirm.
+              {simpleT('clientList.step3.description')}
             </Text>
           </View>
         </View>
@@ -470,18 +489,26 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     </ScrollView>
   );
 
+  if (loading && initialLoad) {
+    return (
+      <SafeAreaView style={styles.container}>
+        {renderHeader()}
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.color.brand} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       {renderHeader()}
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.color.brand} />
-        </View>
-      ) : isZeroState ? (
+      {isZeroState ? (
         renderZeroState()
       ) : (
         <SectionList
+          ref={sectionListRef}
           sections={sections}
           renderItem={renderClientCard}
           renderSectionHeader={renderSectionHeader}
@@ -499,21 +526,6 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
         />
       )}
 
-      {/* Floating Action Button */}
-      {!keyboardVisible && (
-        <TouchableOpacity
-          onPress={handleAddClientPress}
-          style={[styles.fab, { bottom: 16 + Math.max(insets.bottom, 12) }]}
-          accessibilityRole="button"
-          accessibilityLabel="Add client"
-          accessibilityHint="Opens form to add a new client"
-          hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
-          activeOpacity={0.8}
-        >
-          <Feather name="plus" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-      )}
-
       {/* Add Client Modal */}
       <Modal
         visible={showAddModal}
@@ -522,63 +534,80 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
         onRequestClose={() => setShowAddModal(false)}
       >
         <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add New Client</Text>
-              <TouchableOpacity
-                onPress={() => setShowAddModal(false)}
-                style={styles.modalCloseButton}
-              >
-                <Text style={styles.modalCloseText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
+          {/* Modal Header */}
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{simpleT('addClient.title')}</Text>
+            <TouchableOpacity
+              onPress={() => setShowAddModal(false)}
+              style={styles.modalCloseButton}
+            >
+              <Text style={styles.modalCloseText}>{simpleT('addClient.cancel')}</Text>
+            </TouchableOpacity>
+          </View>
 
-            {/* Form */}
-            <View style={styles.form}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Client Name</Text>
-                <View style={styles.inputContainer}>
-                  <TextInput
-                    value={newClientName}
-                    onChangeText={setNewClientName}
-                    placeholder="Enter client name"
-                    placeholderTextColor={theme.color.textSecondary}
-                    style={styles.input}
-                    autoCapitalize="words"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Hourly Rate</Text>
-                <View style={styles.inputContainer}>
-                  <View style={styles.rateInputRow}>
-                    <Text style={styles.ratePrefix}>$</Text>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.keyboardAvoidingView}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          >
+            <ScrollView
+              style={styles.modalScrollView}
+              contentContainerStyle={styles.modalScrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Form */}
+              <View style={styles.form}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>{simpleT('addClient.clientName')}</Text>
+                  <View style={styles.inputContainer}>
                     <TextInput
-                      value={newClientRate}
-                      onChangeText={setNewClientRate}
-                      placeholder="45"
+                      value={newClientName}
+                      onChangeText={setNewClientName}
+                      placeholder={simpleT('addClient.namePlaceholder')}
                       placeholderTextColor={theme.color.textSecondary}
-                      keyboardType="numeric"
-                      style={styles.rateInput}
+                      style={styles.input}
+                      autoCapitalize="words"
+                      returnKeyType="next"
+                      onSubmitEditing={() => {
+                        // Focus rate input when return is pressed
+                      }}
                     />
-                    <Text style={styles.rateSuffix}>/hour</Text>
+                  </View>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>{simpleT('addClient.hourlyRate')}</Text>
+                  <View style={styles.inputContainer}>
+                    <View style={styles.rateInputRow}>
+                      <Text style={styles.ratePrefix}>$</Text>
+                      <TextInput
+                        value={newClientRate}
+                        onChangeText={setNewClientRate}
+                        placeholder={simpleT('addClient.ratePlaceholder')}
+                        placeholderTextColor={theme.color.textSecondary}
+                        keyboardType="decimal-pad"
+                        style={styles.rateInput}
+                        returnKeyType="done"
+                        onSubmitEditing={Keyboard.dismiss}
+                      />
+                      <Text style={styles.rateSuffix}>{simpleT('addClient.perHour')}</Text>
+                    </View>
                   </View>
                 </View>
               </View>
-            </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
 
-            {/* Add Button */}
-            <View style={styles.modalFooter}>
-              <Button
-                title="Add Client"
-                onPress={handleAddClient}
-                variant="primary"
-                size="lg"
-              />
-            </View>
-          </View>
+          {/* Sticky Action Bar - Glides up with keyboard */}
+          <StickyActionBar>
+            <Button
+              title={simpleT('addClient.addClient')}
+              onPress={handleAddClient}
+              variant="primary"
+              size="lg"
+            />
+          </StickyActionBar>
         </SafeAreaView>
       </Modal>
 
@@ -586,6 +615,14 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
       <HowItWorksModal
         visible={showHowItWorks}
         onClose={() => setShowHowItWorks(false)}
+      />
+
+      {/* Toast Notifications */}
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={hideToast}
       />
     </SafeAreaView>
   );
@@ -597,94 +634,83 @@ const styles = StyleSheet.create({
     backgroundColor: theme.color.appBg,
   },
 
-  // Header Styles
-  header: {
-    paddingHorizontal: theme.space.x16,
-    paddingTop: theme.space.x16,
-    paddingBottom: theme.space.x16,
-  },
-  userInfoRow: {
+  // Top Navigation Bar
+  topNav: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.space.x16,
+    justifyContent: 'space-between',
+    paddingHorizontal: TP.spacing.x16,
+    paddingVertical: TP.spacing.x12,
+    backgroundColor: TP.color.appBg,
+    borderBottomWidth: 1,
+    borderBottomColor: TP.color.divider,
   },
-  userInfo: {
-    flex: 1,
+  navSpacer: {
+    width: 44, // Same width as icon button for symmetry
   },
-  welcomeText: {
-    fontSize: theme.font.small,
-    color: theme.color.textSecondary,
-    fontFamily: theme.typography.fontFamily.primary,
+  navTitle: {
+    fontSize: TP.font.title3,
+    fontWeight: TP.weight.bold,
+    color: TP.color.ink,
   },
-  userName: {
-    fontSize: theme.font.body,
-    fontWeight: '600',
-    color: theme.color.text,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  headerTitle: {
-    fontSize: theme.font.large,
-    fontWeight: '700',
-    color: theme.color.text,
-    fontFamily: theme.typography.fontFamily.display,
-    marginBottom: theme.space.x16,
+  navIconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
-  // Outstanding Card
-  outstandingCard: {
-    backgroundColor: theme.color.cardBg,
-    borderRadius: theme.radius.card,
+  // Header Styles
+  header: {
+    paddingHorizontal: TP.spacing.x16,
+    paddingTop: TP.spacing.x16,
+    paddingBottom: TP.spacing.x16,
+  },
+
+  // Client card wrapper - matches header padding exactly
+  clientCardWrapper: {
+    marginHorizontal: TP.spacing.x16,
+    marginBottom: TP.spacing.x12,
+  },
+  clientCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: TP.radius.card,
     borderWidth: 1,
-    borderColor: theme.color.border,
-    padding: theme.space.x16,
+    borderColor: TP.color.divider,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    overflow: 'hidden',
   },
-  outstandingContent: {
-    flexDirection: 'column',
-  },
-  outstandingLabel: {
-    fontSize: theme.font.body,
-    fontWeight: '400',
-    color: theme.color.textSecondary,
-    fontFamily: theme.typography.fontFamily.primary,
-    marginBottom: theme.space.x8,
-  },
-  outstandingRow: {
+
+  // Section Header (with improved spacing)
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingTop: 20,
+    paddingBottom: 20,
+    paddingHorizontal: TP.spacing.x16,
+    backgroundColor: TP.color.appBg,
+    marginTop: 10,
   },
-  outstandingAmount: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: theme.color.text,
-    fontFamily: theme.typography.fontFamily.primary,
-    fontVariant: ['tabular-nums'],
+  sectionTitle: {
+    fontSize: TP.font.footnote,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.textSecondary,
+    letterSpacing: 0.5,
   },
-  statusPill: {
-    paddingHorizontal: theme.space.x12,
-    paddingVertical: theme.space.x4,
-    borderRadius: theme.radius.pill,
-    borderWidth: 1,
+  addClientButton: {
+    paddingVertical: TP.spacing.x6,
+    paddingHorizontal: TP.spacing.x12,
   },
-  paidPill: {
-    backgroundColor: theme.color.pillPaidBg,
-    borderColor: theme.color.pillPaidBg,
-  },
-  duePill: {
-    backgroundColor: theme.color.pillDueBg,
-    borderColor: theme.color.pillDueBg,
-  },
-  statusPillText: {
-    fontSize: theme.font.small,
-    fontWeight: '600',
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  paidPillText: {
-    color: theme.color.pillPaidText,
-  },
-  duePillText: {
-    color: theme.color.pillDueText,
+  addClientButtonText: {
+    fontSize: TP.font.footnote,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.ink,
   },
 
   // Loading State
@@ -786,68 +812,9 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  // List Content (when not zero state)
+  // List Content (when not zero state) - no horizontal padding, cards handle their own margins
   listContent: {
-    padding: theme.space.x16,
     paddingTop: 0,
-  },
-
-  // Client Card
-  clientCard: {
-    backgroundColor: theme.color.cardBg,
-    borderRadius: theme.radius.card,
-    padding: theme.space.x16,
-    marginBottom: theme.space.x12,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-  },
-  clientCardActive: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#10B981', // Green accent for active session
-  },
-  clientCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: theme.space.x12,
-  },
-  clientInfo: {
-    flex: 1,
-  },
-  clientName: {
-    fontSize: theme.font.body,
-    fontWeight: '600',
-    color: theme.color.text,
-    fontFamily: theme.typography.fontFamily.primary,
-    marginBottom: 4,
-  },
-  rateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  rateAmount: {
-    fontSize: theme.font.body,
-    fontWeight: '600',
-    color: theme.color.money,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  rateLabel: {
-    fontSize: theme.font.small,
-    color: theme.color.textSecondary,
-    fontFamily: theme.typography.fontFamily.primary,
-    marginLeft: 4,
-  },
-  clientStatus: {
-    alignItems: 'flex-end',
-  },
-  dueSection: {
-    alignItems: 'flex-end',
-  },
-  requestedText: {
-    fontSize: theme.font.small,
-    color: '#9CA3AF',
-    fontFamily: theme.typography.fontFamily.primary,
-    marginTop: 4,
   },
 
   // Modal Styles
@@ -855,16 +822,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.color.appBg,
   },
-  modalContent: {
+  keyboardAvoidingView: {
     flex: 1,
+  },
+  modalScrollView: {
+    // Don't use flex: 1 - let it take only the content height
+    // This allows modalFooter to be visible at the bottom
+  },
+  modalScrollContent: {
     paddingHorizontal: theme.space.x16,
-    paddingTop: theme.space.x16,
+    paddingBottom: 140, // Enough space for StickyActionBar (prevent inputs from hiding)
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.space.x32,
+    paddingHorizontal: theme.space.x16,
+    paddingTop: theme.space.x16,
+    paddingBottom: theme.space.x24,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.color.border,
   },
   modalTitle: {
     fontSize: theme.font.title,
@@ -936,19 +913,7 @@ const styles = StyleSheet.create({
     paddingRight: theme.space.x16,
     fontFamily: theme.typography.fontFamily.primary,
   },
-  modalFooter: {
-    paddingTop: theme.space.x24,
-    paddingBottom: theme.space.x16,
-  },
-
-  // Gear Icon Button
-  headerIconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  // modalFooter and keyboard accessory styles removed - now using StickyActionBar component
 
   // Section Divider
   sectionDivider: {
@@ -957,29 +922,6 @@ const styles = StyleSheet.create({
   dividerLine: {
     height: 1,
     backgroundColor: theme.color.border,
-  },
-
-  // Floating Action Button
-  fab: {
-    position: 'absolute',
-    right: 16,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: theme.color.brand,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
   },
 
   // Swipe Actions

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,16 @@ import {
   TouchableOpacity,
   Pressable,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { Feather } from '@expo/vector-icons';
 import { Client, Session, ActivityItem } from '../types';
-import { Button } from '../components/Button';
+import { TPButton } from '../components/v2/TPButton';
+import { TPAvatar } from '../components/v2/TPAvatar';
 import { StatusPill } from '../components/StatusPill';
 import { IOSHeader } from '../components/IOSHeader';
+import { TP } from '../styles/themeV2';
 import { theme } from '../styles/theme';
 import {
   getClientById,
@@ -71,6 +75,8 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
   const [totalEarned, setTotalEarned] = useState(0);
   const [totalHours, setTotalHours] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
+  const lastFetchedRef = useRef<number>(0);
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [sessionTime, setSessionTime] = useState(0);
   const [pendingRequest, setPendingRequest] = useState<any>(null);
@@ -80,12 +86,14 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
   const [crewSize, setCrewSize] = useState(1);
   const [crewMessage, setCrewMessage] = useState<string | null>(null);
   const [isUpdatingCrew, setIsUpdatingCrew] = useState(false);
+  const [isSessionLoading, setIsSessionLoading] = useState(false);
   const { toast, showSuccess, showError, hideToast } = useToast();
   const t = simpleT;
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
+
       const clientData = await getClientById(clientId);
       if (!clientData) {
         Alert.alert(simpleT('clientHistory.errorTitle'), simpleT('clientHistory.clientNotFound'));
@@ -123,33 +131,47 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       const clientMoneyState = await getClientMoneyState(clientId);
       setMoneyState(clientMoneyState);
 
+      lastFetchedRef.current = Date.now();
+
       if (__DEV__) {
         console.debug('[moneyState]', clientId, clientMoneyState);
         console.debug('[pendingRequest]', pendingPaymentRequest);
       }
     } catch (error) {
-      console.error('Error loading data:', error);
+      if (__DEV__) console.error('Error loading data:', error);
       Alert.alert(simpleT('clientHistory.errorTitle'), simpleT('clientHistory.loadError'));
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+        setInitialLoad(false);
+      }
     }
-  }, [clientId]); // Only depend on clientId - navigation and simpleT are stable
+  }, [clientId, navigation]); // Only depend on clientId - navigation and simpleT are stable
 
   useFocusEffect(
     useCallback(() => {
-      loadData();
-    }, [loadData]) // Now properly depends on loadData
+      if (initialLoad) {
+        // First load - show spinner
+        loadData(false);
+      } else {
+        // Stale-time pattern: only refetch if >30s old
+        const STALE_MS = 30_000;
+        if (Date.now() - lastFetchedRef.current > STALE_MS) {
+          loadData(true); // Silent refetch
+        }
+      }
+    }, [initialLoad, loadData])
   );
 
   // Session timer effect - update less frequently to reduce re-renders
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (activeSession) {
-      // Update every 5 seconds instead of every second to reduce polling
+      // Update every minute (60000ms) for timer display
       interval = setInterval(() => {
         const elapsed = Math.floor((Date.now() - activeSession.startTime.getTime()) / 1000);
         setSessionTime(elapsed);
-      }, 5000);
+      }, 60000);
 
       // Set initial time immediately
       const elapsed = Math.floor((Date.now() - activeSession.startTime.getTime()) / 1000);
@@ -182,7 +204,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       })),
       // Map payment activities to timeline items
       ...activities
-        .filter(a => a.type === 'payment_completed' || a.type === 'payment_request_created')
+        .filter(a => a.type === 'payment_completed' || a.type === 'payment_request')
         .map(activity => ({
           type: activity.type === 'payment_completed' ? 'payment' as const : 'payment_request' as const,
           id: activity.id,
@@ -252,16 +274,16 @@ const handleCrewAdjust = async (delta: number) => {
         const normalized = updated.crewSize ?? targetSize;
         setActiveSession(prev => prev ? { ...prev, crewSize: normalized } : prev);
         setCrewSize(normalized);
-        setCrewMessage(`${normalized} ${normalized === 1 ? 'person' : 'people'} logged for this session.`);
+        setCrewMessage(`${normalized} ${normalized === 1 ? t('common.person') : t('common.people')} logged for this session.`);
       } catch (error) {
         console.error('Error updating crew size:', error);
-        Alert.alert(t('clientHistory.errorTitle'), 'Unable to update crew size. Please try again.');
+        Alert.alert(t('clientHistory.errorTitle'), t('clientHistory.errorUpdateCrewSize'));
       } finally {
         setIsUpdatingCrew(false);
       }
     } else {
       setCrewSize(targetSize);
-      setCrewMessage(`${targetSize} ${targetSize === 1 ? 'person' : 'people'} will be tracked when the session starts.`);
+      setCrewMessage(`${targetSize} ${targetSize === 1 ? t('common.person') : t('common.people')} will be tracked when the session starts.`);
     }
   };
 
@@ -271,7 +293,7 @@ const handleCrewAdjust = async (delta: number) => {
 
     return (
       <View style={styles.crewSelector}>
-        <Text style={styles.crewLabel}>Crew size</Text>
+        <Text style={styles.crewLabel}>{t('clientHistory.crewSize')}</Text>
         <View style={styles.crewStepper}>
           <TouchableOpacity
             onPress={() => handleCrewAdjust(-1)}
@@ -294,7 +316,7 @@ const handleCrewAdjust = async (delta: number) => {
           </TouchableOpacity>
         </View>
         <Text style={styles.crewHint}>
-          {activeSession ? 'Applies to the entire session' : 'Set before starting'}
+          {activeSession ? t('clientHistory.crewApplies') : t('clientHistory.crewSetBefore')}
         </Text>
         {crewMessage ? <Text style={styles.crewMessage}>{crewMessage}</Text> : null}
       </View>
@@ -302,21 +324,50 @@ const handleCrewAdjust = async (delta: number) => {
   };
 
   const handleStartSession = async () => {
+    if (isSessionLoading) return; // Prevent double-tap
     try {
-      await startSession(clientId, crewSize);
-      loadData();
+      setIsSessionLoading(true);
+      const newSession = await startSession(clientId, crewSize);
+
+      // Optimistic update - just update the active session state
+      setActiveSession(newSession);
+      setCrewSize(newSession.crewSize);
+
+      // Silent refetch to update timeline (no full-page spinner)
+      await loadData(true);
+
+      // Show success toast
+      showSuccess(t('common.sessionStarted'));
     } catch (error) {
       Alert.alert(t('clientHistory.errorTitle'), t('clientHistory.sessionStartError'));
+    } finally {
+      setIsSessionLoading(false);
     }
   };
 
   const handleEndSession = async () => {
-    if (!activeSession) return;
+    if (!activeSession || isSessionLoading) return; // Prevent double-tap
     try {
+      setIsSessionLoading(true);
+
+      // Calculate duration before ending session
+      const durationSeconds = Math.floor((Date.now() - activeSession.startTime.getTime()) / 1000);
+      const durationHours = durationSeconds / 3600;
+
       await endSession(activeSession.id);
-      loadData();
+
+      // Optimistic update - clear active session
+      setActiveSession(null);
+
+      // Silent refetch to update timeline and summary
+      await loadData(true);
+
+      // Show success toast with duration
+      showSuccess(`${t('common.sessionEnded')} - ${formatHours(durationHours)}`);
     } catch (error) {
       Alert.alert(t('clientHistory.errorTitle'), t('clientHistory.sessionEndError'));
+    } finally {
+      setIsSessionLoading(false);
     }
   };
 
@@ -390,11 +441,16 @@ const handleCrewAdjust = async (delta: number) => {
         }
       }
 
-      // Refresh data to show the new pending request
-      await loadData();
-
+      // Close modal first
       setShowConfirmModal(false);
+
+      // Show success message
       showSuccess(t('clientHistory.paymentRequested', { amount: formatCurrency(unpaidAmount), clientName: client?.name }));
+
+      // Small delay to ensure activity is written to DB, then refresh
+      setTimeout(async () => {
+        await loadData();
+      }, 500);
     } catch (error) {
       if (__DEV__) {
         console.error('❌ Payment request failed:', error);
@@ -410,11 +466,24 @@ const handleCrewAdjust = async (delta: number) => {
     setShowConfirmModal(false);
   };
 
-  if (loading) {
+  if (loading && initialLoad) {
     return (
       <SafeAreaView style={styles.container}>
+        {/* Custom Header - always visible */}
+        <View style={styles.customHeader}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
+            <Feather name="arrow-left" size={24} color={TP.color.ink} />
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <TPAvatar name={client?.name || 'Loading'} size="sm" />
+            <Text style={styles.headerName}>{client ? formatName(client.name) : 'Loading...'}</Text>
+          </View>
+          <View style={styles.headerButton} />
+        </View>
+
+        {/* Spinner in content area */}
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>{t('clientHistory.loading')}</Text>
+          <ActivityIndicator size="large" color={TP.color.ink} />
         </View>
       </SafeAreaView>
     );
@@ -432,69 +501,63 @@ const handleCrewAdjust = async (delta: number) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <IOSHeader
-        title={formatName(client.name)}
-        subtitle={client.claimedStatus === 'unclaimed' ? t('clientHistory.invitePending') : undefined}
-        leftAction={{
-          title: t('clientHistory.clients'),
-          onPress: () => navigation.goBack(),
-        }}
-        rightAction={{
-          title: t('clientHistory.profile'),
-          onPress: () => navigation.navigate('ClientProfile', { clientId: client.id }),
-        }}
-        largeTitleStyle="always"
-      />
+      {/* Custom Header */}
+      <View style={styles.customHeader}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.headerButton}
+        >
+          <Feather name="arrow-left" size={24} color={TP.color.ink} />
+        </TouchableOpacity>
+
+        <View style={styles.headerCenter}>
+          <TPAvatar name={client.name} size="sm" />
+          <Text style={styles.headerName}>{formatName(client.name)}</Text>
+        </View>
+
+        <TouchableOpacity
+          onPress={() => navigation.navigate('ClientProfile', { clientId: client.id })}
+          style={styles.headerButton}
+        >
+          <Feather name="settings" size={24} color={TP.color.ink} />
+        </TouchableOpacity>
+      </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Summary Card */}
+        {/* Total Outstanding Card */}
         <View style={styles.summaryCard}>
-          <View style={styles.summaryBalanceRow}>
-            <Text style={styles.summaryLabel}>{t('clientHistory.balanceDue')}</Text>
-            <Text style={[styles.summaryAmount, totalUnpaidBalance === 0 && styles.summaryAmountPaid]}>{formatCurrency(totalUnpaidBalance)}</Text>
-            {totalUnpaidBalance > 0 && (
-              <Text style={styles.summaryHours}> [{formatHours(unpaidHours + requestedHours)} person-hours]</Text>
-            )}
-          </View>
+          <Text style={styles.summaryLabel}>{t('common.totalOutstanding')}</Text>
+          <Text style={styles.summaryAmountLarge}>{formatCurrency(totalUnpaidBalance)}</Text>
+          <Text style={styles.summaryHoursUnpaid}>
+            {formatHours(unpaidHours + requestedHours)} {t('clientHistory.unpaid')}
+          </Text>
 
           {(() => {
             // Pure hide/show logic for buttons and paid up state
             const hasPendingRequest = pendingRequest || moneyState?.lastPendingRequest;
             const unpaidUnrequestedCents = Math.round((totalUnpaidBalance - requestedBalance) * 100);
 
-            // Debug logging removed - was causing render loop spam
-            // if (__DEV__) console.debug('[Button Logic] totalUnpaidBalance:', totalUnpaidBalance, 'hasPendingRequest:', hasPendingRequest, 'unpaidUnrequestedCents:', unpaidUnrequestedCents);
-
-            // Case 1: Show Request button (enabled) - now on separate line
+            // Case 1: Show Request button (enabled)
             if (!hasPendingRequest && unpaidUnrequestedCents > 0) {
               return (
-                <View style={styles.summaryButtonRow}>
-                  <Pressable
-                    style={({pressed}) => [
-                      styles.btnBase,
-                      styles.btnSecondary,
-                      styles.summaryButton,
-                      pressed && { borderColor: theme.color.btnSecondaryBorderPressed },
-                    ]}
-                    onPress={handleRequestPayment}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Request payment of ${formatCurrency(unpaidUnrequestedCents / 100)}`}
-                  >
-                    <Text style={[styles.btnText, styles.btnSecondaryText]}>
-                      {t('clientHistory.requestPayment')} {formatCurrency(unpaidUnrequestedCents / 100)}
-                    </Text>
-                  </Pressable>
-                </View>
+                <TouchableOpacity
+                  style={styles.requestPaymentButton}
+                  onPress={handleRequestPayment}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Request payment of ${formatCurrency(unpaidUnrequestedCents / 100)}`}
+                >
+                  <Text style={styles.requestPaymentButtonText}>
+                    → {t('common.requestPayment')}
+                  </Text>
+                </TouchableOpacity>
               );
             }
 
             // Case 2: Show Paid up pill (no outstanding balance AND has work history)
             if (totalUnpaidBalance === 0 && !hasPendingRequest && totalHours > 0) {
               return (
-                <View style={styles.summaryButtonRow}>
-                  <View style={styles.paidUpPill}>
-                    <Text style={styles.paidUpText}>{t('providerSummary.paidUp')}</Text>
-                  </View>
+                <View style={styles.paidUpPill}>
+                  <Text style={styles.paidUpText}>{t('providerSummary.paidUp')}</Text>
                 </View>
               );
             }
@@ -502,78 +565,10 @@ const handleCrewAdjust = async (delta: number) => {
             // Case 3: Hide button (pending request or requested-only balance)
             return null;
           })()}
-
-          {/* Active Session Hint */}
-          {activeSession && (
-            <Text style={styles.hintText}>
-              {t('providerSummary.activeSessionHint')}
-            </Text>
-          )}
-
-          {/* Pending Request Meta */}
-          {(pendingRequest || moneyState?.lastPendingRequest) && (
-            <Text style={styles.metaText}>
-              {t('providerSummary.requestedOn', {
-                date: formatDate((pendingRequest || moneyState?.lastPendingRequest)?.created_at),
-                amount: formatCurrency((pendingRequest || moneyState?.lastPendingRequest)?.amount)
-              })}
-            </Text>
-          )}
-        </View>
-
-        {/* Session Controls */}
-        <View style={styles.activeSessionCard}>
-          <View style={styles.activeSessionHeader}>
-            <Text style={styles.activeSessionTitle}>
-              {activeSession ? t('providerSummary.activeSessionTitle') : 'Ready to start?'}
-            </Text>
-          </View>
-
-          {activeSession ? (
-            <Text style={styles.activeSessionTime}>{formatTimer(sessionTime)}</Text>
-          ) : (
-            <Text style={styles.activeSessionPrompt}>Set your crew and tap start to begin tracking.</Text>
-          )}
-
-          {renderCrewSelector()}
-
-          <Pressable
-            style={({pressed}) => [
-              styles.btnBase,
-              activeSession ? styles.btnDanger : styles.btnPrimary,
-              styles.sessionActionButton,
-              pressed && (activeSession ? { backgroundColor: theme.color.btnDangerBgPressed } : { backgroundColor: theme.color.btnPrimaryBgPressed }),
-            ]}
-            onPress={activeSession ? handleEndSession : handleStartSession}
-            accessibilityRole="button"
-            accessibilityLabel={activeSession ? 'End session' : 'Start session'}
-          >
-            <Text style={[
-              styles.btnText,
-              activeSession ? styles.btnDangerText : styles.btnPrimaryText,
-            ]}>
-              {activeSession ? t('clientHistory.endSession') : t('clientHistory.startSession')}
-            </Text>
-          </Pressable>
-
-          {activeSession && (
-            <View style={styles.activeSessionMeta}>
-              <Text style={styles.activeSessionMetaText}>
-                {`${currentCrewSize} ${currentCrewSize === 1 ? 'person' : 'people'} × ${formatHours(perPersonHours)} = ${formatHours(totalPersonHours)}`}
-              </Text>
-              <Text style={styles.activeSessionMetaText}>
-                {t('clientHistory.activeSessionStarted', {
-                  time: activeSession.startTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase(),
-                })}
-              </Text>
-            </View>
-          )}
         </View>
 
         {/* Activity Timeline */}
         <View style={styles.timelineSection}>
-          <Text style={styles.timelineTitle}>{t('clientHistory.activityTimeline')}</Text>
-
           {timelineItems.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>{t('emptyState.noWork')}</Text>
@@ -612,45 +607,32 @@ const handleCrewAdjust = async (delta: number) => {
                   {dayItems.map((item, index) => (
                     <View key={item.id} style={styles.timelineItem}>
                       {item.type === 'session' ? (
-                        // Work Session Line with crew context
-                        <View style={styles.timelineLine}>
-                          <Text style={styles.timelineIcon}>🕒</Text>
-                          <View style={styles.timelineContent}>
-                            <Text style={styles.timelineMainText}>
-                              {t('providerSummary.workSession')}
-                            </Text>
-                            <Text style={styles.timelineSubText}>
-                              {(() => {
-                                const session = item.data as Session;
-                                const crewSize = session.crewSize || 1;
-                                const crewText = crewSize === 1 ? '1 person' : `${crewSize} people`;
-                                const start = new Date(session.startTime);
-                                const startLabel = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                                if (session.endTime) {
-                                  const end = new Date(session.endTime);
-                                  const endLabel = end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                                  const baseDuration =
-                                    session.duration ??
-                                    ((end.getTime() - start.getTime()) / (1000 * 60 * 60));
-                                  const totalPersonHours =
-                                    session.personHours ?? baseDuration * crewSize;
-                                  return `${crewText} × ${formatHours(baseDuration)} = ${formatHours(totalPersonHours)} • ${startLabel}-${endLabel}`;
-                                }
-                                return `${crewText} • active since ${startLabel}`;
-                              })()}
-                            </Text>
-                          </View>
-                          <View style={styles.timelineRight}>
-                            <Text style={styles.timelineAmount}>
+                        // Work Session - Simplified format
+                        <View style={styles.timelineCard}>
+                          <View style={styles.timelineCardHeader}>
+                            <Text style={styles.timelineCardTitle}>{t('clientHistory.workSession')}</Text>
+                            <Text style={styles.timelineCardAmount}>
                               {item.data.endTime ? formatCurrency(item.data.amount || 0) : ''}
                             </Text>
-                            {item.data.endTime && item.data.status !== 'requested' && (
-                              <StatusPill
-                                status={item.data.status as 'paid' | 'unpaid'}
-                                size="sm"
-                              />
-                            )}
                           </View>
+                          <Text style={styles.timelineCardMeta}>
+                            {(() => {
+                              const session = item.data as Session;
+                              const crewSize = session.crewSize || 1;
+                              const start = new Date(session.startTime);
+                              const startLabel = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                              if (session.endTime) {
+                                const end = new Date(session.endTime);
+                                const endLabel = end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                                const baseDuration =
+                                  session.duration ??
+                                  ((end.getTime() - start.getTime()) / (1000 * 60 * 60));
+                                const personText = crewSize === 1 ? `1 ${t('common.person')}` : `${crewSize} ${t('common.person')}`;
+                                return `${startLabel} - ${endLabel} • ${personText} • ${formatHours(baseDuration)}`;
+                              }
+                              return `${t('clientHistory.activeSince', { time: startLabel })} • ${crewSize} ${t('common.person')}`;
+                            })()}
+                          </Text>
                         </View>
                       ) : item.type === 'payment' ? (
                         // Payment Line - Simplified
@@ -671,22 +653,24 @@ const handleCrewAdjust = async (delta: number) => {
                           </View>
                         </View>
                       ) : (
-                        // Payment Request Line
-                        <View style={styles.timelineLine}>
-                          <Text style={styles.timelineIcon}>📋</Text>
-                          <View style={styles.timelineContent}>
-                            <Text style={styles.timelineMainText}>
-                              {t('clientHistory.paymentRequestedActivity')}
-                            </Text>
-                            <Text style={styles.timelineSubText}>
-                              {formatCurrency(item.data.data.amount || 0)} • {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''} • {formatHours(item.data.data.personHours || 0)} total
+                        // Payment Request - Simplified format
+                        <View style={styles.timelineCard}>
+                          <View style={styles.timelineCardHeader}>
+                            <Text style={styles.timelineCardTitle}>{t('clientHistory.paymentRequestedActivity')}</Text>
+                            <Text style={styles.timelineCardAmount}>
+                              {formatCurrency(item.data.data.amount || 0)}
                             </Text>
                           </View>
-                          <View style={styles.timelineRight}>
-                            <Text style={styles.timelineAmount}>
-                              {t('providerSummary.pending')}
-                            </Text>
-                          </View>
+                          <Text style={styles.timelineCardMeta}>
+                            {(() => {
+                              const sessionCount = item.data.data.sessionIds?.length || 0;
+                              const personHours = item.data.data.personHours || 0;
+                              const sessionText = sessionCount === 1
+                                ? `1 ${t('clientHistory.session')}`
+                                : `${sessionCount} ${t('clientHistory.sessions')}`;
+                              return `${sessionText} • ${formatHours(personHours)}`;
+                            })()}
+                          </Text>
                         </View>
                       )}
                     </View>
@@ -697,6 +681,49 @@ const handleCrewAdjust = async (delta: number) => {
           )}
         </View>
       </ScrollView>
+
+      {/* Fixed Footer with Crew Counter and Start/Stop */}
+      <View style={styles.fixedFooter}>
+        <View style={styles.footerCrewCounter}>
+          <Text style={styles.footerCrewLabel}>{t('clientHistory.persons')}</Text>
+          <TouchableOpacity
+            onPress={() => handleCrewAdjust(-1)}
+            disabled={currentCrewSize <= 1 || isUpdatingCrew}
+            style={[styles.footerCrewButton, (currentCrewSize <= 1 || isUpdatingCrew) && styles.footerCrewButtonDisabled]}
+          >
+            <Text style={styles.footerCrewButtonText}>-</Text>
+          </TouchableOpacity>
+          <Text style={styles.footerCrewValue}>{currentCrewSize}</Text>
+          <TouchableOpacity
+            onPress={() => handleCrewAdjust(1)}
+            disabled={isUpdatingCrew}
+            style={[styles.footerCrewButton, isUpdatingCrew && styles.footerCrewButtonDisabled]}
+          >
+            <Text style={styles.footerCrewButtonText}>+</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          onPress={activeSession ? handleEndSession : handleStartSession}
+          disabled={isSessionLoading}
+          style={[
+            styles.footerActionButton,
+            activeSession ? styles.footerActionButtonStop : styles.footerActionButtonStart,
+            isSessionLoading && styles.footerActionButtonLoading
+          ]}
+        >
+          {isSessionLoading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.footerActionButtonText}>
+              {activeSession
+                ? `${t('common.stop')} - ${formatHours(sessionTime / 3600)}`
+                : t('common.start')
+              }
+            </Text>
+          )}
+        </TouchableOpacity>
+      </View>
 
       {/* Confirmation Modal */}
       <ConfirmationModal
@@ -731,6 +758,34 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.color.appBg,
   },
+
+  // Custom Header Styles
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: TP.spacing.x16,
+    paddingVertical: TP.spacing.x12,
+    borderBottomWidth: 1,
+    borderBottomColor: TP.color.divider,
+    backgroundColor: TP.color.cardBg,
+  },
+  headerButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCenter: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: TP.spacing.x8,
+  },
+  headerName: {
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.ink,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -752,7 +807,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingBottom: 32,
+    paddingBottom: 80, // Extra padding for fixed footer
   },
   activeSessionCard: {
     backgroundColor: theme.color.cardBg,
@@ -881,6 +936,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.color.btnSecondaryBorder,
   },
+  btnRequestPayment: {
+    backgroundColor: TP.color.cardBg, // White
+    borderWidth: 1,
+    borderColor: TP.color.ink, // Black
+  },
   btnText: {
     fontSize: theme.font.body,
     fontWeight: '600',
@@ -894,6 +954,9 @@ const styles = StyleSheet.create({
   btnSecondaryText: {
     color: theme.color.btnSecondaryText,
   },
+  btnRequestPaymentText: {
+    color: TP.color.ink, // Black text
+  },
   btnDisabled: {
     backgroundColor: theme.color.btnDisabledBg,
     borderColor: theme.color.btnDisabledBorder,
@@ -902,16 +965,17 @@ const styles = StyleSheet.create({
     color: theme.color.btnDisabledText,
   },
 
-  // Summary card styles
+  // Summary card styles (Total Outstanding)
   summaryCard: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: TP.spacing.x20,
+    paddingVertical: TP.spacing.x20,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 16,
-    backgroundColor: '#FFF',
-    marginTop: 16,
-    gap: 12,
+    borderColor: TP.color.divider,
+    borderRadius: TP.radius.card,
+    backgroundColor: TP.color.cardBg,
+    marginTop: TP.spacing.x16,
+    marginBottom: TP.spacing.x24,
+    gap: TP.spacing.x12,
   },
   summaryBalanceRow: {
     flexDirection: 'row',
@@ -955,9 +1019,36 @@ const styles = StyleSheet.create({
     marginTop: 0,
   },
   summaryLabel: {
-    color: '#6B7280',
-    fontSize: 13,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: TP.font.footnote,
+    fontWeight: TP.weight.medium,
+    color: TP.color.textSecondary,
+    marginBottom: TP.spacing.x4,
+  },
+  summaryAmountLarge: {
+    fontSize: 48,
+    fontWeight: TP.weight.bold,
+    color: TP.color.ink,
+    lineHeight: 56,
+  },
+  summaryHoursUnpaid: {
+    fontSize: TP.font.footnote,
+    fontWeight: TP.weight.regular,
+    color: TP.color.textSecondary,
+    marginBottom: TP.spacing.x8,
+  },
+  requestPaymentButton: {
+    backgroundColor: TP.color.cardBg,
+    borderWidth: 1,
+    borderColor: TP.color.ink,
+    borderRadius: TP.radius.button,
+    paddingVertical: TP.spacing.x12,
+    paddingHorizontal: TP.spacing.x16,
+    alignSelf: 'flex-start',
+  },
+  requestPaymentButtonText: {
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.ink,
   },
   summaryAmount: {
     color: '#EF4444',
@@ -1017,11 +1108,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.primary,
   },
   timelineSection: {
-    backgroundColor: theme.color.cardBg,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    borderRadius: theme.radius.card,
-    padding: 16,
+    marginTop: TP.spacing.x8,
   },
   timelineTitle: {
     fontSize: theme.font.body,
@@ -1049,6 +1136,36 @@ const styles = StyleSheet.create({
   },
   timelineItem: {
     paddingVertical: 12,
+  },
+  // New simplified timeline card styles
+  timelineCard: {
+    backgroundColor: TP.color.cardBg,
+    borderRadius: TP.radius.card,
+    borderWidth: 1,
+    borderColor: TP.color.divider,
+    padding: TP.spacing.x16,
+    marginBottom: TP.spacing.x8,
+  },
+  timelineCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: TP.spacing.x8,
+  },
+  timelineCardTitle: {
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.ink,
+  },
+  timelineCardAmount: {
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.ink,
+  },
+  timelineCardMeta: {
+    fontSize: TP.font.footnote,
+    fontWeight: TP.weight.regular,
+    color: TP.color.textSecondary,
   },
   timelineDivider: {
     height: 1,
@@ -1096,11 +1213,9 @@ const styles = StyleSheet.create({
   },
   // Day header styles
   dayHeader: {
-    paddingVertical: 12,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    marginBottom: 8,
+    marginBottom: 4,
+    marginTop: 16,
   },
   dayHeaderText: {
     fontSize: 14,
@@ -1175,5 +1290,75 @@ const styles = StyleSheet.create({
     color: theme.color.accent,
     fontWeight: '600',
     fontFamily: theme.typography.fontFamily.primary,
+  },
+
+  // Fixed Footer Styles
+  fixedFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: TP.spacing.x16,
+    paddingVertical: TP.spacing.x12,
+    backgroundColor: TP.color.cardBg,
+    borderTopWidth: 1,
+    borderTopColor: TP.color.divider,
+    gap: TP.spacing.x12,
+  },
+  footerCrewCounter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: TP.spacing.x8,
+  },
+  footerCrewLabel: {
+    fontSize: TP.font.footnote,
+    fontWeight: TP.weight.medium,
+    color: TP.color.textSecondary,
+  },
+  footerCrewButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: TP.color.appBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: TP.color.divider,
+  },
+  footerCrewButtonDisabled: {
+    opacity: 0.4,
+  },
+  footerCrewButtonText: {
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.ink,
+  },
+  footerCrewValue: {
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.ink,
+    minWidth: 24,
+    textAlign: 'center',
+  },
+  footerActionButton: {
+    paddingVertical: TP.spacing.x12,
+    paddingHorizontal: TP.spacing.x24,
+    borderRadius: TP.radius.button,
+    minWidth: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerActionButtonStart: {
+    backgroundColor: TP.color.ink, // Black
+  },
+  footerActionButtonStop: {
+    backgroundColor: TP.color.btn.dangerBg, // Red
+  },
+  footerActionButtonLoading: {
+    opacity: 0.7,
+  },
+  footerActionButtonText: {
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.cardBg, // White text
   },
 });

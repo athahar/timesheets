@@ -1,3 +1,15 @@
+/**
+ * @deprecated Use themeV2 (TP) from './themeV2' instead
+ *
+ * This legacy theme is kept for v1 component compatibility during migration.
+ *
+ * Migration guide:
+ * - Old: import { theme } from '../styles/theme'
+ * - New: import { TP } from '../styles/themeV2'
+ *
+ * Will be removed in next major version after all components are migrated.
+ */
+
 export const palette = {
   green:'#22C55E', teal:'#2DD4BF', amber:'#F59E0B', red:'#EF4444', purple:'#6D28D9',
   ink:'#111827', gray600:'#4B5563', gray500:'#6B7280', gray400:'#9AA1A9',
@@ -6,6 +18,9 @@ export const palette = {
   white:'#FFFFFF', black:'#000000',
 };
 
+/**
+ * @deprecated Use TP from './themeV2' instead
+ */
 export const theme = {
   color: {
     // Core surfaces
@@ -19,40 +34,35 @@ export const theme = {
     textSecondary: '#6B7280',
     textTertiary: '#9AA1A9',
 
-    // Brand colors
-    accent: palette.green,
+    // Brand colors - TrackPay v2 black/white minimal branding
+    accent: '#111827', // Black
     accentTeal: palette.teal,
     warn: palette.amber,
-    danger: palette.red,
+    danger: '#C23548', // Deep red from Figma
     requested: palette.purple,
-    brand: '#22C55E',
-    brandPressed: '#16A34A',
-    focusRing: 'rgba(34,197,94,0.25)',
+    brand: '#111827', // Black
+    brandPressed: '#0B1220',
+    focusRing: 'rgba(17,24,39,0.25)',
 
     // Professional button system
-    btnPrimaryBg: '#22C55E',
+    btnPrimaryBg: '#111827',
     btnPrimaryText: '#FFFFFF',
     btnSecondaryBg: '#FFFFFF',
     btnSecondaryText: '#111827',
-    btnSecondaryBorder: '#E6E8EB',
-    btnLinkText: '#10B981',
+    btnSecondaryBorder: '#111827',
+    btnLinkText: '#111827',
 
     // Money and warnings
-    money: '#22C55E',
+    money: '#22C55E', // Keep green for money (semantic)
     warnBg: '#FFFBEB',
     warnText: '#B45309',
 
     // Button system - complete variants
-    btnPrimaryBg: '#22C55E',
-    btnPrimaryText: '#FFFFFF',
-    btnDangerBg: '#EF4444',
+    btnDangerBg: '#C23548',
     btnDangerText: '#FFFFFF',
-    btnSecondaryBg: '#FFFFFF',
-    btnSecondaryText: '#111827',
-    btnSecondaryBorder: '#E5E7EB',
 
     // Interactive states
-    btnPrimaryBgPressed: '#16A34A',
+    btnPrimaryBgPressed: '#0B1220',
     btnDangerBgPressed: '#DC2626',
     btnSecondaryBorderPressed: '#D1D5DB',
 

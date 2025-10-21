@@ -1,0 +1,2837 @@
+create type "public"."app_status" as enum ('pending', 'approved', 'rejected');
+
+create type "public"."contact_status" as enum ('delivered', 'failed');
+
+create type "public"."mld_cost_level" as enum ('free', 'low', 'medium', 'high');
+
+create type "public"."mld_difficulty" as enum ('starter', 'standard', 'stretch');
+
+create type "public"."mld_item_type" as enum ('milestone', 'opportunity', 'activity');
+
+create type "public"."mld_setting" as enum ('home', 'school', 'community', 'online');
+
+create type "public"."mld_social_mode" as enum ('solo', 'one_to_two', 'small_group', 'team_large');
+
+create type "public"."pricing_type" as enum ('free', 'one_time', 'subscription', 'per_user', 'tiered');
+
+create type "public"."sponsor_slot" as enum ('home_hero', 'home_row_1', 'category_top');
+
+create type "public"."user_role" as enum ('user', 'admin');
+
+create sequence "public"."agent_memories_id_seq";
+
+create sequence "public"."orders_id_seq";
+
+drop policy "tp_activities_select_party" on "public"."trackpay_activities";
+
+drop policy "tp_invites_insert_provider" on "public"."trackpay_invites";
+
+drop policy "tp_invites_select_party" on "public"."trackpay_invites";
+
+drop policy "tp_payments_insert_provider" on "public"."trackpay_payments";
+
+drop policy "tp_payments_select_party" on "public"."trackpay_payments";
+
+drop policy "tp_payments_update_provider" on "public"."trackpay_payments";
+
+drop policy "tp_rel_audit_select_provider" on "public"."trackpay_relationship_audit";
+
+drop policy "tp_rels_insert_provider" on "public"."trackpay_relationships";
+
+drop policy "tp_rels_select_party" on "public"."trackpay_relationships";
+
+drop policy "tp_rels_update_provider" on "public"."trackpay_relationships";
+
+drop policy "tp_requests_insert_provider" on "public"."trackpay_requests";
+
+drop policy "tp_requests_select_party" on "public"."trackpay_requests";
+
+drop policy "tp_requests_update_provider" on "public"."trackpay_requests";
+
+drop policy "tp_sessions_insert_provider" on "public"."trackpay_sessions";
+
+drop policy "tp_sessions_select_party" on "public"."trackpay_sessions";
+
+drop policy "tp_sessions_update_provider" on "public"."trackpay_sessions";
+
+drop policy "tp_users_insert_self" on "public"."trackpay_users";
+
+drop policy "tp_users_select_self" on "public"."trackpay_users";
+
+drop policy "tp_users_update_self" on "public"."trackpay_users";
+
+revoke insert on table "public"."trackpay_users" from "authenticated";
+
+alter table "public"."trackpay_activities" drop constraint "trackpay_activities_user_id_fkey";
+
+alter table "public"."trackpay_users" drop constraint "claimed_status_check";
+
+alter table "public"."trackpay_users" drop constraint "trackpay_users_auth_user_id_key";
+
+alter table "public"."trackpay_invites" drop constraint "trackpay_invites_status_check";
+
+alter table "public"."trackpay_requests" drop constraint "trackpay_requests_status_check";
+
+drop function if exists "public"."current_trackpay_user_id"();
+
+drop index if exists "public"."idx_activities_client_created";
+
+drop index if exists "public"."idx_activities_created";
+
+drop index if exists "public"."idx_activities_provider_created";
+
+drop index if exists "public"."idx_invites_code";
+
+drop index if exists "public"."idx_invites_provider_status";
+
+drop index if exists "public"."idx_sessions_client_created";
+
+drop index if exists "public"."idx_sessions_provider_created";
+
+drop index if exists "public"."trackpay_users_auth_user_id_key";
+
+drop index if exists "public"."ux_trackpay_users_auth_user";
+
+create table "public"."agent_memories" (
+    "id" bigint not null default nextval('agent_memories_id_seq'::regclass),
+    "agent_name" character varying(255) not null,
+    "memory_key" character varying(255) not null,
+    "memory_value" jsonb not null,
+    "created_at" timestamp with time zone default CURRENT_TIMESTAMP,
+    "updated_at" timestamp with time zone default CURRENT_TIMESTAMP
+);
+
+
+create table "public"."app_categories" (
+    "app_id" uuid not null,
+    "category_id" uuid not null
+);
+
+
+create table "public"."apps" (
+    "id" uuid not null default gen_random_uuid(),
+    "user_id" uuid not null,
+    "title" character varying(200) not null,
+    "short_desc" character varying(140) not null,
+    "long_desc" text not null,
+    "url" character varying(500) not null,
+    "screenshot_url" character varying(500),
+    "youtube_url" character varying(500),
+    "status" app_status not null default 'pending'::app_status,
+    "useful_for" jsonb not null default '[]'::jsonb,
+    "is_paid" boolean not null default false,
+    "pricing_text" text,
+    "hire_me" boolean not null default false,
+    "views_count" integer not null default 0,
+    "upvotes_count" integer not null default 0,
+    "created_at" timestamp without time zone not null default now(),
+    "updated_at" timestamp without time zone not null default now(),
+    "is_demo" boolean not null default false,
+    "outcomes" jsonb not null default '[]'::jsonb,
+    "pricing_type" pricing_type not null default 'free'::pricing_type,
+    "price_monthly" numeric(10,2),
+    "price_annual" numeric(10,2),
+    "price_per_user" numeric(10,2),
+    "pricing_tiers" jsonb,
+    "pricing_notes" text,
+    "external_purchase_url" character varying(500),
+    "hourly_rate" numeric(10,2)
+);
+
+
+create table "public"."atd_dryrun_cache" (
+    "id" text not null default ('cache_'::text || substr(md5((random())::text), 1, 20)),
+    "rule_hash" character(64) not null,
+    "sample_hash" character(64) not null,
+    "result" jsonb not null,
+    "created_at" timestamp with time zone default now(),
+    "expires_at" timestamp with time zone
+);
+
+
+create table "public"."atd_fraud_rules" (
+    "id" uuid not null default gen_random_uuid(),
+    "rule_name" text not null,
+    "condition" jsonb not null,
+    "action" text not null,
+    "priority" integer not null,
+    "classification" text default 'AI Agent Fraud'::text,
+    "enabled" boolean default true,
+    "created_at" timestamp without time zone default now(),
+    "created_by" uuid,
+    "approved_by" uuid,
+    "approved_at" timestamp without time zone,
+    "applies_to" text default 'both'::text,
+    "description" text
+);
+
+
+create table "public"."atd_profiles" (
+    "id" uuid not null default gen_random_uuid(),
+    "username" character varying(50),
+    "email" character varying(255),
+    "password_hash" text,
+    "bio" text,
+    "website_url" character varying(500),
+    "avatar_url" character varying(500),
+    "role" character varying(20) not null default 'user'::character varying,
+    "created_at" timestamp without time zone not null default now(),
+    "updated_at" timestamp without time zone,
+    "user_id" text,
+    "name" text,
+    "risk_profile" integer default 50
+);
+
+
+alter table "public"."atd_profiles" enable row level security;
+
+create table "public"."atd_risk_users" (
+    "id" uuid not null,
+    "name" text not null,
+    "role" text not null,
+    "email" text
+);
+
+
+create table "public"."atd_rule_audits" (
+    "id" text not null default ('audit_'::text || substr(md5((random())::text), 1, 20)),
+    "actor" text not null,
+    "action" text not null,
+    "resource_type" text not null,
+    "resource_id" text,
+    "payload" jsonb,
+    "ip_address" text,
+    "user_agent" text,
+    "created_at" timestamp with time zone default now()
+);
+
+
+create table "public"."atd_rule_suggestions" (
+    "id" text not null default ('sugg_'::text || substr(md5((random())::text), 1, 20)),
+    "rule_id" text,
+    "status" text default 'pending'::text,
+    "suggestion_type" text,
+    "generated_rule" jsonb not null,
+    "ai_reasoning" text,
+    "llm_model" text,
+    "llm_prompt_sha256" character(64),
+    "llm_response_sha256" character(64),
+    "instruction" text,
+    "created_by" text,
+    "reviewed_by" text,
+    "review_notes" text,
+    "created_at" timestamp with time zone default now(),
+    "reviewed_at" timestamp with time zone
+);
+
+
+create table "public"."atd_rule_versions" (
+    "id" text not null default ('ver_'::text || substr(md5((random())::text), 1, 20)),
+    "rule_id" text not null,
+    "version" integer not null,
+    "rule_snapshot" jsonb not null,
+    "diff" jsonb,
+    "expected_impact" jsonb,
+    "overlap_analysis" jsonb,
+    "created_by" text,
+    "approved_by" text,
+    "notes" text,
+    "created_at" timestamp with time zone default now(),
+    "approved_at" timestamp with time zone
+);
+
+
+create table "public"."atd_sample_transactions" (
+    "id" uuid not null default gen_random_uuid(),
+    "name" text not null,
+    "description" text,
+    "txn" jsonb not null,
+    "created_at" timestamp with time zone default now()
+);
+
+
+create table "public"."atd_transactions" (
+    "txn_id" uuid not null default extensions.uuid_generate_v4(),
+    "user_id" text not null,
+    "agent_id" text not null,
+    "partner" text not null,
+    "amount" numeric(10,2) not null,
+    "intent" text not null,
+    "timestamp" timestamp with time zone not null default now(),
+    "agent_token" text,
+    "flagged" boolean default false,
+    "to_review" boolean default false,
+    "declined" boolean default false,
+    "disputed" boolean default false,
+    "seller_name" text,
+    "seller_url" text,
+    "delegation_time" timestamp with time zone,
+    "delegated" boolean default false,
+    "device" text,
+    "trust_score" integer,
+    "triggered_rules" jsonb,
+    "trust_decision" text,
+    "account_age_days" integer,
+    "checkout_time_seconds" integer,
+    "currency" text,
+    "delegation_duration_hours" integer,
+    "hour" integer,
+    "fraud_engine_output" jsonb,
+    "rule_id" text,
+    "rule_name" text,
+    "rule_version" text,
+    "fraud_decision" text,
+    "fraud_severity" text,
+    "fraud_explanation" text,
+    "matched_conditions" jsonb,
+    "fraud_engine_version" text,
+    "manual_review_required" boolean,
+    "status" text,
+    "risk_score" double precision,
+    "risk_tags" jsonb,
+    "triggered_rule_ids" jsonb,
+    "rule_actions_taken" jsonb,
+    "is_first_transaction" boolean default false
+);
+
+
+create table "public"."atd_transactions_proj" (
+    "txn_id" text not null,
+    "timestamp" timestamp with time zone not null,
+    "amount" numeric(12,2) not null,
+    "hour" smallint,
+    "device" text,
+    "agent_id" text,
+    "partner" text,
+    "intent" text,
+    "decision" text not null,
+    "flagged" boolean default false,
+    "disputed" boolean default false,
+    "declined" boolean default false,
+    "account_age_days" integer,
+    "is_first_transaction" boolean default false,
+    "triggered_rule_ids" jsonb default '[]'::jsonb,
+    "created_at" timestamp with time zone default now()
+);
+
+
+create table "public"."bookmarks" (
+    "id" uuid not null default gen_random_uuid(),
+    "user_id" uuid not null,
+    "app_id" uuid not null,
+    "created_at" timestamp without time zone not null default now()
+);
+
+
+create table "public"."categories" (
+    "id" uuid not null default gen_random_uuid(),
+    "name" character varying(100) not null,
+    "slug" character varying(100) not null,
+    "description" text,
+    "emoji" character varying(10),
+    "created_at" timestamp without time zone not null default now()
+);
+
+
+create table "public"."contacts" (
+    "id" uuid not null default gen_random_uuid(),
+    "app_id" uuid not null,
+    "submitter_user_id" uuid,
+    "from_name" character varying(100) not null,
+    "from_email" character varying(255) not null,
+    "message" text not null,
+    "sent_at" timestamp without time zone not null default now(),
+    "status" contact_status not null default 'delivered'::contact_status
+);
+
+
+create table "public"."fraud_rule_audit_log" (
+    "id" uuid not null,
+    "rule_id" uuid not null,
+    "action" text not null,
+    "performed_by" uuid not null,
+    "performed_at" timestamp with time zone default now(),
+    "details" jsonb
+);
+
+
+create table "public"."fraud_rules_backup" (
+    "id" uuid,
+    "rule_name" text,
+    "condition" text,
+    "action" text,
+    "priority" integer,
+    "classification" text,
+    "enabled" boolean,
+    "created_at" timestamp without time zone,
+    "created_by" uuid,
+    "approved_by" uuid,
+    "approved_at" timestamp without time zone,
+    "applies_to" text,
+    "description" text
+);
+
+
+create table "public"."mld_activities" (
+    "id" text not null,
+    "title" text not null,
+    "summary" text not null,
+    "description" text not null,
+    "goal_keys" text[] not null,
+    "phase_labels" text[] not null,
+    "age_min" integer not null,
+    "age_max" integer not null,
+    "skills" text[] not null,
+    "interests" text[] not null,
+    "context" jsonb not null,
+    "time_minutes" integer not null,
+    "cost_level" text not null,
+    "difficulty" text not null,
+    "parent_tips" text,
+    "tags" text[] not null default '{}'::text[],
+    "is_active" boolean not null default true,
+    "created_at" timestamp with time zone not null default now(),
+    "updated_at" timestamp with time zone not null default now(),
+    "pathway_ids" uuid[] not null default ARRAY[]::uuid[]
+);
+
+
+alter table "public"."mld_activities" enable row level security;
+
+create table "public"."mld_activity_feedback" (
+    "id" uuid not null default gen_random_uuid(),
+    "child_id" uuid not null,
+    "goal_id" uuid,
+    "activity_id" text not null,
+    "action" text not null,
+    "sentiment" text,
+    "difficulty" text,
+    "note" text,
+    "phase_label" text,
+    "created_at" timestamp with time zone not null default now()
+);
+
+
+alter table "public"."mld_activity_feedback" enable row level security;
+
+create table "public"."mld_child_competency_levels" (
+    "id" uuid not null default gen_random_uuid(),
+    "child_id" uuid not null,
+    "pathway_id" uuid not null,
+    "competency_key" text not null,
+    "level_tenths" smallint not null default 15,
+    "updated_at" timestamp with time zone not null default now()
+);
+
+
+alter table "public"."mld_child_competency_levels" enable row level security;
+
+create table "public"."mld_child_pathway_focus_history" (
+    "id" uuid not null default gen_random_uuid(),
+    "child_id" uuid not null,
+    "pathway_id" uuid not null,
+    "competencies" text[] not null,
+    "set_at" timestamp with time zone not null default now()
+);
+
+
+create table "public"."mld_child_pathways" (
+    "id" uuid not null default gen_random_uuid(),
+    "child_id" uuid not null,
+    "pathway_id" uuid not null,
+    "focus_competencies" text[],
+    "focus_updated_at" timestamp with time zone,
+    "created_at" timestamp with time zone not null default now()
+);
+
+
+alter table "public"."mld_child_pathways" enable row level security;
+
+create table "public"."mld_child_profiles" (
+    "id" uuid not null default gen_random_uuid(),
+    "user_id" uuid not null,
+    "name" text not null,
+    "age" integer not null,
+    "grade" text,
+    "interests" text[] default '{}'::text[],
+    "goals" text[] default '{}'::text[],
+    "current_activities" text,
+    "context" text,
+    "created_at" timestamp with time zone default now(),
+    "updated_at" timestamp with time zone default now(),
+    "questionnaire_responses" jsonb default '{}'::jsonb,
+    "region" text default 'CA'::text
+);
+
+
+create table "public"."mld_child_vectors" (
+    "child_id" uuid not null,
+    "interest_weights" jsonb not null default '{}'::jsonb,
+    "difficulty_bias" jsonb not null default '{"starter": 0.4, "stretch": 0.1, "standard": 0.5}'::jsonb,
+    "social_bias" jsonb not null default '{"solo": 0.5, "one_to_two": 0.3, "team_large": 0.05, "small_group": 0.15}'::jsonb,
+    "cost_bias" jsonb not null default '{"low": 0.3, "free": 0.5, "high": 0.05, "medium": 0.15}'::jsonb,
+    "last_updated" timestamp with time zone not null default now()
+);
+
+
+alter table "public"."mld_child_vectors" enable row level security;
+
+create table "public"."mld_conversations" (
+    "id" uuid not null default gen_random_uuid(),
+    "child_id" uuid not null,
+    "parent_question" text not null,
+    "ai_response" jsonb not null,
+    "created_at" timestamp with time zone default now()
+);
+
+
+alter table "public"."mld_conversations" enable row level security;
+
+create table "public"."mld_favorites" (
+    "id" uuid not null default gen_random_uuid(),
+    "child_id" uuid not null,
+    "item_id" uuid not null,
+    "planned_date" timestamp with time zone,
+    "created_at" timestamp with time zone not null default now()
+);
+
+
+alter table "public"."mld_favorites" enable row level security;
+
+create table "public"."mld_goals" (
+    "id" uuid not null default gen_random_uuid(),
+    "child_id" uuid not null,
+    "title" text not null,
+    "status" text not null default 'active'::text,
+    "plan" jsonb not null,
+    "current_phase_index" integer not null default 0,
+    "created_at" timestamp with time zone not null default now(),
+    "updated_at" timestamp with time zone not null default now(),
+    "goal_key" text,
+    "current_phase_label" text,
+    "plan_json" jsonb
+);
+
+
+alter table "public"."mld_goals" enable row level security;
+
+create table "public"."mld_growth_log_entries" (
+    "id" uuid not null default gen_random_uuid(),
+    "child_id" uuid not null,
+    "title" text not null,
+    "date" date not null default CURRENT_DATE,
+    "status" text not null default 'planned'::text,
+    "reflection" text,
+    "skills" text[] default '{}'::text[],
+    "created_at" timestamp with time zone not null default now(),
+    "updated_at" timestamp with time zone not null default now(),
+    "completed_at" timestamp with time zone,
+    "goal_id" uuid,
+    "emoji" text,
+    "phase_label" text,
+    "source" text default 'one_off'::text
+);
+
+
+alter table "public"."mld_growth_log_entries" enable row level security;
+
+create table "public"."mld_hidden_items" (
+    "id" uuid not null default gen_random_uuid(),
+    "child_id" uuid not null,
+    "item_id" uuid not null,
+    "reason" text,
+    "created_at" timestamp with time zone not null default now()
+);
+
+
+alter table "public"."mld_hidden_items" enable row level security;
+
+create table "public"."mld_items" (
+    "id" uuid not null default gen_random_uuid(),
+    "pathway_id" uuid not null,
+    "slug" text not null,
+    "item_type" mld_item_type not null,
+    "title" text not null,
+    "summary" text,
+    "description" text,
+    "grade_min" integer,
+    "grade_max" integer,
+    "difficulty" mld_difficulty not null default 'standard'::mld_difficulty,
+    "cost_level" mld_cost_level not null default 'free'::mld_cost_level,
+    "setting" mld_setting not null default 'community'::mld_setting,
+    "social" mld_social_mode not null default 'small_group'::mld_social_mode,
+    "time_minutes" integer,
+    "url" text,
+    "org" text,
+    "region_tags" text[] not null default '{}'::text[],
+    "skills" text[] not null default '{}'::text[],
+    "interests" text[] not null default '{}'::text[],
+    "tags" text[] not null default '{}'::text[],
+    "targets" text[] not null default '{}'::text[],
+    "leads_to" jsonb not null default '[]'::jsonb,
+    "created_at" timestamp with time zone not null default now(),
+    "updated_at" timestamp with time zone not null default now(),
+    "deleted_at" timestamp with time zone,
+    "prestige" numeric(3,2) default 0.20
+);
+
+
+alter table "public"."mld_items" enable row level security;
+
+create table "public"."mld_pathways" (
+    "id" uuid not null default gen_random_uuid(),
+    "slug" text not null,
+    "title" text not null,
+    "summary" text,
+    "skills" text[] not null default '{}'::text[],
+    "tags" text[] not null default '{}'::text[],
+    "competencies" jsonb not null default '[]'::jsonb,
+    "seed_version" text,
+    "icon_name" text,
+    "created_at" timestamp with time zone not null default now(),
+    "updated_at" timestamp with time zone not null default now(),
+    "deleted_at" timestamp with time zone
+);
+
+
+alter table "public"."mld_pathways" enable row level security;
+
+create table "public"."mld_progress_logs" (
+    "id" uuid not null default gen_random_uuid(),
+    "child_id" uuid not null,
+    "item_id" uuid not null,
+    "status" text not null,
+    "reflection_emoji" text,
+    "reflection_note" text,
+    "evidence" jsonb,
+    "competency_updates" jsonb,
+    "completed_at" timestamp with time zone default now(),
+    "created_at" timestamp with time zone not null default now()
+);
+
+
+alter table "public"."mld_progress_logs" enable row level security;
+
+create table "public"."mld_rank_weights" (
+    "id" uuid not null default gen_random_uuid(),
+    "context" text not null,
+    "weights" jsonb not null,
+    "is_active" boolean not null default true,
+    "effective_from" timestamp with time zone not null default now(),
+    "created_at" timestamp with time zone not null default now()
+);
+
+
+alter table "public"."mld_rank_weights" enable row level security;
+
+create table "public"."mld_saved_activities" (
+    "id" uuid not null default gen_random_uuid(),
+    "child_id" uuid not null,
+    "goal_id" uuid,
+    "activity_id" text not null,
+    "source" text not null default 'user'::text,
+    "state" text not null default 'planned'::text,
+    "created_at" timestamp with time zone not null default now()
+);
+
+
+alter table "public"."mld_saved_activities" enable row level security;
+
+create table "public"."mld_users" (
+    "id" uuid not null default gen_random_uuid(),
+    "email" text not null,
+    "created_at" timestamp with time zone default now(),
+    "updated_at" timestamp with time zone default now(),
+    "subscription_tier" text default 'free'::text,
+    "preferences" jsonb default '{}'::jsonb,
+    "parent_questionnaire_responses" jsonb default '{}'::jsonb,
+    "name" text
+);
+
+
+alter table "public"."mld_users" enable row level security;
+
+create table "public"."orders" (
+    "id" integer not null default nextval('orders_id_seq'::regclass),
+    "user_id" text,
+    "email" text,
+    "phone" text,
+    "order_id" text,
+    "items" jsonb,
+    "status" text,
+    "shipping_status" text,
+    "refund_status" text,
+    "created_at" timestamp without time zone,
+    "shipped_at" timestamp without time zone,
+    "refunded_at" timestamp without time zone,
+    "delivered_at" timestamp without time zone,
+    "total_price_cents" integer
+);
+
+
+create table "public"."rag_documents" (
+    "id" uuid not null default gen_random_uuid(),
+    "project_name" text not null,
+    "file_name" text not null,
+    "file_url" text not null,
+    "file_type" text not null,
+    "file_size" bigint,
+    "source_notes" text,
+    "uploaded_by" uuid,
+    "version" integer default 1,
+    "uploaded_at" timestamp with time zone default now()
+);
+
+
+create table "public"."recommendation_feedback" (
+    "id" uuid not null default gen_random_uuid(),
+    "client_id" uuid,
+    "recommendation_text" text not null,
+    "feedback_type" text,
+    "timestamp" timestamp with time zone default now(),
+    "feedback_reason" text,
+    "advisor_id" uuid
+);
+
+
+create table "public"."sponsor_slots" (
+    "id" uuid not null default gen_random_uuid(),
+    "slot_key" sponsor_slot not null,
+    "label" character varying(100) not null,
+    "starts_at" timestamp without time zone not null,
+    "ends_at" timestamp without time zone not null,
+    "app_id" uuid,
+    "advertiser_name" character varying(100),
+    "link_url" character varying(500),
+    "created_at" timestamp without time zone not null default now()
+);
+
+
+create table "public"."temp_order_import" (
+    "user_id" uuid,
+    "email" text,
+    "phone" text,
+    "order_id" uuid,
+    "items" jsonb,
+    "status" text,
+    "shipping_status" text,
+    "refund_status" text,
+    "created_at" timestamp with time zone,
+    "shipped_at" timestamp with time zone,
+    "refunded_at" timestamp with time zone,
+    "delivered_at" timestamp with time zone,
+    "total_price_cents" integer
+);
+
+
+create table "public"."trailmind_notes" (
+    "id" uuid not null default gen_random_uuid(),
+    "user_id" uuid,
+    "title" text not null,
+    "content" text not null,
+    "source_url" text,
+    "source_type" text not null,
+    "tags" text[] default '{}'::text[],
+    "summary" text,
+    "created_at" timestamp with time zone default CURRENT_TIMESTAMP,
+    "updated_at" timestamp with time zone default CURRENT_TIMESTAMP
+);
+
+
+create table "public"."trailmind_users" (
+    "id" uuid not null default gen_random_uuid(),
+    "name" text not null,
+    "email" text,
+    "phone" text,
+    "created_at" timestamp with time zone default CURRENT_TIMESTAMP
+);
+
+
+create table "public"."travel_advisors" (
+    "id" uuid not null default gen_random_uuid(),
+    "first_name" text not null,
+    "last_name" text not null,
+    "email" text not null,
+    "location" text,
+    "travel_expertise_regions" text[]
+);
+
+
+create table "public"."travel_call_transcripts" (
+    "id" uuid not null default gen_random_uuid(),
+    "client_id" uuid,
+    "advisor_id" uuid,
+    "transcript" text not null,
+    "created_at" timestamp without time zone default now()
+);
+
+
+create table "public"."travel_clients" (
+    "id" uuid not null default gen_random_uuid(),
+    "email" text not null,
+    "first_name" text,
+    "last_name" text,
+    "nationality" text,
+    "created_at" timestamp without time zone default now(),
+    "family_structure" jsonb,
+    "advisor_id" uuid,
+    "current_residency" text
+);
+
+
+create table "public"."travel_history" (
+    "id" uuid not null default gen_random_uuid(),
+    "user_id" uuid,
+    "destination_country" text,
+    "destination_city" text,
+    "start_date" date,
+    "end_date" date,
+    "satisfaction_rating" integer,
+    "created_at" timestamp without time zone default now()
+);
+
+
+create table "public"."travel_insights" (
+    "id" uuid not null default gen_random_uuid(),
+    "user_id" uuid,
+    "categorized_terms" jsonb not null,
+    "created_at" timestamp without time zone default now(),
+    "one_line_persona" text
+);
+
+
+create table "public"."travel_preferences" (
+    "id" uuid not null default gen_random_uuid(),
+    "user_id" uuid,
+    "preferred_climate" text,
+    "interests" text[],
+    "travel_season" text,
+    "travel_budget_usd" integer,
+    "created_at" timestamp without time zone default now(),
+    "survey" jsonb
+);
+
+
+create table "public"."travel_recommendation" (
+    "id" uuid not null default gen_random_uuid(),
+    "client_id" uuid,
+    "advisor_id" uuid,
+    "session_id" text not null,
+    "generated_at" timestamp with time zone default now(),
+    "input_snapshot" jsonb not null,
+    "recommendation_summary" text not null,
+    "reasoning" text,
+    "source_workflow" text,
+    "notes" text
+);
+
+
+create table "public"."travel_transcripts" (
+    "id" uuid not null default gen_random_uuid(),
+    "user_id" uuid,
+    "title" text default 'Initial Intake Call'::text,
+    "transcript" text,
+    "created_at" timestamp without time zone default now(),
+    "advisor_id" uuid
+);
+
+
+create table "public"."trip_feasibility_checks" (
+    "id" uuid not null default gen_random_uuid(),
+    "trip_id" uuid not null,
+    "run_at" timestamp without time zone default now(),
+    "initiated_by" uuid,
+    "status" text,
+    "result" jsonb not null
+);
+
+
+create table "public"."trip_plans" (
+    "id" uuid not null default gen_random_uuid(),
+    "user_id" uuid not null,
+    "advisor_id" uuid,
+    "destination" text not null,
+    "origin" text not null,
+    "travelers" jsonb,
+    "constraints" text[],
+    "airport_access_limit" text,
+    "created_at" timestamp without time zone default now(),
+    "status" text default 'Planning'::text,
+    "start_date" date,
+    "end_date" date
+);
+
+
+create table "public"."user_agent_profiles" (
+    "user_id" text not null,
+    "agent_id" text not null,
+    "score" integer not null default 100,
+    "good_count" integer not null default 0
+);
+
+
+create table "public"."users" (
+    "id" uuid not null default gen_random_uuid(),
+    "username" character varying(50) not null,
+    "email" character varying(255) not null,
+    "password_hash" text not null,
+    "bio" text,
+    "website_url" character varying(500),
+    "avatar_url" character varying(500),
+    "role" user_role not null default 'user'::user_role,
+    "created_at" timestamp without time zone not null default now()
+);
+
+
+create table "public"."view_events" (
+    "id" uuid not null default gen_random_uuid(),
+    "app_id" uuid not null,
+    "user_id" uuid,
+    "ip_hash" character varying(64) not null,
+    "user_agent" text,
+    "created_at" timestamp without time zone not null default now()
+);
+
+
+create table "public"."votes" (
+    "id" uuid not null default gen_random_uuid(),
+    "app_id" uuid not null,
+    "user_id" uuid not null,
+    "created_at" timestamp without time zone not null default now()
+);
+
+
+alter table "public"."trackpay_activities" drop column "activity_type";
+
+alter table "public"."trackpay_activities" drop column "description";
+
+alter table "public"."trackpay_activities" drop column "metadata";
+
+alter table "public"."trackpay_activities" drop column "user_id";
+
+alter table "public"."trackpay_activities" add column "data" jsonb;
+
+alter table "public"."trackpay_activities" add column "type" text not null;
+
+alter table "public"."trackpay_activities" alter column "created_at" drop not null;
+
+alter table "public"."trackpay_invites" drop column "client_email";
+
+alter table "public"."trackpay_invites" drop column "client_name";
+
+alter table "public"."trackpay_invites" drop column "hourly_rate";
+
+alter table "public"."trackpay_invites" drop column "updated_at";
+
+alter table "public"."trackpay_invites" alter column "client_id" set not null;
+
+alter table "public"."trackpay_invites" alter column "created_at" drop not null;
+
+alter table "public"."trackpay_invites" alter column "invite_code" set data type character varying(8) using "invite_code"::character varying(8);
+
+alter table "public"."trackpay_invites" alter column "status" set default 'pending'::character varying;
+
+alter table "public"."trackpay_invites" alter column "status" drop not null;
+
+alter table "public"."trackpay_invites" alter column "status" set data type character varying(20) using "status"::character varying(20);
+
+alter table "public"."trackpay_invites" disable row level security;
+
+alter table "public"."trackpay_payments" drop column "notes";
+
+alter table "public"."trackpay_payments" drop column "payment_date";
+
+alter table "public"."trackpay_payments" drop column "payment_method";
+
+alter table "public"."trackpay_payments" drop column "updated_at";
+
+alter table "public"."trackpay_payments" add column "method" text;
+
+alter table "public"."trackpay_payments" add column "note" text;
+
+alter table "public"."trackpay_payments" add column "status" text default 'completed'::text;
+
+alter table "public"."trackpay_payments" alter column "client_id" drop not null;
+
+alter table "public"."trackpay_payments" alter column "created_at" drop not null;
+
+alter table "public"."trackpay_payments" alter column "provider_id" drop not null;
+
+alter table "public"."trackpay_payments" alter column "session_ids" drop default;
+
+alter table "public"."trackpay_payments" alter column "session_ids" drop not null;
+
+alter table "public"."trackpay_payments" alter column "session_ids" set data type text[] using "session_ids"::text[];
+
+alter table "public"."trackpay_relationships" drop column "hourly_rate";
+
+alter table "public"."trackpay_relationships" drop column "updated_at";
+
+alter table "public"."trackpay_relationships" alter column "client_id" drop not null;
+
+alter table "public"."trackpay_relationships" alter column "created_at" drop not null;
+
+alter table "public"."trackpay_relationships" alter column "provider_id" drop not null;
+
+alter table "public"."trackpay_requests" drop column "requested_at";
+
+alter table "public"."trackpay_requests" drop column "responded_at";
+
+alter table "public"."trackpay_requests" alter column "client_id" drop not null;
+
+alter table "public"."trackpay_requests" alter column "created_at" drop not null;
+
+alter table "public"."trackpay_requests" alter column "provider_id" drop not null;
+
+alter table "public"."trackpay_requests" alter column "status" drop not null;
+
+alter table "public"."trackpay_requests" alter column "updated_at" drop not null;
+
+alter table "public"."trackpay_sessions" drop column "notes";
+
+alter table "public"."trackpay_sessions" alter column "client_id" drop not null;
+
+alter table "public"."trackpay_sessions" alter column "created_at" drop not null;
+
+alter table "public"."trackpay_sessions" alter column "crew_size" set not null;
+
+alter table "public"."trackpay_sessions" alter column "provider_id" drop not null;
+
+alter table "public"."trackpay_sessions" alter column "status" set default 'unpaid'::text;
+
+alter table "public"."trackpay_sessions" alter column "status" drop not null;
+
+alter table "public"."trackpay_sessions" alter column "updated_at" drop not null;
+
+alter table "public"."trackpay_users" drop column "phone";
+
+alter table "public"."trackpay_users" add column "display_name" text;
+
+alter table "public"."trackpay_users" add column "phone_e164" text;
+
+alter table "public"."trackpay_users" add column "phone_verified_at" timestamp with time zone;
+
+alter table "public"."trackpay_users" alter column "claimed_status" set default 'claimed'::character varying;
+
+alter table "public"."trackpay_users" alter column "claimed_status" set data type character varying(20) using "claimed_status"::character varying(20);
+
+alter table "public"."trackpay_users" alter column "created_at" drop not null;
+
+alter table "public"."trackpay_users" alter column "email" drop not null;
+
+alter table "public"."trackpay_users" alter column "updated_at" drop not null;
+
+alter table "public"."trackpay_users" enable row level security;
+
+alter sequence "public"."agent_memories_id_seq" owned by "public"."agent_memories"."id";
+
+alter sequence "public"."orders_id_seq" owned by "public"."orders"."id";
+
+CREATE UNIQUE INDEX agent_memories_agent_name_memory_key_key ON public.agent_memories USING btree (agent_name, memory_key);
+
+CREATE UNIQUE INDEX agent_memories_pkey ON public.agent_memories USING btree (id);
+
+CREATE UNIQUE INDEX apps_pkey ON public.apps USING btree (id);
+
+CREATE UNIQUE INDEX atd_dryrun_cache_pkey ON public.atd_dryrun_cache USING btree (id);
+
+CREATE UNIQUE INDEX atd_dryrun_cache_rule_hash_sample_hash_key ON public.atd_dryrun_cache USING btree (rule_hash, sample_hash);
+
+CREATE UNIQUE INDEX atd_profiles_pkey ON public.atd_profiles USING btree (id);
+
+CREATE UNIQUE INDEX atd_profiles_user_id_key ON public.atd_profiles USING btree (user_id);
+
+CREATE UNIQUE INDEX atd_profiles_username_key ON public.atd_profiles USING btree (username);
+
+CREATE UNIQUE INDEX atd_rule_audits_pkey ON public.atd_rule_audits USING btree (id);
+
+CREATE UNIQUE INDEX atd_rule_suggestions_pkey ON public.atd_rule_suggestions USING btree (id);
+
+CREATE UNIQUE INDEX atd_rule_versions_pkey ON public.atd_rule_versions USING btree (id);
+
+CREATE UNIQUE INDEX atd_rule_versions_rule_id_version_key ON public.atd_rule_versions USING btree (rule_id, version);
+
+CREATE UNIQUE INDEX atd_transactions_proj_pkey ON public.atd_transactions_proj USING btree (txn_id);
+
+CREATE UNIQUE INDEX bookmarks_pkey ON public.bookmarks USING btree (id);
+
+CREATE UNIQUE INDEX bookmarks_user_id_app_id_key ON public.bookmarks USING btree (user_id, app_id);
+
+CREATE UNIQUE INDEX call_transcripts_pkey ON public.travel_transcripts USING btree (id);
+
+CREATE UNIQUE INDEX categories_pkey ON public.categories USING btree (id);
+
+CREATE UNIQUE INDEX categories_slug_key ON public.categories USING btree (slug);
+
+CREATE UNIQUE INDEX contacts_pkey ON public.contacts USING btree (id);
+
+CREATE UNIQUE INDEX fraud_rule_audit_log_pkey ON public.fraud_rule_audit_log USING btree (id);
+
+CREATE UNIQUE INDEX fraud_rules_pkey ON public.atd_fraud_rules USING btree (id);
+
+CREATE INDEX idx_activities_pathways ON public.mld_activities USING gin (pathway_ids);
+
+CREATE INDEX idx_activities_provider_client ON public.trackpay_activities USING btree (provider_id, client_id);
+
+CREATE INDEX idx_agent_memories_agent_name ON public.agent_memories USING btree (agent_name);
+
+CREATE INDEX idx_agent_memories_memory_key ON public.agent_memories USING btree (memory_key);
+
+CREATE INDEX idx_atd_audits_action ON public.atd_rule_audits USING btree (action, created_at DESC);
+
+CREATE INDEX idx_atd_audits_actor ON public.atd_rule_audits USING btree (actor, created_at DESC);
+
+CREATE INDEX idx_atd_audits_resource ON public.atd_rule_audits USING btree (resource_type, resource_id, created_at DESC);
+
+CREATE INDEX idx_atd_dryrun_expires ON public.atd_dryrun_cache USING btree (expires_at) WHERE (expires_at IS NOT NULL);
+
+CREATE INDEX idx_atd_profiles_email ON public.atd_profiles USING btree (email);
+
+CREATE INDEX idx_atd_profiles_role ON public.atd_profiles USING btree (role);
+
+CREATE INDEX idx_atd_profiles_user_id ON public.atd_profiles USING btree (user_id);
+
+CREATE INDEX idx_atd_profiles_username ON public.atd_profiles USING btree (username);
+
+CREATE INDEX idx_atd_proj_agent_id ON public.atd_transactions_proj USING btree (agent_id) WHERE (agent_id IS NOT NULL);
+
+CREATE INDEX idx_atd_proj_amount ON public.atd_transactions_proj USING btree (amount);
+
+CREATE INDEX idx_atd_proj_decision_ts ON public.atd_transactions_proj USING btree (decision, "timestamp" DESC);
+
+CREATE INDEX idx_atd_proj_declined ON public.atd_transactions_proj USING btree (declined) WHERE (declined = true);
+
+CREATE INDEX idx_atd_proj_device ON public.atd_transactions_proj USING btree (device) WHERE (device IS NOT NULL);
+
+CREATE INDEX idx_atd_proj_device_amount ON public.atd_transactions_proj USING btree (device, amount);
+
+CREATE INDEX idx_atd_proj_disputed ON public.atd_transactions_proj USING btree (disputed) WHERE (disputed = true);
+
+CREATE INDEX idx_atd_proj_first_txn ON public.atd_transactions_proj USING btree (is_first_transaction) WHERE (is_first_transaction = true);
+
+CREATE INDEX idx_atd_proj_flagged ON public.atd_transactions_proj USING btree (flagged) WHERE (flagged = true);
+
+CREATE INDEX idx_atd_proj_flagged_amount ON public.atd_transactions_proj USING btree (flagged, amount) WHERE (flagged = true);
+
+CREATE INDEX idx_atd_proj_hour ON public.atd_transactions_proj USING btree (hour);
+
+CREATE INDEX idx_atd_proj_intent ON public.atd_transactions_proj USING btree (intent) WHERE (intent IS NOT NULL);
+
+CREATE INDEX idx_atd_proj_partner ON public.atd_transactions_proj USING btree (partner) WHERE (partner IS NOT NULL);
+
+CREATE INDEX idx_atd_proj_triggered ON public.atd_transactions_proj USING gin (triggered_rule_ids);
+
+CREATE INDEX idx_atd_suggestions_creator ON public.atd_rule_suggestions USING btree (created_by, created_at DESC);
+
+CREATE INDEX idx_atd_suggestions_status ON public.atd_rule_suggestions USING btree (status, created_at DESC);
+
+CREATE INDEX idx_atd_versions_rule ON public.atd_rule_versions USING btree (rule_id, version DESC);
+
+CREATE INDEX idx_child_pathways_child ON public.mld_child_pathways USING btree (child_id);
+
+CREATE INDEX idx_comp_levels_child_pathway ON public.mld_child_competency_levels USING btree (child_id, pathway_id, competency_key);
+
+CREATE INDEX idx_favorites_child ON public.mld_favorites USING btree (child_id);
+
+CREATE INDEX idx_favorites_planned ON public.mld_favorites USING btree (planned_date) WHERE (planned_date IS NOT NULL);
+
+CREATE INDEX idx_feedback_user ON public.recommendation_feedback USING btree (client_id);
+
+CREATE INDEX idx_hidden_child ON public.mld_hidden_items USING btree (child_id);
+
+CREATE INDEX idx_items_grade ON public.mld_items USING btree (grade_min, grade_max);
+
+CREATE INDEX idx_items_pathway ON public.mld_items USING btree (pathway_id);
+
+CREATE INDEX idx_items_pathway_grade_type ON public.mld_items USING btree (pathway_id, grade_min, grade_max, item_type);
+
+CREATE INDEX idx_items_prestige ON public.mld_items USING btree (prestige) WHERE (prestige > 0.2);
+
+CREATE INDEX idx_items_tags_gin ON public.mld_items USING gin (tags);
+
+CREATE INDEX idx_items_targets_gin ON public.mld_items USING gin (targets);
+
+CREATE INDEX idx_items_type ON public.mld_items USING btree (item_type);
+
+CREATE INDEX idx_mld_child_profiles_questionnaire ON public.mld_child_profiles USING gin (questionnaire_responses);
+
+CREATE INDEX idx_mld_child_profiles_user_id ON public.mld_child_profiles USING btree (user_id);
+
+CREATE INDEX idx_mld_conversations_child_id ON public.mld_conversations USING btree (child_id);
+
+CREATE INDEX idx_mld_conversations_created_at ON public.mld_conversations USING btree (created_at DESC);
+
+CREATE INDEX idx_mld_goals_child_id ON public.mld_goals USING btree (child_id);
+
+CREATE INDEX idx_mld_goals_child_status ON public.mld_goals USING btree (child_id, status);
+
+CREATE INDEX idx_mld_goals_status ON public.mld_goals USING btree (status);
+
+CREATE INDEX idx_mld_growth_log_child_id ON public.mld_growth_log_entries USING btree (child_id);
+
+CREATE INDEX idx_mld_growth_log_date ON public.mld_growth_log_entries USING btree (date DESC);
+
+CREATE INDEX idx_mld_growth_log_goal_id ON public.mld_growth_log_entries USING btree (goal_id);
+
+CREATE INDEX idx_mld_growth_log_status ON public.mld_growth_log_entries USING btree (status);
+
+CREATE INDEX idx_mld_users_email ON public.mld_users USING btree (email);
+
+CREATE INDEX idx_mld_users_parent_questionnaire ON public.mld_users USING gin (parent_questionnaire_responses);
+
+CREATE INDEX idx_orders_created_at ON public.orders USING btree (created_at);
+
+CREATE INDEX idx_orders_email ON public.orders USING btree (email);
+
+CREATE INDEX idx_orders_phone ON public.orders USING btree (phone);
+
+CREATE INDEX idx_orders_user_id ON public.orders USING btree (user_id);
+
+CREATE INDEX idx_payments_session ON public.trackpay_payments USING btree (session_id);
+
+CREATE INDEX idx_progress_child ON public.mld_progress_logs USING btree (child_id);
+
+CREATE INDEX idx_progress_status ON public.mld_progress_logs USING btree (status);
+
+CREATE INDEX idx_rank_weights_context ON public.mld_rank_weights USING btree (context, is_active, effective_from DESC);
+
+CREATE INDEX idx_sessions_created_at ON public.trackpay_sessions USING btree (created_at);
+
+CREATE INDEX idx_sessions_provider_client ON public.trackpay_sessions USING btree (provider_id, client_id);
+
+CREATE INDEX idx_sessions_status ON public.trackpay_sessions USING btree (status);
+
+CREATE INDEX idx_trackpay_invites_client_id ON public.trackpay_invites USING btree (client_id);
+
+CREATE INDEX idx_trackpay_invites_invite_code ON public.trackpay_invites USING btree (invite_code);
+
+CREATE INDEX idx_trackpay_invites_provider_id ON public.trackpay_invites USING btree (provider_id);
+
+CREATE INDEX idx_trackpay_invites_status ON public.trackpay_invites USING btree (status);
+
+CREATE INDEX idx_trackpay_users_auth_user_id ON public.trackpay_users USING btree (auth_user_id);
+
+CREATE INDEX idx_trackpay_users_email ON public.trackpay_users USING btree (email);
+
+CREATE INDEX idx_trailmind_notes_created_at ON public.trailmind_notes USING btree (created_at);
+
+CREATE INDEX idx_trailmind_notes_tags ON public.trailmind_notes USING gin (tags);
+
+CREATE INDEX idx_transactions_agent_id ON public.atd_transactions USING btree (agent_id);
+
+CREATE INDEX idx_transactions_flagged ON public.atd_transactions USING btree (flagged);
+
+CREATE INDEX idx_transactions_timestamp ON public.atd_transactions USING btree ("timestamp" DESC);
+
+CREATE INDEX idx_transactions_user_id ON public.atd_transactions USING btree (user_id);
+
+CREATE INDEX mld_activities_age_min_age_max_idx ON public.mld_activities USING btree (age_min, age_max);
+
+CREATE INDEX mld_activities_goal_keys_idx ON public.mld_activities USING gin (goal_keys);
+
+CREATE INDEX mld_activities_interests_idx ON public.mld_activities USING gin (interests);
+
+CREATE INDEX mld_activities_is_active_idx ON public.mld_activities USING btree (is_active);
+
+CREATE INDEX mld_activities_phase_labels_idx ON public.mld_activities USING gin (phase_labels);
+
+CREATE UNIQUE INDEX mld_activities_pkey ON public.mld_activities USING btree (id);
+
+CREATE INDEX mld_activity_feedback_action_idx ON public.mld_activity_feedback USING btree (action);
+
+CREATE INDEX mld_activity_feedback_activity_id_idx ON public.mld_activity_feedback USING btree (activity_id);
+
+CREATE INDEX mld_activity_feedback_child_id_idx ON public.mld_activity_feedback USING btree (child_id);
+
+CREATE INDEX mld_activity_feedback_created_at_idx ON public.mld_activity_feedback USING btree (created_at);
+
+CREATE INDEX mld_activity_feedback_goal_id_idx ON public.mld_activity_feedback USING btree (goal_id);
+
+CREATE UNIQUE INDEX mld_activity_feedback_pkey ON public.mld_activity_feedback USING btree (id);
+
+CREATE UNIQUE INDEX mld_child_competency_levels_pkey ON public.mld_child_competency_levels USING btree (id);
+
+CREATE UNIQUE INDEX mld_child_pathway_focus_history_pkey ON public.mld_child_pathway_focus_history USING btree (id);
+
+CREATE UNIQUE INDEX mld_child_pathways_child_id_pathway_id_key ON public.mld_child_pathways USING btree (child_id, pathway_id);
+
+CREATE UNIQUE INDEX mld_child_pathways_pkey ON public.mld_child_pathways USING btree (id);
+
+CREATE UNIQUE INDEX mld_child_profiles_pkey ON public.mld_child_profiles USING btree (id);
+
+CREATE UNIQUE INDEX mld_child_vectors_pkey ON public.mld_child_vectors USING btree (child_id);
+
+CREATE UNIQUE INDEX mld_conversations_pkey ON public.mld_conversations USING btree (id);
+
+CREATE UNIQUE INDEX mld_favorites_child_id_item_id_key ON public.mld_favorites USING btree (child_id, item_id);
+
+CREATE UNIQUE INDEX mld_favorites_pkey ON public.mld_favorites USING btree (id);
+
+CREATE UNIQUE INDEX mld_goals_pkey ON public.mld_goals USING btree (id);
+
+CREATE UNIQUE INDEX mld_growth_log_entries_pkey ON public.mld_growth_log_entries USING btree (id);
+
+CREATE UNIQUE INDEX mld_hidden_items_child_id_item_id_key ON public.mld_hidden_items USING btree (child_id, item_id);
+
+CREATE UNIQUE INDEX mld_hidden_items_pkey ON public.mld_hidden_items USING btree (id);
+
+CREATE UNIQUE INDEX mld_items_pkey ON public.mld_items USING btree (id);
+
+CREATE UNIQUE INDEX mld_items_slug_key ON public.mld_items USING btree (slug);
+
+CREATE UNIQUE INDEX mld_pathways_pkey ON public.mld_pathways USING btree (id);
+
+CREATE UNIQUE INDEX mld_pathways_slug_key ON public.mld_pathways USING btree (slug);
+
+CREATE UNIQUE INDEX mld_progress_logs_pkey ON public.mld_progress_logs USING btree (id);
+
+CREATE UNIQUE INDEX mld_rank_weights_pkey ON public.mld_rank_weights USING btree (id);
+
+CREATE INDEX mld_saved_activities_activity_id_idx ON public.mld_saved_activities USING btree (activity_id);
+
+CREATE UNIQUE INDEX mld_saved_activities_child_id_activity_id_key ON public.mld_saved_activities USING btree (child_id, activity_id);
+
+CREATE INDEX mld_saved_activities_child_id_idx ON public.mld_saved_activities USING btree (child_id);
+
+CREATE UNIQUE INDEX mld_saved_activities_pkey ON public.mld_saved_activities USING btree (id);
+
+CREATE INDEX mld_saved_activities_state_idx ON public.mld_saved_activities USING btree (state);
+
+CREATE UNIQUE INDEX mld_users_email_key ON public.mld_users USING btree (email);
+
+CREATE UNIQUE INDEX mld_users_pkey ON public.mld_users USING btree (id);
+
+CREATE UNIQUE INDEX orders_order_id_key ON public.orders USING btree (order_id);
+
+CREATE UNIQUE INDEX orders_pkey ON public.orders USING btree (id);
+
+CREATE UNIQUE INDEX rag_documents_pkey ON public.rag_documents USING btree (id);
+
+CREATE INDEX rag_documents_project_name_idx ON public.rag_documents USING btree (project_name);
+
+CREATE INDEX rag_documents_uploaded_by_idx ON public.rag_documents USING btree (uploaded_by);
+
+CREATE UNIQUE INDEX recommendation_feedback_pkey ON public.recommendation_feedback USING btree (id);
+
+CREATE UNIQUE INDEX risk_users_pkey ON public.atd_risk_users USING btree (id);
+
+CREATE UNIQUE INDEX sample_transactions_pkey ON public.atd_sample_transactions USING btree (id);
+
+CREATE UNIQUE INDEX sponsor_slots_pkey ON public.sponsor_slots USING btree (id);
+
+CREATE UNIQUE INDEX sponsor_slots_slot_key_key ON public.sponsor_slots USING btree (slot_key);
+
+CREATE UNIQUE INDEX trackpay_users_phone_e164_key ON public.trackpay_users USING btree (phone_e164);
+
+CREATE UNIQUE INDEX trailmind_notes_pkey ON public.trailmind_notes USING btree (id);
+
+CREATE UNIQUE INDEX trailmind_users_email_key ON public.trailmind_users USING btree (email);
+
+CREATE UNIQUE INDEX trailmind_users_pkey ON public.trailmind_users USING btree (id);
+
+CREATE UNIQUE INDEX transactions_pkey ON public.atd_transactions USING btree (txn_id);
+
+CREATE UNIQUE INDEX travel_advisors_email_key ON public.travel_advisors USING btree (email);
+
+CREATE UNIQUE INDEX travel_advisors_pkey ON public.travel_advisors USING btree (id);
+
+CREATE UNIQUE INDEX travel_call_transcripts_pkey ON public.travel_call_transcripts USING btree (id);
+
+CREATE UNIQUE INDEX travel_clients_email_key ON public.travel_clients USING btree (email);
+
+CREATE UNIQUE INDEX travel_clients_pkey ON public.travel_clients USING btree (id);
+
+CREATE UNIQUE INDEX travel_history_pkey ON public.travel_history USING btree (id);
+
+CREATE UNIQUE INDEX travel_insights_pkey ON public.travel_insights USING btree (id);
+
+CREATE UNIQUE INDEX travel_preferences_pkey ON public.travel_preferences USING btree (id);
+
+CREATE UNIQUE INDEX travel_recommendation_pkey ON public.travel_recommendation USING btree (id);
+
+CREATE UNIQUE INDEX trip_feasibility_checks_pkey ON public.trip_feasibility_checks USING btree (id);
+
+CREATE UNIQUE INDEX trip_plans_pkey ON public.trip_plans USING btree (id);
+
+CREATE UNIQUE INDEX uq_child_pathway_comp ON public.mld_child_competency_levels USING btree (child_id, pathway_id, competency_key);
+
+CREATE UNIQUE INDEX user_agent_profiles_pkey ON public.user_agent_profiles USING btree (user_id, agent_id);
+
+CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email);
+
+CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id);
+
+CREATE UNIQUE INDEX users_username_key ON public.users USING btree (username);
+
+CREATE UNIQUE INDEX ux_relationships_provider_client ON public.trackpay_relationships USING btree (provider_id, client_id);
+
+CREATE UNIQUE INDEX view_events_pkey ON public.view_events USING btree (id);
+
+CREATE UNIQUE INDEX votes_app_id_user_id_key ON public.votes USING btree (app_id, user_id);
+
+CREATE UNIQUE INDEX votes_pkey ON public.votes USING btree (id);
+
+alter table "public"."agent_memories" add constraint "agent_memories_pkey" PRIMARY KEY using index "agent_memories_pkey";
+
+alter table "public"."apps" add constraint "apps_pkey" PRIMARY KEY using index "apps_pkey";
+
+alter table "public"."atd_dryrun_cache" add constraint "atd_dryrun_cache_pkey" PRIMARY KEY using index "atd_dryrun_cache_pkey";
+
+alter table "public"."atd_fraud_rules" add constraint "fraud_rules_pkey" PRIMARY KEY using index "fraud_rules_pkey";
+
+alter table "public"."atd_profiles" add constraint "atd_profiles_pkey" PRIMARY KEY using index "atd_profiles_pkey";
+
+alter table "public"."atd_risk_users" add constraint "risk_users_pkey" PRIMARY KEY using index "risk_users_pkey";
+
+alter table "public"."atd_rule_audits" add constraint "atd_rule_audits_pkey" PRIMARY KEY using index "atd_rule_audits_pkey";
+
+alter table "public"."atd_rule_suggestions" add constraint "atd_rule_suggestions_pkey" PRIMARY KEY using index "atd_rule_suggestions_pkey";
+
+alter table "public"."atd_rule_versions" add constraint "atd_rule_versions_pkey" PRIMARY KEY using index "atd_rule_versions_pkey";
+
+alter table "public"."atd_sample_transactions" add constraint "sample_transactions_pkey" PRIMARY KEY using index "sample_transactions_pkey";
+
+alter table "public"."atd_transactions" add constraint "transactions_pkey" PRIMARY KEY using index "transactions_pkey";
+
+alter table "public"."atd_transactions_proj" add constraint "atd_transactions_proj_pkey" PRIMARY KEY using index "atd_transactions_proj_pkey";
+
+alter table "public"."bookmarks" add constraint "bookmarks_pkey" PRIMARY KEY using index "bookmarks_pkey";
+
+alter table "public"."categories" add constraint "categories_pkey" PRIMARY KEY using index "categories_pkey";
+
+alter table "public"."contacts" add constraint "contacts_pkey" PRIMARY KEY using index "contacts_pkey";
+
+alter table "public"."fraud_rule_audit_log" add constraint "fraud_rule_audit_log_pkey" PRIMARY KEY using index "fraud_rule_audit_log_pkey";
+
+alter table "public"."mld_activities" add constraint "mld_activities_pkey" PRIMARY KEY using index "mld_activities_pkey";
+
+alter table "public"."mld_activity_feedback" add constraint "mld_activity_feedback_pkey" PRIMARY KEY using index "mld_activity_feedback_pkey";
+
+alter table "public"."mld_child_competency_levels" add constraint "mld_child_competency_levels_pkey" PRIMARY KEY using index "mld_child_competency_levels_pkey";
+
+alter table "public"."mld_child_pathway_focus_history" add constraint "mld_child_pathway_focus_history_pkey" PRIMARY KEY using index "mld_child_pathway_focus_history_pkey";
+
+alter table "public"."mld_child_pathways" add constraint "mld_child_pathways_pkey" PRIMARY KEY using index "mld_child_pathways_pkey";
+
+alter table "public"."mld_child_profiles" add constraint "mld_child_profiles_pkey" PRIMARY KEY using index "mld_child_profiles_pkey";
+
+alter table "public"."mld_child_vectors" add constraint "mld_child_vectors_pkey" PRIMARY KEY using index "mld_child_vectors_pkey";
+
+alter table "public"."mld_conversations" add constraint "mld_conversations_pkey" PRIMARY KEY using index "mld_conversations_pkey";
+
+alter table "public"."mld_favorites" add constraint "mld_favorites_pkey" PRIMARY KEY using index "mld_favorites_pkey";
+
+alter table "public"."mld_goals" add constraint "mld_goals_pkey" PRIMARY KEY using index "mld_goals_pkey";
+
+alter table "public"."mld_growth_log_entries" add constraint "mld_growth_log_entries_pkey" PRIMARY KEY using index "mld_growth_log_entries_pkey";
+
+alter table "public"."mld_hidden_items" add constraint "mld_hidden_items_pkey" PRIMARY KEY using index "mld_hidden_items_pkey";
+
+alter table "public"."mld_items" add constraint "mld_items_pkey" PRIMARY KEY using index "mld_items_pkey";
+
+alter table "public"."mld_pathways" add constraint "mld_pathways_pkey" PRIMARY KEY using index "mld_pathways_pkey";
+
+alter table "public"."mld_progress_logs" add constraint "mld_progress_logs_pkey" PRIMARY KEY using index "mld_progress_logs_pkey";
+
+alter table "public"."mld_rank_weights" add constraint "mld_rank_weights_pkey" PRIMARY KEY using index "mld_rank_weights_pkey";
+
+alter table "public"."mld_saved_activities" add constraint "mld_saved_activities_pkey" PRIMARY KEY using index "mld_saved_activities_pkey";
+
+alter table "public"."mld_users" add constraint "mld_users_pkey" PRIMARY KEY using index "mld_users_pkey";
+
+alter table "public"."orders" add constraint "orders_pkey" PRIMARY KEY using index "orders_pkey";
+
+alter table "public"."rag_documents" add constraint "rag_documents_pkey" PRIMARY KEY using index "rag_documents_pkey";
+
+alter table "public"."recommendation_feedback" add constraint "recommendation_feedback_pkey" PRIMARY KEY using index "recommendation_feedback_pkey";
+
+alter table "public"."sponsor_slots" add constraint "sponsor_slots_pkey" PRIMARY KEY using index "sponsor_slots_pkey";
+
+alter table "public"."trailmind_notes" add constraint "trailmind_notes_pkey" PRIMARY KEY using index "trailmind_notes_pkey";
+
+alter table "public"."trailmind_users" add constraint "trailmind_users_pkey" PRIMARY KEY using index "trailmind_users_pkey";
+
+alter table "public"."travel_advisors" add constraint "travel_advisors_pkey" PRIMARY KEY using index "travel_advisors_pkey";
+
+alter table "public"."travel_call_transcripts" add constraint "travel_call_transcripts_pkey" PRIMARY KEY using index "travel_call_transcripts_pkey";
+
+alter table "public"."travel_clients" add constraint "travel_clients_pkey" PRIMARY KEY using index "travel_clients_pkey";
+
+alter table "public"."travel_history" add constraint "travel_history_pkey" PRIMARY KEY using index "travel_history_pkey";
+
+alter table "public"."travel_insights" add constraint "travel_insights_pkey" PRIMARY KEY using index "travel_insights_pkey";
+
+alter table "public"."travel_preferences" add constraint "travel_preferences_pkey" PRIMARY KEY using index "travel_preferences_pkey";
+
+alter table "public"."travel_recommendation" add constraint "travel_recommendation_pkey" PRIMARY KEY using index "travel_recommendation_pkey";
+
+alter table "public"."travel_transcripts" add constraint "call_transcripts_pkey" PRIMARY KEY using index "call_transcripts_pkey";
+
+alter table "public"."trip_feasibility_checks" add constraint "trip_feasibility_checks_pkey" PRIMARY KEY using index "trip_feasibility_checks_pkey";
+
+alter table "public"."trip_plans" add constraint "trip_plans_pkey" PRIMARY KEY using index "trip_plans_pkey";
+
+alter table "public"."user_agent_profiles" add constraint "user_agent_profiles_pkey" PRIMARY KEY using index "user_agent_profiles_pkey";
+
+alter table "public"."users" add constraint "users_pkey" PRIMARY KEY using index "users_pkey";
+
+alter table "public"."view_events" add constraint "view_events_pkey" PRIMARY KEY using index "view_events_pkey";
+
+alter table "public"."votes" add constraint "votes_pkey" PRIMARY KEY using index "votes_pkey";
+
+alter table "public"."agent_memories" add constraint "agent_memories_agent_name_memory_key_key" UNIQUE using index "agent_memories_agent_name_memory_key_key";
+
+alter table "public"."app_categories" add constraint "app_categories_app_id_fkey" FOREIGN KEY (app_id) REFERENCES apps(id) ON DELETE CASCADE not valid;
+
+alter table "public"."app_categories" validate constraint "app_categories_app_id_fkey";
+
+alter table "public"."app_categories" add constraint "app_categories_category_id_fkey" FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE not valid;
+
+alter table "public"."app_categories" validate constraint "app_categories_category_id_fkey";
+
+alter table "public"."apps" add constraint "apps_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE not valid;
+
+alter table "public"."apps" validate constraint "apps_user_id_fkey";
+
+alter table "public"."atd_dryrun_cache" add constraint "atd_dryrun_cache_rule_hash_sample_hash_key" UNIQUE using index "atd_dryrun_cache_rule_hash_sample_hash_key";
+
+alter table "public"."atd_fraud_rules" add constraint "check_valid_condition_json" CHECK (((condition IS NULL) OR ((condition IS NOT NULL) AND (jsonb_typeof(condition) = 'array'::text)))) not valid;
+
+alter table "public"."atd_fraud_rules" validate constraint "check_valid_condition_json";
+
+alter table "public"."atd_fraud_rules" add constraint "fk_approved_by" FOREIGN KEY (approved_by) REFERENCES atd_risk_users(id) ON DELETE SET NULL not valid;
+
+alter table "public"."atd_fraud_rules" validate constraint "fk_approved_by";
+
+alter table "public"."atd_fraud_rules" add constraint "fk_created_by" FOREIGN KEY (created_by) REFERENCES atd_risk_users(id) ON DELETE SET NULL not valid;
+
+alter table "public"."atd_fraud_rules" validate constraint "fk_created_by";
+
+alter table "public"."atd_profiles" add constraint "atd_profiles_user_id_key" UNIQUE using index "atd_profiles_user_id_key";
+
+alter table "public"."atd_profiles" add constraint "atd_profiles_username_key" UNIQUE using index "atd_profiles_username_key";
+
+alter table "public"."atd_rule_suggestions" add constraint "atd_rule_suggestions_status_check" CHECK ((status = ANY (ARRAY['pending'::text, 'accepted'::text, 'rejected'::text, 'discarded'::text]))) not valid;
+
+alter table "public"."atd_rule_suggestions" validate constraint "atd_rule_suggestions_status_check";
+
+alter table "public"."atd_rule_suggestions" add constraint "atd_rule_suggestions_suggestion_type_check" CHECK ((suggestion_type = ANY (ARRAY['new_rule'::text, 'modify_rule'::text, 'delete_rule'::text]))) not valid;
+
+alter table "public"."atd_rule_suggestions" validate constraint "atd_rule_suggestions_suggestion_type_check";
+
+alter table "public"."atd_rule_versions" add constraint "atd_rule_versions_rule_id_version_key" UNIQUE using index "atd_rule_versions_rule_id_version_key";
+
+alter table "public"."atd_transactions_proj" add constraint "atd_transactions_proj_hour_check" CHECK (((hour >= 0) AND (hour <= 23))) not valid;
+
+alter table "public"."atd_transactions_proj" validate constraint "atd_transactions_proj_hour_check";
+
+alter table "public"."bookmarks" add constraint "bookmarks_app_id_fkey" FOREIGN KEY (app_id) REFERENCES apps(id) ON DELETE CASCADE not valid;
+
+alter table "public"."bookmarks" validate constraint "bookmarks_app_id_fkey";
+
+alter table "public"."bookmarks" add constraint "bookmarks_user_id_app_id_key" UNIQUE using index "bookmarks_user_id_app_id_key";
+
+alter table "public"."bookmarks" add constraint "bookmarks_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE not valid;
+
+alter table "public"."bookmarks" validate constraint "bookmarks_user_id_fkey";
+
+alter table "public"."categories" add constraint "categories_slug_key" UNIQUE using index "categories_slug_key";
+
+alter table "public"."contacts" add constraint "contacts_app_id_fkey" FOREIGN KEY (app_id) REFERENCES apps(id) ON DELETE CASCADE not valid;
+
+alter table "public"."contacts" validate constraint "contacts_app_id_fkey";
+
+alter table "public"."contacts" add constraint "contacts_submitter_user_id_fkey" FOREIGN KEY (submitter_user_id) REFERENCES users(id) ON DELETE SET NULL not valid;
+
+alter table "public"."contacts" validate constraint "contacts_submitter_user_id_fkey";
+
+alter table "public"."fraud_rule_audit_log" add constraint "fraud_rule_audit_log_action_check" CHECK ((action = ANY (ARRAY['created'::text, 'approved'::text, 'disabled'::text, 'enabled'::text]))) not valid;
+
+alter table "public"."fraud_rule_audit_log" validate constraint "fraud_rule_audit_log_action_check";
+
+alter table "public"."fraud_rule_audit_log" add constraint "fraud_rule_audit_log_performed_by_fkey" FOREIGN KEY (performed_by) REFERENCES atd_risk_users(id) not valid;
+
+alter table "public"."fraud_rule_audit_log" validate constraint "fraud_rule_audit_log_performed_by_fkey";
+
+alter table "public"."fraud_rule_audit_log" add constraint "fraud_rule_audit_log_rule_id_fkey" FOREIGN KEY (rule_id) REFERENCES atd_fraud_rules(id) ON DELETE CASCADE not valid;
+
+alter table "public"."fraud_rule_audit_log" validate constraint "fraud_rule_audit_log_rule_id_fkey";
+
+alter table "public"."mld_activities" add constraint "mld_activities_cost_level_check" CHECK ((cost_level = ANY (ARRAY['free'::text, 'low'::text, 'medium'::text, 'high'::text]))) not valid;
+
+alter table "public"."mld_activities" validate constraint "mld_activities_cost_level_check";
+
+alter table "public"."mld_activities" add constraint "mld_activities_difficulty_check" CHECK ((difficulty = ANY (ARRAY['starter'::text, 'standard'::text, 'stretch'::text]))) not valid;
+
+alter table "public"."mld_activities" validate constraint "mld_activities_difficulty_check";
+
+alter table "public"."mld_activity_feedback" add constraint "mld_activity_feedback_action_check" CHECK ((action = ANY (ARRAY['thumbs_up'::text, 'thumbs_down'::text, 'logged'::text]))) not valid;
+
+alter table "public"."mld_activity_feedback" validate constraint "mld_activity_feedback_action_check";
+
+alter table "public"."mld_activity_feedback" add constraint "mld_activity_feedback_activity_id_fkey" FOREIGN KEY (activity_id) REFERENCES mld_activities(id) not valid;
+
+alter table "public"."mld_activity_feedback" validate constraint "mld_activity_feedback_activity_id_fkey";
+
+alter table "public"."mld_activity_feedback" add constraint "mld_activity_feedback_child_id_fkey" FOREIGN KEY (child_id) REFERENCES mld_child_profiles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."mld_activity_feedback" validate constraint "mld_activity_feedback_child_id_fkey";
+
+alter table "public"."mld_activity_feedback" add constraint "mld_activity_feedback_difficulty_check" CHECK (((difficulty IS NULL) OR (difficulty = ANY (ARRAY['too_easy'::text, 'just_right'::text, 'too_hard'::text])))) not valid;
+
+alter table "public"."mld_activity_feedback" validate constraint "mld_activity_feedback_difficulty_check";
+
+alter table "public"."mld_activity_feedback" add constraint "mld_activity_feedback_goal_id_fkey" FOREIGN KEY (goal_id) REFERENCES mld_goals(id) ON DELETE SET NULL not valid;
+
+alter table "public"."mld_activity_feedback" validate constraint "mld_activity_feedback_goal_id_fkey";
+
+alter table "public"."mld_activity_feedback" add constraint "mld_activity_feedback_sentiment_check" CHECK (((sentiment IS NULL) OR (sentiment = ANY (ARRAY['loved'::text, 'just_right'::text, 'too_easy'::text, 'needs_support'::text])))) not valid;
+
+alter table "public"."mld_activity_feedback" validate constraint "mld_activity_feedback_sentiment_check";
+
+alter table "public"."mld_child_competency_levels" add constraint "chk_level_tenths" CHECK ((((level_tenths >= 10) AND (level_tenths <= 40)) AND (((level_tenths)::integer % 5) = 0))) not valid;
+
+alter table "public"."mld_child_competency_levels" validate constraint "chk_level_tenths";
+
+alter table "public"."mld_child_competency_levels" add constraint "mld_child_competency_levels_child_id_fkey" FOREIGN KEY (child_id) REFERENCES mld_child_profiles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."mld_child_competency_levels" validate constraint "mld_child_competency_levels_child_id_fkey";
+
+alter table "public"."mld_child_competency_levels" add constraint "mld_child_competency_levels_pathway_id_fkey" FOREIGN KEY (pathway_id) REFERENCES mld_pathways(id) ON DELETE CASCADE not valid;
+
+alter table "public"."mld_child_competency_levels" validate constraint "mld_child_competency_levels_pathway_id_fkey";
+
+alter table "public"."mld_child_competency_levels" add constraint "uq_child_pathway_comp" UNIQUE using index "uq_child_pathway_comp";
+
+alter table "public"."mld_child_pathway_focus_history" add constraint "mld_child_pathway_focus_history_child_id_fkey" FOREIGN KEY (child_id) REFERENCES mld_child_profiles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."mld_child_pathway_focus_history" validate constraint "mld_child_pathway_focus_history_child_id_fkey";
+
+alter table "public"."mld_child_pathway_focus_history" add constraint "mld_child_pathway_focus_history_pathway_id_fkey" FOREIGN KEY (pathway_id) REFERENCES mld_pathways(id) ON DELETE CASCADE not valid;
+
+alter table "public"."mld_child_pathway_focus_history" validate constraint "mld_child_pathway_focus_history_pathway_id_fkey";
+
+alter table "public"."mld_child_pathways" add constraint "fk_child_pathways_child" FOREIGN KEY (child_id) REFERENCES mld_child_profiles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."mld_child_pathways" validate constraint "fk_child_pathways_child";
+
+alter table "public"."mld_child_pathways" add constraint "mld_child_pathways_child_id_pathway_id_key" UNIQUE using index "mld_child_pathways_child_id_pathway_id_key";
+
+alter table "public"."mld_child_pathways" add constraint "mld_child_pathways_pathway_id_fkey" FOREIGN KEY (pathway_id) REFERENCES mld_pathways(id) ON DELETE CASCADE not valid;
+
+alter table "public"."mld_child_pathways" validate constraint "mld_child_pathways_pathway_id_fkey";
+
+alter table "public"."mld_child_profiles" add constraint "mld_child_profiles_age_check" CHECK (((age >= 5) AND (age <= 16))) not valid;
+
+alter table "public"."mld_child_profiles" validate constraint "mld_child_profiles_age_check";
+
+alter table "public"."mld_child_profiles" add constraint "mld_child_profiles_user_id_fkey" FOREIGN KEY (user_id) REFERENCES mld_users(id) ON DELETE CASCADE not valid;
+
+alter table "public"."mld_child_profiles" validate constraint "mld_child_profiles_user_id_fkey";
+
+alter table "public"."mld_child_vectors" add constraint "mld_child_vectors_child_id_fkey" FOREIGN KEY (child_id) REFERENCES mld_child_profiles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."mld_child_vectors" validate constraint "mld_child_vectors_child_id_fkey";
+
+alter table "public"."mld_conversations" add constraint "mld_conversations_child_id_fkey" FOREIGN KEY (child_id) REFERENCES mld_child_profiles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."mld_conversations" validate constraint "mld_conversations_child_id_fkey";
+
+alter table "public"."mld_favorites" add constraint "fk_favorites_child" FOREIGN KEY (child_id) REFERENCES mld_child_profiles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."mld_favorites" validate constraint "fk_favorites_child";
+
+alter table "public"."mld_favorites" add constraint "mld_favorites_child_id_item_id_key" UNIQUE using index "mld_favorites_child_id_item_id_key";
+
+alter table "public"."mld_favorites" add constraint "mld_favorites_item_id_fkey" FOREIGN KEY (item_id) REFERENCES mld_items(id) ON DELETE CASCADE not valid;
+
+alter table "public"."mld_favorites" validate constraint "mld_favorites_item_id_fkey";
+
+alter table "public"."mld_goals" add constraint "mld_goals_child_id_fkey" FOREIGN KEY (child_id) REFERENCES mld_child_profiles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."mld_goals" validate constraint "mld_goals_child_id_fkey";
+
+alter table "public"."mld_growth_log_entries" add constraint "mld_growth_log_entries_child_id_fkey" FOREIGN KEY (child_id) REFERENCES mld_child_profiles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."mld_growth_log_entries" validate constraint "mld_growth_log_entries_child_id_fkey";
+
+alter table "public"."mld_growth_log_entries" add constraint "mld_growth_log_entries_emoji_check" CHECK ((emoji = ANY (ARRAY['love'::text, 'like'::text, 'neutral'::text, 'dislike'::text, 'needs_support'::text]))) not valid;
+
+alter table "public"."mld_growth_log_entries" validate constraint "mld_growth_log_entries_emoji_check";
+
+alter table "public"."mld_growth_log_entries" add constraint "mld_growth_log_entries_goal_id_fkey" FOREIGN KEY (goal_id) REFERENCES mld_goals(id) ON DELETE SET NULL not valid;
+
+alter table "public"."mld_growth_log_entries" validate constraint "mld_growth_log_entries_goal_id_fkey";
+
+alter table "public"."mld_growth_log_entries" add constraint "mld_growth_log_entries_source_check" CHECK ((source = ANY (ARRAY['goal'::text, 'one_off'::text]))) not valid;
+
+alter table "public"."mld_growth_log_entries" validate constraint "mld_growth_log_entries_source_check";
+
+alter table "public"."mld_growth_log_entries" add constraint "mld_growth_log_entries_status_check" CHECK ((status = ANY (ARRAY['planned'::text, 'in_progress'::text, 'completed'::text, 'skipped'::text]))) not valid;
+
+alter table "public"."mld_growth_log_entries" validate constraint "mld_growth_log_entries_status_check";
+
+alter table "public"."mld_hidden_items" add constraint "fk_hidden_child" FOREIGN KEY (child_id) REFERENCES mld_child_profiles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."mld_hidden_items" validate constraint "fk_hidden_child";
+
+alter table "public"."mld_hidden_items" add constraint "mld_hidden_items_child_id_item_id_key" UNIQUE using index "mld_hidden_items_child_id_item_id_key";
+
+alter table "public"."mld_hidden_items" add constraint "mld_hidden_items_item_id_fkey" FOREIGN KEY (item_id) REFERENCES mld_items(id) ON DELETE CASCADE not valid;
+
+alter table "public"."mld_hidden_items" validate constraint "mld_hidden_items_item_id_fkey";
+
+alter table "public"."mld_items" add constraint "chk_grades_order" CHECK (((grade_min IS NULL) OR (grade_max IS NULL) OR (grade_min <= grade_max))) not valid;
+
+alter table "public"."mld_items" validate constraint "chk_grades_order";
+
+alter table "public"."mld_items" add constraint "mld_items_pathway_id_fkey" FOREIGN KEY (pathway_id) REFERENCES mld_pathways(id) ON DELETE CASCADE not valid;
+
+alter table "public"."mld_items" validate constraint "mld_items_pathway_id_fkey";
+
+alter table "public"."mld_items" add constraint "mld_items_prestige_check" CHECK (((prestige >= (0)::numeric) AND (prestige <= (1)::numeric))) not valid;
+
+alter table "public"."mld_items" validate constraint "mld_items_prestige_check";
+
+alter table "public"."mld_items" add constraint "mld_items_slug_key" UNIQUE using index "mld_items_slug_key";
+
+alter table "public"."mld_pathways" add constraint "mld_pathways_slug_key" UNIQUE using index "mld_pathways_slug_key";
+
+alter table "public"."mld_progress_logs" add constraint "fk_progress_child" FOREIGN KEY (child_id) REFERENCES mld_child_profiles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."mld_progress_logs" validate constraint "fk_progress_child";
+
+alter table "public"."mld_progress_logs" add constraint "mld_progress_logs_item_id_fkey" FOREIGN KEY (item_id) REFERENCES mld_items(id) ON DELETE SET NULL not valid;
+
+alter table "public"."mld_progress_logs" validate constraint "mld_progress_logs_item_id_fkey";
+
+alter table "public"."mld_progress_logs" add constraint "mld_progress_logs_reflection_emoji_check" CHECK ((reflection_emoji = ANY (ARRAY['loved'::text, 'just_right'::text, 'too_easy'::text, 'needs_support'::text]))) not valid;
+
+alter table "public"."mld_progress_logs" validate constraint "mld_progress_logs_reflection_emoji_check";
+
+alter table "public"."mld_progress_logs" add constraint "mld_progress_logs_status_check" CHECK ((status = ANY (ARRAY['completed'::text, 'skipped'::text]))) not valid;
+
+alter table "public"."mld_progress_logs" validate constraint "mld_progress_logs_status_check";
+
+alter table "public"."mld_saved_activities" add constraint "mld_saved_activities_activity_id_fkey" FOREIGN KEY (activity_id) REFERENCES mld_activities(id) not valid;
+
+alter table "public"."mld_saved_activities" validate constraint "mld_saved_activities_activity_id_fkey";
+
+alter table "public"."mld_saved_activities" add constraint "mld_saved_activities_child_id_activity_id_key" UNIQUE using index "mld_saved_activities_child_id_activity_id_key";
+
+alter table "public"."mld_saved_activities" add constraint "mld_saved_activities_child_id_fkey" FOREIGN KEY (child_id) REFERENCES mld_child_profiles(id) ON DELETE CASCADE not valid;
+
+alter table "public"."mld_saved_activities" validate constraint "mld_saved_activities_child_id_fkey";
+
+alter table "public"."mld_saved_activities" add constraint "mld_saved_activities_goal_id_fkey" FOREIGN KEY (goal_id) REFERENCES mld_goals(id) ON DELETE SET NULL not valid;
+
+alter table "public"."mld_saved_activities" validate constraint "mld_saved_activities_goal_id_fkey";
+
+alter table "public"."mld_users" add constraint "mld_users_email_key" UNIQUE using index "mld_users_email_key";
+
+alter table "public"."orders" add constraint "orders_order_id_key" UNIQUE using index "orders_order_id_key";
+
+alter table "public"."rag_documents" add constraint "rag_documents_uploaded_by_fkey" FOREIGN KEY (uploaded_by) REFERENCES auth.users(id) not valid;
+
+alter table "public"."rag_documents" validate constraint "rag_documents_uploaded_by_fkey";
+
+alter table "public"."recommendation_feedback" add constraint "recommendation_feedback_advisor_id_fkey" FOREIGN KEY (advisor_id) REFERENCES travel_advisors(id) not valid;
+
+alter table "public"."recommendation_feedback" validate constraint "recommendation_feedback_advisor_id_fkey";
+
+alter table "public"."recommendation_feedback" add constraint "recommendation_feedback_feedback_type_check" CHECK ((feedback_type = ANY (ARRAY['up'::text, 'down'::text]))) not valid;
+
+alter table "public"."recommendation_feedback" validate constraint "recommendation_feedback_feedback_type_check";
+
+alter table "public"."recommendation_feedback" add constraint "recommendation_feedback_user_id_fkey" FOREIGN KEY (client_id) REFERENCES travel_clients(id) not valid;
+
+alter table "public"."recommendation_feedback" validate constraint "recommendation_feedback_user_id_fkey";
+
+alter table "public"."sponsor_slots" add constraint "sponsor_slots_app_id_fkey" FOREIGN KEY (app_id) REFERENCES apps(id) ON DELETE SET NULL not valid;
+
+alter table "public"."sponsor_slots" validate constraint "sponsor_slots_app_id_fkey";
+
+alter table "public"."sponsor_slots" add constraint "sponsor_slots_slot_key_key" UNIQUE using index "sponsor_slots_slot_key_key";
+
+alter table "public"."trackpay_payments" add constraint "trackpay_payments_method_check" CHECK ((method = ANY (ARRAY['cash'::text, 'zelle'::text, 'paypal'::text, 'bank_transfer'::text, 'other'::text]))) not valid;
+
+alter table "public"."trackpay_payments" validate constraint "trackpay_payments_method_check";
+
+alter table "public"."trackpay_users" add constraint "trackpay_users_auth_user_id_fkey" FOREIGN KEY (auth_user_id) REFERENCES auth.users(id) ON DELETE CASCADE not valid;
+
+alter table "public"."trackpay_users" validate constraint "trackpay_users_auth_user_id_fkey";
+
+alter table "public"."trackpay_users" add constraint "trackpay_users_claimed_status_check" CHECK (((claimed_status)::text = ANY ((ARRAY['claimed'::character varying, 'unclaimed'::character varying])::text[]))) not valid;
+
+alter table "public"."trackpay_users" validate constraint "trackpay_users_claimed_status_check";
+
+alter table "public"."trackpay_users" add constraint "trackpay_users_phone_e164_key" UNIQUE using index "trackpay_users_phone_e164_key";
+
+alter table "public"."trailmind_notes" add constraint "trailmind_notes_source_type_check" CHECK ((source_type = ANY (ARRAY['link'::text, 'note'::text]))) not valid;
+
+alter table "public"."trailmind_notes" validate constraint "trailmind_notes_source_type_check";
+
+alter table "public"."trailmind_notes" add constraint "trailmind_notes_user_id_fkey" FOREIGN KEY (user_id) REFERENCES trailmind_users(id) ON DELETE CASCADE not valid;
+
+alter table "public"."trailmind_notes" validate constraint "trailmind_notes_user_id_fkey";
+
+alter table "public"."trailmind_users" add constraint "trailmind_users_email_key" UNIQUE using index "trailmind_users_email_key";
+
+alter table "public"."travel_advisors" add constraint "travel_advisors_email_key" UNIQUE using index "travel_advisors_email_key";
+
+alter table "public"."travel_call_transcripts" add constraint "travel_call_transcripts_advisor_id_fkey" FOREIGN KEY (advisor_id) REFERENCES travel_advisors(id) not valid;
+
+alter table "public"."travel_call_transcripts" validate constraint "travel_call_transcripts_advisor_id_fkey";
+
+alter table "public"."travel_call_transcripts" add constraint "travel_call_transcripts_client_id_fkey" FOREIGN KEY (client_id) REFERENCES travel_clients(id) not valid;
+
+alter table "public"."travel_call_transcripts" validate constraint "travel_call_transcripts_client_id_fkey";
+
+alter table "public"."travel_clients" add constraint "travel_clients_advisor_id_fkey" FOREIGN KEY (advisor_id) REFERENCES travel_advisors(id) ON DELETE SET NULL not valid;
+
+alter table "public"."travel_clients" validate constraint "travel_clients_advisor_id_fkey";
+
+alter table "public"."travel_clients" add constraint "travel_clients_email_key" UNIQUE using index "travel_clients_email_key";
+
+alter table "public"."travel_history" add constraint "travel_history_user_id_fkey" FOREIGN KEY (user_id) REFERENCES travel_clients(id) ON DELETE CASCADE not valid;
+
+alter table "public"."travel_history" validate constraint "travel_history_user_id_fkey";
+
+alter table "public"."travel_insights" add constraint "travel_insights_user_id_fkey" FOREIGN KEY (user_id) REFERENCES travel_clients(id) ON DELETE CASCADE not valid;
+
+alter table "public"."travel_insights" validate constraint "travel_insights_user_id_fkey";
+
+alter table "public"."travel_preferences" add constraint "travel_preferences_user_id_fkey" FOREIGN KEY (user_id) REFERENCES travel_clients(id) ON DELETE CASCADE not valid;
+
+alter table "public"."travel_preferences" validate constraint "travel_preferences_user_id_fkey";
+
+alter table "public"."travel_recommendation" add constraint "travel_recommendation_advisor_id_fkey" FOREIGN KEY (advisor_id) REFERENCES travel_advisors(id) ON DELETE SET NULL not valid;
+
+alter table "public"."travel_recommendation" validate constraint "travel_recommendation_advisor_id_fkey";
+
+alter table "public"."travel_recommendation" add constraint "travel_recommendation_client_id_fkey" FOREIGN KEY (client_id) REFERENCES travel_clients(id) ON DELETE CASCADE not valid;
+
+alter table "public"."travel_recommendation" validate constraint "travel_recommendation_client_id_fkey";
+
+alter table "public"."travel_transcripts" add constraint "call_transcripts_user_id_fkey" FOREIGN KEY (user_id) REFERENCES travel_clients(id) not valid;
+
+alter table "public"."travel_transcripts" validate constraint "call_transcripts_user_id_fkey";
+
+alter table "public"."travel_transcripts" add constraint "travel_transcripts_advisor_id_fkey" FOREIGN KEY (advisor_id) REFERENCES travel_advisors(id) not valid;
+
+alter table "public"."travel_transcripts" validate constraint "travel_transcripts_advisor_id_fkey";
+
+alter table "public"."trip_feasibility_checks" add constraint "trip_feasibility_checks_initiated_by_fkey" FOREIGN KEY (initiated_by) REFERENCES travel_advisors(id) not valid;
+
+alter table "public"."trip_feasibility_checks" validate constraint "trip_feasibility_checks_initiated_by_fkey";
+
+alter table "public"."trip_feasibility_checks" add constraint "trip_feasibility_checks_trip_id_fkey" FOREIGN KEY (trip_id) REFERENCES trip_plans(id) ON DELETE CASCADE not valid;
+
+alter table "public"."trip_feasibility_checks" validate constraint "trip_feasibility_checks_trip_id_fkey";
+
+alter table "public"."trip_plans" add constraint "trip_plans_advisor_id_fkey" FOREIGN KEY (advisor_id) REFERENCES travel_advisors(id) ON DELETE SET NULL not valid;
+
+alter table "public"."trip_plans" validate constraint "trip_plans_advisor_id_fkey";
+
+alter table "public"."trip_plans" add constraint "trip_plans_user_id_fkey" FOREIGN KEY (user_id) REFERENCES travel_clients(id) ON DELETE CASCADE not valid;
+
+alter table "public"."trip_plans" validate constraint "trip_plans_user_id_fkey";
+
+alter table "public"."users" add constraint "users_email_key" UNIQUE using index "users_email_key";
+
+alter table "public"."users" add constraint "users_username_key" UNIQUE using index "users_username_key";
+
+alter table "public"."view_events" add constraint "view_events_app_id_fkey" FOREIGN KEY (app_id) REFERENCES apps(id) ON DELETE CASCADE not valid;
+
+alter table "public"."view_events" validate constraint "view_events_app_id_fkey";
+
+alter table "public"."view_events" add constraint "view_events_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL not valid;
+
+alter table "public"."view_events" validate constraint "view_events_user_id_fkey";
+
+alter table "public"."votes" add constraint "votes_app_id_fkey" FOREIGN KEY (app_id) REFERENCES apps(id) ON DELETE CASCADE not valid;
+
+alter table "public"."votes" validate constraint "votes_app_id_fkey";
+
+alter table "public"."votes" add constraint "votes_app_id_user_id_key" UNIQUE using index "votes_app_id_user_id_key";
+
+alter table "public"."votes" add constraint "votes_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE not valid;
+
+alter table "public"."votes" validate constraint "votes_user_id_fkey";
+
+alter table "public"."trackpay_invites" add constraint "trackpay_invites_status_check" CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'claimed'::character varying, 'expired'::character varying])::text[]))) not valid;
+
+alter table "public"."trackpay_invites" validate constraint "trackpay_invites_status_check";
+
+alter table "public"."trackpay_requests" add constraint "trackpay_requests_status_check" CHECK ((status = ANY (ARRAY['pending'::text, 'approved'::text, 'declined'::text]))) not valid;
+
+alter table "public"."trackpay_requests" validate constraint "trackpay_requests_status_check";
+
+set check_function_bodies = off;
+
+CREATE OR REPLACE FUNCTION public.agent_summary(p_user_id text, p_since timestamp with time zone)
+ RETURNS TABLE(agent_id text, partner text, txn_count integer, total_amount numeric, agent_score integer, flagged_count integer, to_review_count integer, declined_count integer, disputed_count integer)
+ LANGUAGE sql
+ STABLE
+AS $function$
+  select
+    t.agent_id,
+    t.partner,
+    count(*)::int                    as txn_count,
+    sum(t.amount)::numeric           as total_amount,
+    coalesce(uap.score,100)::int     as agent_score,
+    sum((t.flagged)::int)::int       as flagged_count,
+    sum((t.to_review)::int)::int     as to_review_count,
+    sum((t.declined)::int)::int      as declined_count,
+    sum((t.disputed)::int)::int      as disputed_count
+  from public.transactions t
+  left join public.user_agent_profiles uap
+    on uap.user_id = t.user_id
+   and uap.agent_id = t.agent_id
+  where t.user_id = p_user_id
+    and t.timestamp >= p_since
+  group by t.agent_id, t.partner, uap.score
+  order by total_amount desc;
+$function$
+;
+
+create or replace view "public"."atd_rule_trigger_counts" as  SELECT r.id AS rule_id,
+    r.rule_name,
+    count(t.txn_id) AS match_count,
+    max(t."timestamp") AS last_triggered
+   FROM (atd_fraud_rules r
+     LEFT JOIN atd_transactions t ON ((t.triggered_rules ? (r.id)::text)))
+  GROUP BY r.id, r.rule_name;
+
+
+CREATE OR REPLACE FUNCTION public.debug_auth_info()
+ RETURNS TABLE(jwt_sub text, has_jwt boolean, user_count bigint)
+ LANGUAGE sql
+ SECURITY DEFINER
+AS $function$
+  SELECT 
+    auth.jwt() ->> 'sub' as jwt_sub,
+    (auth.jwt() IS NOT NULL) as has_jwt,
+    (SELECT COUNT(*) FROM auth_identity_map) as user_count;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.exec_sql(sql text)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+    EXECUTE sql;
+END;
+$function$
+;
+
+create or replace view "public"."fraud_rules_view" as  SELECT fr.id,
+    fr.rule_name,
+    fr.condition,
+    fr.action,
+    fr.priority,
+    fr.classification,
+    fr.enabled,
+    fr.created_at,
+    fr.created_by,
+    fr.approved_by,
+    fr.approved_at,
+    fr.applies_to,
+    fr.description,
+    c.name AS created_by_name,
+    a.name AS approved_by_name
+   FROM ((atd_fraud_rules fr
+     LEFT JOIN atd_risk_users c ON ((fr.created_by = c.id)))
+     LEFT JOIN atd_risk_users a ON ((fr.approved_by = a.id)));
+
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  BEGIN
+    INSERT INTO public.mld_users (id, email)
+    VALUES (NEW.id, COALESCE(NEW.email, ''))
+    ON CONFLICT (id) DO NOTHING;
+    RETURN NEW;
+  END;
+  $function$
+;
+
+create or replace view "public"."invalid_rules" as  SELECT atd_fraud_rules.id,
+    atd_fraud_rules.rule_name,
+    atd_fraud_rules.condition,
+    atd_fraud_rules.action,
+    atd_fraud_rules.priority,
+    atd_fraud_rules.classification,
+    atd_fraud_rules.enabled,
+    atd_fraud_rules.created_at,
+    atd_fraud_rules.created_by,
+    atd_fraud_rules.approved_by,
+    atd_fraud_rules.approved_at,
+    atd_fraud_rules.applies_to,
+    atd_fraud_rules.description
+   FROM atd_fraud_rules
+  WHERE ((atd_fraud_rules.condition IS NULL) OR (jsonb_typeof(atd_fraud_rules.condition) <> 'array'::text) OR (NOT (EXISTS ( SELECT 1
+           FROM jsonb_array_elements(atd_fraud_rules.condition) elem(value)
+          WHERE ((elem.value ? 'field'::text) AND (elem.value ? 'op'::text) AND (elem.value ? 'value'::text))))));
+
+
+CREATE OR REPLACE FUNCTION public.mld_is_child_owner(child uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT EXISTS(
+    SELECT 1
+    FROM mld_child_profiles cp
+    WHERE cp.id = child
+      AND cp.user_id = auth.uid()
+  );
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.set_display_name_from_email()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    -- If display_name is not provided, extract from email
+    IF NEW.display_name IS NULL OR NEW.display_name = '' THEN
+        NEW.display_name := SPLIT_PART(NEW.email, '@', 1);
+    END IF;
+    RETURN NEW;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  NEW.updated_at := now();
+  RETURN NEW;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.trackpay_sessions_person_hours_default()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF NEW.crew_size IS NULL OR NEW.crew_size < 1 THEN
+    NEW.crew_size := 1;
+  END IF;
+
+  IF NEW.duration_minutes IS NOT NULL THEN
+    NEW.person_hours := NEW.duration_minutes / 60.0 * NEW.crew_size;
+  END IF;
+
+  RETURN NEW;
+END;
+$function$
+;
+
+create or replace view "public"."trackpay_unpaid_balances" as  SELECT s.client_id,
+    s.provider_id,
+    (sum(s.amount_due) - COALESCE(sum(p.amount), (0)::numeric)) AS unpaid_balance,
+    count(
+        CASE
+            WHEN (s.status = 'unpaid'::text) THEN 1
+            ELSE NULL::integer
+        END) AS unpaid_sessions_count,
+    count(
+        CASE
+            WHEN (s.status = 'requested'::text) THEN 1
+            ELSE NULL::integer
+        END) AS requested_sessions_count,
+    sum(
+        CASE
+            WHEN (s.status = ANY (ARRAY['unpaid'::text, 'requested'::text])) THEN s.duration_minutes
+            ELSE 0
+        END) AS unpaid_minutes
+   FROM (trackpay_sessions s
+     LEFT JOIN trackpay_payments p ON ((s.id = p.session_id)))
+  WHERE (s.status <> 'active'::text)
+  GROUP BY s.client_id, s.provider_id;
+
+
+CREATE OR REPLACE FUNCTION public.update_trailmind_notes_updated_at_column()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$function$
+;
+
+create or replace view "public"."view_client_survey" as  SELECT tc.id AS client_id,
+    ((tc.first_name || ' '::text) || tc.last_name) AS client_name,
+    tp.survey
+   FROM (travel_clients tc
+     JOIN travel_preferences tp ON ((tc.id = tp.user_id)));
+
+
+create or replace view "public"."view_client_transcripts" as  SELECT tct.id AS transcript_id,
+    tct.client_id,
+    tct.advisor_id,
+    ta.first_name AS advisor_first_name,
+    ta.last_name AS advisor_last_name,
+    tct.transcript,
+    tct.created_at
+   FROM (travel_call_transcripts tct
+     JOIN travel_advisors ta ON ((tct.advisor_id = ta.id)));
+
+
+create or replace view "public"."view_user_travel_survey" as  SELECT c.email,
+    tp.user_id,
+    jsonb_path_query_array(tp.survey, '$."user_profile"."Budget"[*]."answer"'::jsonpath) AS "Budget",
+    jsonb_path_query_array(tp.survey, '$."user_profile"."Flight"[*]."answer"'::jsonpath) AS "Flight",
+    jsonb_path_query_array(tp.survey, '$."user_profile"."Destination"[*]."answer"'::jsonpath) AS "Destination",
+    jsonb_path_query_array(tp.survey, '$."user_profile"."Travel Style"[*]."answer"'::jsonpath) AS "Travel Style",
+    jsonb_path_query_array(tp.survey, '$."user_profile"."Communication"[*]."answer"'::jsonpath) AS "Communication",
+    jsonb_path_query_array(tp.survey, '$."user_profile"."Accommodations"[*]."answer"'::jsonpath) AS "Accommodations",
+    jsonb_path_query_array(tp.survey, '$."user_profile"."Dining & Services"[*]."answer"'::jsonpath) AS "Dining & Services",
+    jsonb_path_query_array(tp.survey, '$."user_profile"."Travel Companions"[*]."answer"'::jsonpath) AS "Travel Companions",
+    jsonb_path_query_array(tp.survey, '$."user_profile"."Travel Experience"[*]."answer"'::jsonpath) AS "Travel Experience",
+    jsonb_path_query_array(tp.survey, '$."user_profile"."Must-Do Activities"[*]."answer"'::jsonpath) AS "Must-Do Activities",
+    jsonb_path_query_array(tp.survey, '$."user_profile"."Other Considerations"[*]."answer"'::jsonpath) AS "Other Considerations"
+   FROM (travel_preferences tp
+     JOIN travel_clients c ON ((tp.user_id = c.id)));
+
+
+CREATE OR REPLACE FUNCTION public.delete_client_relationship_safely(p_client_id uuid)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_auth_id    uuid := auth.uid();
+  v_provider   uuid;
+  v_deleted    boolean := false;
+  v_reason     text := null;
+BEGIN
+  -- Check authentication
+  IF v_auth_id IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated.';
+  END IF;
+
+  -- Look up trackpay_users.id from auth_user_id
+  SELECT id INTO v_provider
+  FROM public.trackpay_users
+  WHERE auth_user_id = v_auth_id
+    AND role = 'provider'
+  LIMIT 1;
+
+  IF v_provider IS NULL THEN
+    RAISE EXCEPTION 'Provider account not found.';
+  END IF;
+
+  -- Attempt atomic delete with blocker checks
+  WITH del AS (
+    DELETE FROM public.trackpay_relationships r
+    WHERE r.provider_id = v_provider
+      AND r.client_id = p_client_id
+      AND NOT EXISTS (
+        SELECT 1 FROM public.trackpay_sessions s
+        WHERE s.provider_id = v_provider
+          AND s.client_id = p_client_id
+          AND s.status IN ('active', 'unpaid', 'requested')
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM public.trackpay_requests pr
+        WHERE pr.provider_id = v_provider
+          AND pr.client_id = p_client_id
+          AND pr.status IN ('pending', 'sent', 'requested')
+      )
+    RETURNING 1
+  )
+  SELECT true INTO v_deleted FROM del;
+
+  -- If successfully deleted, log it
+  IF v_deleted THEN
+    INSERT INTO public.trackpay_relationship_audit (provider_id, client_id, action, created_at)
+    VALUES (v_provider, p_client_id, 'delete_success', now());
+    RETURN true;
+  END IF;
+
+  -- Check why delete failed (for audit logging)
+  IF EXISTS (
+    SELECT 1 FROM public.trackpay_sessions s
+    WHERE s.provider_id = v_provider
+      AND s.client_id = p_client_id
+      AND s.status IN ('active', 'unpaid', 'requested')
+  ) THEN
+    v_reason := 'active_or_unpaid_sessions';
+    INSERT INTO public.trackpay_relationship_audit (provider_id, client_id, action, reason, created_at)
+    VALUES (v_provider, p_client_id, 'delete_blocked', v_reason, now());
+    RAISE EXCEPTION 'Cannot delete. Active or unpaid sessions exist.';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.trackpay_requests pr
+    WHERE pr.provider_id = v_provider
+      AND pr.client_id = p_client_id
+      AND pr.status IN ('pending', 'sent', 'requested')
+  ) THEN
+    v_reason := 'outstanding_payment_requests';
+    INSERT INTO public.trackpay_relationship_audit (provider_id, client_id, action, reason, created_at)
+    VALUES (v_provider, p_client_id, 'delete_blocked', v_reason, now());
+    RAISE EXCEPTION 'Cannot delete. Outstanding payment requests exist.';
+  END IF;
+
+  -- Relationship doesn't exist (already deleted)
+  INSERT INTO public.trackpay_relationship_audit (provider_id, client_id, action, created_at)
+  VALUES (v_provider, p_client_id, 'delete_already_gone', now());
+  RETURN false;
+END $function$
+;
+
+create policy "Profiles are viewable by everyone"
+on "public"."atd_profiles"
+as permissive
+for select
+to public
+using (true);
+
+
+create policy "Service role can manage profiles"
+on "public"."atd_profiles"
+as permissive
+for all
+to public
+using (true)
+with check (true);
+
+
+create policy "Activities are viewable by all authenticated users"
+on "public"."mld_activities"
+as permissive
+for select
+to public
+using ((auth.role() = 'authenticated'::text));
+
+
+create policy "public_read_activities"
+on "public"."mld_activities"
+as permissive
+for select
+to public
+using (true);
+
+
+create policy "Users can insert feedback for own children"
+on "public"."mld_activity_feedback"
+as permissive
+for insert
+to public
+with check ((child_id IN ( SELECT mld_child_profiles.id
+   FROM mld_child_profiles
+  WHERE (mld_child_profiles.user_id = auth.uid()))));
+
+
+create policy "Users can view own children's feedback"
+on "public"."mld_activity_feedback"
+as permissive
+for select
+to public
+using ((child_id IN ( SELECT mld_child_profiles.id
+   FROM mld_child_profiles
+  WHERE (mld_child_profiles.user_id = auth.uid()))));
+
+
+create policy "r_comp_levels_owner"
+on "public"."mld_child_competency_levels"
+as permissive
+for select
+to authenticated
+using ((EXISTS ( SELECT 1
+   FROM mld_child_profiles c
+  WHERE ((c.id = mld_child_competency_levels.child_id) AND (c.user_id = auth.uid())))));
+
+
+create policy "u_comp_levels_owner"
+on "public"."mld_child_competency_levels"
+as permissive
+for update
+to authenticated
+using ((EXISTS ( SELECT 1
+   FROM mld_child_profiles c
+  WHERE ((c.id = mld_child_competency_levels.child_id) AND (c.user_id = auth.uid())))))
+with check ((EXISTS ( SELECT 1
+   FROM mld_child_profiles c
+  WHERE ((c.id = mld_child_competency_levels.child_id) AND (c.user_id = auth.uid())))));
+
+
+create policy "w_comp_levels_owner"
+on "public"."mld_child_competency_levels"
+as permissive
+for insert
+to authenticated
+with check ((EXISTS ( SELECT 1
+   FROM mld_child_profiles c
+  WHERE ((c.id = mld_child_competency_levels.child_id) AND (c.user_id = auth.uid())))));
+
+
+create policy "del_child_pathways"
+on "public"."mld_child_pathways"
+as permissive
+for delete
+to public
+using (mld_is_child_owner(child_id));
+
+
+create policy "ins_child_pathways"
+on "public"."mld_child_pathways"
+as permissive
+for insert
+to public
+with check (mld_is_child_owner(child_id));
+
+
+create policy "sel_child_pathways"
+on "public"."mld_child_pathways"
+as permissive
+for select
+to public
+using (mld_is_child_owner(child_id));
+
+
+create policy "child_profiles_delete_own"
+on "public"."mld_child_profiles"
+as permissive
+for delete
+to public
+using ((user_id = auth.uid()));
+
+
+create policy "child_profiles_insert_own"
+on "public"."mld_child_profiles"
+as permissive
+for insert
+to public
+with check ((user_id = auth.uid()));
+
+
+create policy "child_profiles_select_own"
+on "public"."mld_child_profiles"
+as permissive
+for select
+to public
+using ((user_id = auth.uid()));
+
+
+create policy "child_profiles_service_bypass"
+on "public"."mld_child_profiles"
+as permissive
+for all
+to public
+using ((((current_setting('request.jwt.claims'::text, true))::jsonb ? 'role'::text) AND (((current_setting('request.jwt.claims'::text, true))::jsonb ->> 'role'::text) = 'service_role'::text)))
+with check (true);
+
+
+create policy "child_profiles_update_own"
+on "public"."mld_child_profiles"
+as permissive
+for update
+to public
+using ((user_id = auth.uid()))
+with check ((user_id = auth.uid()));
+
+
+create policy "Users can update own children's vectors"
+on "public"."mld_child_vectors"
+as permissive
+for update
+to public
+using ((child_id IN ( SELECT mld_child_profiles.id
+   FROM mld_child_profiles
+  WHERE (mld_child_profiles.user_id = auth.uid()))));
+
+
+create policy "Users can upsert own children's vectors"
+on "public"."mld_child_vectors"
+as permissive
+for insert
+to public
+with check ((child_id IN ( SELECT mld_child_profiles.id
+   FROM mld_child_profiles
+  WHERE (mld_child_profiles.user_id = auth.uid()))));
+
+
+create policy "Users can view own children's vectors"
+on "public"."mld_child_vectors"
+as permissive
+for select
+to public
+using ((child_id IN ( SELECT mld_child_profiles.id
+   FROM mld_child_profiles
+  WHERE (mld_child_profiles.user_id = auth.uid()))));
+
+
+create policy "Users can insert
+  own conversations"
+on "public"."mld_conversations"
+as permissive
+for insert
+to public
+with check ((child_id IN ( SELECT mld_child_profiles.id
+   FROM mld_child_profiles
+  WHERE (mld_child_profiles.user_id = auth.uid()))));
+
+
+create policy "Users can view own
+   conversations"
+on "public"."mld_conversations"
+as permissive
+for select
+to public
+using ((child_id IN ( SELECT mld_child_profiles.id
+   FROM mld_child_profiles
+  WHERE (mld_child_profiles.user_id = auth.uid()))));
+
+
+create policy "del_favorites"
+on "public"."mld_favorites"
+as permissive
+for delete
+to public
+using (mld_is_child_owner(child_id));
+
+
+create policy "ins_favorites"
+on "public"."mld_favorites"
+as permissive
+for insert
+to public
+with check (mld_is_child_owner(child_id));
+
+
+create policy "sel_favorites"
+on "public"."mld_favorites"
+as permissive
+for select
+to public
+using (mld_is_child_owner(child_id));
+
+
+create policy "upd_favorites"
+on "public"."mld_favorites"
+as permissive
+for update
+to public
+using (mld_is_child_owner(child_id))
+with check (mld_is_child_owner(child_id));
+
+
+create policy "Users can delete own goals"
+on "public"."mld_goals"
+as permissive
+for delete
+to public
+using ((EXISTS ( SELECT 1
+   FROM mld_child_profiles c
+  WHERE ((c.id = mld_goals.child_id) AND (c.user_id = auth.uid())))));
+
+
+create policy "Users can insert goals for own children"
+on "public"."mld_goals"
+as permissive
+for insert
+to public
+with check ((child_id IN ( SELECT mld_child_profiles.id
+   FROM mld_child_profiles
+  WHERE (mld_child_profiles.user_id = auth.uid()))));
+
+
+create policy "Users can insert own goals"
+on "public"."mld_goals"
+as permissive
+for insert
+to public
+with check ((EXISTS ( SELECT 1
+   FROM mld_child_profiles c
+  WHERE ((c.id = mld_goals.child_id) AND (c.user_id = auth.uid())))));
+
+
+create policy "Users can update own children's goals"
+on "public"."mld_goals"
+as permissive
+for update
+to public
+using ((child_id IN ( SELECT mld_child_profiles.id
+   FROM mld_child_profiles
+  WHERE (mld_child_profiles.user_id = auth.uid()))));
+
+
+create policy "Users can update own goals"
+on "public"."mld_goals"
+as permissive
+for update
+to public
+using ((EXISTS ( SELECT 1
+   FROM mld_child_profiles c
+  WHERE ((c.id = mld_goals.child_id) AND (c.user_id = auth.uid())))));
+
+
+create policy "Users can view own children's goals"
+on "public"."mld_goals"
+as permissive
+for select
+to public
+using ((child_id IN ( SELECT mld_child_profiles.id
+   FROM mld_child_profiles
+  WHERE (mld_child_profiles.user_id = auth.uid()))));
+
+
+create policy "Users can view own goals"
+on "public"."mld_goals"
+as permissive
+for select
+to public
+using ((EXISTS ( SELECT 1
+   FROM mld_child_profiles c
+  WHERE ((c.id = mld_goals.child_id) AND (c.user_id = auth.uid())))));
+
+
+create policy "Users can delete own growth logs"
+on "public"."mld_growth_log_entries"
+as permissive
+for delete
+to public
+using ((EXISTS ( SELECT 1
+   FROM mld_child_profiles c
+  WHERE ((c.id = mld_growth_log_entries.child_id) AND (c.user_id = auth.uid())))));
+
+
+create policy "Users can insert own growth logs"
+on "public"."mld_growth_log_entries"
+as permissive
+for insert
+to public
+with check ((EXISTS ( SELECT 1
+   FROM mld_child_profiles c
+  WHERE ((c.id = mld_growth_log_entries.child_id) AND (c.user_id = auth.uid())))));
+
+
+create policy "Users can update own growth logs"
+on "public"."mld_growth_log_entries"
+as permissive
+for update
+to public
+using ((EXISTS ( SELECT 1
+   FROM mld_child_profiles c
+  WHERE ((c.id = mld_growth_log_entries.child_id) AND (c.user_id = auth.uid())))));
+
+
+create policy "Users can view own growth logs"
+on "public"."mld_growth_log_entries"
+as permissive
+for select
+to public
+using ((EXISTS ( SELECT 1
+   FROM mld_child_profiles c
+  WHERE ((c.id = mld_growth_log_entries.child_id) AND (c.user_id = auth.uid())))));
+
+
+create policy "del_hidden"
+on "public"."mld_hidden_items"
+as permissive
+for delete
+to public
+using (mld_is_child_owner(child_id));
+
+
+create policy "ins_hidden"
+on "public"."mld_hidden_items"
+as permissive
+for insert
+to public
+with check (mld_is_child_owner(child_id));
+
+
+create policy "sel_hidden"
+on "public"."mld_hidden_items"
+as permissive
+for select
+to public
+using (mld_is_child_owner(child_id));
+
+
+create policy "public_read_items"
+on "public"."mld_items"
+as permissive
+for select
+to public
+using ((deleted_at IS NULL));
+
+
+create policy "public_read_pathways"
+on "public"."mld_pathways"
+as permissive
+for select
+to public
+using ((deleted_at IS NULL));
+
+
+create policy "ins_progress"
+on "public"."mld_progress_logs"
+as permissive
+for insert
+to public
+with check (mld_is_child_owner(child_id));
+
+
+create policy "sel_progress"
+on "public"."mld_progress_logs"
+as permissive
+for select
+to public
+using (mld_is_child_owner(child_id));
+
+
+create policy "upd_progress"
+on "public"."mld_progress_logs"
+as permissive
+for update
+to public
+using (mld_is_child_owner(child_id))
+with check (mld_is_child_owner(child_id));
+
+
+create policy "public_read_weights"
+on "public"."mld_rank_weights"
+as permissive
+for select
+to public
+using (true);
+
+
+create policy "Users can save activities for own children"
+on "public"."mld_saved_activities"
+as permissive
+for insert
+to public
+with check ((child_id IN ( SELECT mld_child_profiles.id
+   FROM mld_child_profiles
+  WHERE (mld_child_profiles.user_id = auth.uid()))));
+
+
+create policy "Users can update own children's saved activities"
+on "public"."mld_saved_activities"
+as permissive
+for update
+to public
+using ((child_id IN ( SELECT mld_child_profiles.id
+   FROM mld_child_profiles
+  WHERE (mld_child_profiles.user_id = auth.uid()))));
+
+
+create policy "Users can view own children's saved activities"
+on "public"."mld_saved_activities"
+as permissive
+for select
+to public
+using ((child_id IN ( SELECT mld_child_profiles.id
+   FROM mld_child_profiles
+  WHERE (mld_child_profiles.user_id = auth.uid()))));
+
+
+create policy "Users can update
+  own data"
+on "public"."mld_users"
+as permissive
+for update
+to public
+using ((auth.uid() = id));
+
+
+create policy "Users can view own
+   data"
+on "public"."mld_users"
+as permissive
+for select
+to public
+using ((auth.uid() = id));
+
+
+create policy "users_insert_own"
+on "public"."mld_users"
+as permissive
+for insert
+to public
+with check ((id = auth.uid()));
+
+
+create policy "All can view activities"
+on "public"."trackpay_activities"
+as permissive
+for all
+to public
+using (true);
+
+
+create policy "Users can view their own activities"
+on "public"."trackpay_activities"
+as permissive
+for select
+to public
+using ((EXISTS ( SELECT 1
+   FROM trackpay_users
+  WHERE ((trackpay_users.id = trackpay_activities.provider_id) AND (trackpay_users.auth_user_id = auth.uid())))));
+
+
+create policy "All can manage payments"
+on "public"."trackpay_payments"
+as permissive
+for all
+to public
+using (true);
+
+
+create policy "Users can insert their own payments"
+on "public"."trackpay_payments"
+as permissive
+for insert
+to public
+with check ((EXISTS ( SELECT 1
+   FROM trackpay_users
+  WHERE ((trackpay_users.id = trackpay_payments.provider_id) AND (trackpay_users.auth_user_id = auth.uid())))));
+
+
+create policy "Users can view their own payments"
+on "public"."trackpay_payments"
+as permissive
+for select
+to public
+using ((EXISTS ( SELECT 1
+   FROM trackpay_users
+  WHERE ((trackpay_users.id = trackpay_payments.provider_id) AND (trackpay_users.auth_user_id = auth.uid())))));
+
+
+create policy "All can view relationships"
+on "public"."trackpay_relationships"
+as permissive
+for all
+to public
+using (true);
+
+
+create policy "rel_select_by_party"
+on "public"."trackpay_relationships"
+as permissive
+for select
+to authenticated
+using (((provider_id = auth.uid()) OR (client_id = auth.uid())));
+
+
+create policy "All can manage requests"
+on "public"."trackpay_requests"
+as permissive
+for all
+to public
+using (true);
+
+
+create policy "All can manage sessions"
+on "public"."trackpay_sessions"
+as permissive
+for all
+to public
+using (true);
+
+
+create policy "Users can insert their own sessions"
+on "public"."trackpay_sessions"
+as permissive
+for insert
+to public
+with check ((EXISTS ( SELECT 1
+   FROM trackpay_users
+  WHERE ((trackpay_users.id = trackpay_sessions.provider_id) AND (trackpay_users.auth_user_id = auth.uid())))));
+
+
+create policy "Users can update their own sessions"
+on "public"."trackpay_sessions"
+as permissive
+for update
+to public
+using ((EXISTS ( SELECT 1
+   FROM trackpay_users
+  WHERE ((trackpay_users.id = trackpay_sessions.provider_id) AND (trackpay_users.auth_user_id = auth.uid())))));
+
+
+create policy "Users can view their own sessions"
+on "public"."trackpay_sessions"
+as permissive
+for select
+to public
+using ((EXISTS ( SELECT 1
+   FROM trackpay_users
+  WHERE ((trackpay_users.id = trackpay_sessions.provider_id) AND (trackpay_users.auth_user_id = auth.uid())))));
+
+
+create policy "Users can insert their own profile"
+on "public"."trackpay_users"
+as permissive
+for insert
+to public
+with check ((auth.uid() = auth_user_id));
+
+
+create policy "Users can update their own profile"
+on "public"."trackpay_users"
+as permissive
+for all
+to public
+using (true);
+
+
+create policy "Users can view their own profile"
+on "public"."trackpay_users"
+as permissive
+for select
+to public
+using (true);
+
+
+CREATE TRIGGER trg_items_updated_at BEFORE UPDATE ON public.mld_items FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER trg_pathways_updated_at BEFORE UPDATE ON public.mld_pathways FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER mld_users_set_updated_at BEFORE UPDATE ON public.mld_users FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER update_trackpay_requests_updated_at BEFORE UPDATE ON public.trackpay_requests FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER trg_trackpay_sessions_person_hours BEFORE INSERT OR UPDATE ON public.trackpay_sessions FOR EACH ROW EXECUTE FUNCTION trackpay_sessions_person_hours_default();
+
+CREATE TRIGGER update_trackpay_sessions_updated_at BEFORE UPDATE ON public.trackpay_sessions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER trigger_set_display_name_from_email BEFORE INSERT OR UPDATE ON public.trackpay_users FOR EACH ROW EXECUTE FUNCTION set_display_name_from_email();
+
+CREATE TRIGGER update_trackpay_users_updated_at BEFORE UPDATE ON public.trackpay_users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_trailmind_notes_updated_at BEFORE UPDATE ON public.trailmind_notes FOR EACH ROW EXECUTE FUNCTION update_trailmind_notes_updated_at_column();
+
+

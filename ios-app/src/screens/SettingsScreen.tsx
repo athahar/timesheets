@@ -1,46 +1,168 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
+  TextInput,
+  Alert,
   StyleSheet,
+  Platform,
+  Keyboard,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../styles/theme';
-import { IOSHeader } from '../components/IOSHeader';
+import { TP } from '../styles/themeV2';
+import { TPButton } from '../components/v2/TPButton';
+import { Toast } from '../components/Toast';
+import { useToast } from '../hooks/useToast';
 import { simpleT, getCurrentLanguageSimple, changeLanguageSimple } from '../i18n/simple';
+import { useAuth } from '../contexts/AuthContext';
+import { StickyActionBar, FOOTER_HEIGHT } from '../components/StickyActionBar';
 
 interface SettingsScreenProps {
   navigation: any;
 }
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
-  // State for reactive language switching
-  const [currentLang, setCurrentLang] = useState(getCurrentLanguageSimple());
+  const { userProfile, signOut, updateProfile } = useAuth();
+  const insets = useSafeAreaInsets();
+  const { toast, showSuccess, showError, hideToast } = useToast();
+
+  // State - track both current saved values and pending edits
+  const [savedLang] = useState(getCurrentLanguageSimple()); // What's currently saved
+  const [pendingLang, setPendingLang] = useState(getCurrentLanguageSimple()); // What user selected
+  const [editableName, setEditableName] = useState(userProfile?.name || '');
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Translation function
   const t = simpleT;
 
-  // Handle language change with state update for reactivity
-  const handleLanguageChange = async (language: string) => {
-    await changeLanguageSimple(language);
-    setCurrentLang(language); // Force re-render
+  // Calculate footer padding for scroll content
+  const footerPad = FOOTER_HEIGHT + (insets.bottom || 12) + 16;
+
+  // Track unsaved changes (name OR language)
+  useEffect(() => {
+    const nameChanged = editableName.trim() !== '' && editableName !== userProfile?.name;
+    const langChanged = pendingLang !== savedLang;
+    setHasUnsavedChanges(nameChanged || langChanged);
+  }, [editableName, userProfile?.name, pendingLang, savedLang]);
+
+  // Handle language button tap - just update pending state, don't save yet
+  const handleLanguageChange = (language: string) => {
+    setPendingLang(language);
+  };
+
+  // Handle save button press - save both name and language
+  const handleSave = async () => {
+    if (!hasUnsavedChanges) return;
+
+    try {
+      setIsSaving(true);
+
+      // Save name if changed
+      const nameChanged = editableName.trim() !== '' && editableName !== userProfile?.name;
+      if (nameChanged) {
+        await updateProfile({ name: editableName.trim() });
+      }
+
+      // Save language if changed
+      const langChanged = pendingLang !== savedLang;
+      if (langChanged) {
+        await changeLanguageSimple(pendingLang);
+      }
+
+      showSuccess(t('settings.successUpdated'));
+      setHasUnsavedChanges(false);
+    } catch (error) {
+      if (__DEV__) console.error('Error updating settings:', error);
+      showError(t('settings.errorUpdateFailed'));
+      // Reset to original values on error
+      setEditableName(userProfile?.name || '');
+      setPendingLang(savedLang);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle sign out with confirmation
+  const handleSignOut = () => {
+    Alert.alert(
+      t('settings.signOut'),
+      t('settings.signOutConfirm'),
+      [
+        { text: t('settings.cancel'), style: 'cancel' },
+        {
+          text: t('settings.signOut'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await signOut();
+            } catch (error) {
+              if (__DEV__) console.error('Error signing out:', error);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <IOSHeader
-        title={t('settings.title')}
-        leftAction={{
-          title: t('settings.back'),
-          onPress: () => navigation.goBack(),
-        }}
-        largeTitleStyle="always"
-      />
+      {/* Custom Header */}
+      <View style={styles.customHeader}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.headerButton}
+        >
+          <Feather name="arrow-left" size={24} color={TP.color.ink} />
+        </TouchableOpacity>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>{t('settings.title')}</Text>
+        </View>
+
+        <TouchableOpacity
+          onPress={handleSignOut}
+          style={styles.headerButton}
+        >
+          <Text style={styles.headerButtonText}>{t('settings.signOut')}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: footerPad }]}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.content}>
+
+          {/* Name Field */}
+          <View style={styles.settingsGroup}>
+            <Text style={styles.groupTitle}>{t('settings.name')}</Text>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                value={editableName}
+                onChangeText={setEditableName}
+                placeholder={userProfile?.name || t('settings.namePlaceholder')}
+                placeholderTextColor={theme.color.textSecondary}
+                editable={!isSaving}
+                returnKeyType="done"
+                onSubmitEditing={Keyboard.dismiss}
+              />
+            </View>
+          </View>
+
+          {/* Email Field (Read-only) */}
+          <View style={styles.settingsGroup}>
+            <Text style={styles.groupTitle}>{t('settings.email')}</Text>
+            <View style={[styles.inputContainer, styles.inputContainerReadOnly]}>
+              <Text style={styles.inputReadOnly}>{userProfile?.email}</Text>
+            </View>
+          </View>
 
           {/* Language Settings Group */}
           <View style={styles.settingsGroup}>
@@ -52,7 +174,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
               <TouchableOpacity
                 style={[
                   styles.languageButton,
-                  currentLang === 'en-US' && styles.languageButtonActive
+                  pendingLang === 'en-US' && styles.languageButtonActive
                 ]}
                 onPress={() => handleLanguageChange('en-US')}
                 accessibilityRole="button"
@@ -60,7 +182,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
               >
                 <Text style={[
                   styles.languageButtonText,
-                  currentLang === 'en-US' && styles.languageButtonTextActive
+                  pendingLang === 'en-US' && styles.languageButtonTextActive
                 ]}>
                   {t('lang.english')}
                 </Text>
@@ -68,7 +190,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
               <TouchableOpacity
                 style={[
                   styles.languageButton,
-                  currentLang === 'es-US' && styles.languageButtonActive
+                  pendingLang === 'es-US' && styles.languageButtonActive
                 ]}
                 onPress={() => handleLanguageChange('es-US')}
                 accessibilityRole="button"
@@ -76,7 +198,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
               >
                 <Text style={[
                   styles.languageButtonText,
-                  currentLang === 'es-US' && styles.languageButtonTextActive
+                  pendingLang === 'es-US' && styles.languageButtonTextActive
                 ]}>
                   {t('lang.spanish')}
                 </Text>
@@ -86,6 +208,25 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
 
         </View>
       </ScrollView>
+
+      {/* Sticky Save Button - Glides up with keyboard */}
+      <StickyActionBar>
+        <TPButton
+          title={isSaving ? t('common.saving') : t('common.save')}
+          onPress={handleSave}
+          variant="primary"
+          size="md"
+          disabled={!hasUnsavedChanges || isSaving}
+        />
+      </StickyActionBar>
+
+      {/* Toast Notifications */}
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={hideToast}
+      />
     </SafeAreaView>
   );
 };
@@ -95,13 +236,49 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.color.appBg,
   },
+
+  // Custom Header Styles
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: TP.spacing.x16,
+    paddingVertical: TP.spacing.x12,
+    borderBottomWidth: 1,
+    borderBottomColor: TP.color.divider,
+    backgroundColor: TP.color.cardBg,
+  },
+  headerButton: {
+    width: 70,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerButtonText: {
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.btn.dangerBg, // Red for destructive action
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: TP.font.title2,
+    fontWeight: TP.weight.bold,
+    color: TP.color.ink,
+  },
+
   scrollContent: {
     flexGrow: 1,
+    // Dynamic padding based on footer height + safe area
+    // No hardcoded value - computed from FOOTER_HEIGHT constant
   },
   content: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingHorizontal: TP.spacing.x16,
+    paddingTop: TP.spacing.x16,
   },
 
   // Settings Groups
@@ -154,4 +331,30 @@ const styles = StyleSheet.create({
   languageButtonTextActive: {
     color: '#FFFFFF',
   },
+
+  // Input Styles
+  inputContainer: {
+    backgroundColor: theme.color.cardBg,
+    borderRadius: TP.radius.input,
+    borderWidth: 1,
+    borderColor: TP.color.divider,
+    paddingHorizontal: TP.spacing.x16,
+    paddingVertical: TP.spacing.x12,
+  },
+  inputContainerReadOnly: {
+    backgroundColor: TP.color.appBg,
+  },
+  input: {
+    fontSize: TP.font.body,
+    color: TP.color.ink,
+    minHeight: 44,
+  },
+  inputReadOnly: {
+    fontSize: TP.font.body,
+    color: TP.color.textSecondary,
+    minHeight: 44,
+    textAlignVertical: 'center',
+    paddingVertical: TP.spacing.x12,
+  },
+  // bottomAction and keyboard accessory styles removed - now using StickyActionBar component
 });
