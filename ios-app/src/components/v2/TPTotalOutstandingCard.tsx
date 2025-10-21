@@ -38,15 +38,15 @@ export const TPTotalOutstandingCard: React.FC<TPTotalOutstandingCardProps> = ({
 
   return (
     <TPCard padding="lg">
-      <Text style={CardStyles.label}>{t('totalOutstanding')}</Text>
+      <Text style={CardStyles.label}>{t('common.totalOutstanding')}</Text>
       <Text style={CardStyles.amount}>{formatCurrency(amount)}</Text>
       <Text style={CardStyles.meta}>
-        {t('hoursUnpaid', { count: hours.toFixed(1) })}
+        {t('common.hoursUnpaid', { count: hours.toFixed(1) })}
       </Text>
 
       {showRequestButton && onRequestPayment && (
         <TPButton
-          title={t('requestPayment')}
+          title={t('common.requestPayment')}
           variant="primary"
           icon="send"
           onPress={onRequestPayment}

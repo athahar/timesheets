@@ -108,6 +108,8 @@ export const PillStyles = StyleSheet.create({
     backgroundColor: TP.color.pill.paidBg
   },
   paidText: {
+    fontSize: 13,
+    fontWeight: '600',
     color: TP.color.pill.paidText
   },
 
@@ -116,6 +118,8 @@ export const PillStyles = StyleSheet.create({
     backgroundColor: TP.color.pill.dueBg
   },
   dueText: {
+    fontSize: 13,
+    fontWeight: '600',
     color: TP.color.pill.dueText
   },
 
@@ -124,6 +128,8 @@ export const PillStyles = StyleSheet.create({
     backgroundColor: TP.color.pill.requestedBg
   },
   requestedText: {
+    fontSize: 13,
+    fontWeight: '600',
     color: TP.color.pill.requestedText
   },
 
@@ -132,6 +138,8 @@ export const PillStyles = StyleSheet.create({
     backgroundColor: TP.color.pill.activeBg
   },
   activeText: {
+    fontSize: 13,
+    fontWeight: '600',
     color: TP.color.pill.activeText
   },
 });

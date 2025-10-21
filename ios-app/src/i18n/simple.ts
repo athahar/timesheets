@@ -401,6 +401,16 @@ const translations = {
     'clientCard.noUnpaidHours': 'No unpaid hours',
     'clientCard.paidUp': 'Paid up',
 
+    // Common terms
+    'common.due': 'Due',
+    'common.hrs': 'hrs',
+    'common.person': 'person',
+    'common.people': 'people',
+    'common.crew': 'Crew',
+    'common.totalOutstanding': 'Total Outstanding',
+    'common.requestPayment': 'Request Payment',
+    'common.hoursUnpaid': '{{count}} hours unpaid',
+
     // Date formatting
     'date.today': 'Today',
     'date.yesterday': 'Yesterday',
@@ -815,6 +825,16 @@ const translations = {
     'clientCard.unpaidHours': '{{hours}} horas sin pagar',
     'clientCard.noUnpaidHours': 'Sin horas pendientes',
     'clientCard.paidUp': 'Al día',
+
+    // Common terms (Spanish)
+    'common.due': 'Pendiente',
+    'common.hrs': 'hrs',
+    'common.person': 'persona',
+    'common.people': 'personas',
+    'common.crew': 'Equipo',
+    'common.totalOutstanding': 'Total Pendiente',
+    'common.requestPayment': 'Solicitar Pago',
+    'common.hoursUnpaid': '{{count}} horas sin pagar',
 
     // Date formatting (Spanish)
     'date.today': 'Hoy',

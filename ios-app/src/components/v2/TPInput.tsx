@@ -44,13 +44,13 @@ export const TPInput: React.FC<TPInputProps> = ({
 }) => {
   const [isFocused, setIsFocused] = useState(false);
 
-  const containerStyle: ViewStyle[] = [
+  const containerStyle = [
     styles.container,
     isFocused && styles.containerFocused,
     error && styles.containerError,
     disabled && styles.containerDisabled,
     style,
-  ];
+  ].filter(Boolean);
 
   return (
     <View>

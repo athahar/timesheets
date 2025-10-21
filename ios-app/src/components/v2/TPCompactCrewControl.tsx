@@ -45,12 +45,12 @@ export const TPCompactCrewControl: React.FC<TPCompactCrewControlProps> = ({
   };
 
   const getPeopleText = () => {
-    return crewSize === 1 ? t('person') : t('people');
+    return crewSize === 1 ? t('common.person') : t('common.people');
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{t('crew')}:</Text>
+      <Text style={styles.label}>{t('common.crew')}:</Text>
 
       <TouchableOpacity
         onPress={handleDecrement}

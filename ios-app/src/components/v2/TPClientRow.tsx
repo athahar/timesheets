@@ -52,7 +52,7 @@ export const TPClientRow: React.FC<TPClientRowProps> = ({
         <View style={styles.content}>
           <Text style={styles.name}>{client.name}</Text>
           <Text style={styles.meta}>
-            {t('due')}: {formatCurrency(client.balance)} ({client.hours} {t('hrs')})
+            {t('common.due')}: {formatCurrency(client.balance)} ({client.hours} {t('common.hrs')})
           </Text>
         </View>
 

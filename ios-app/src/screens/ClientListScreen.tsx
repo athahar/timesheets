@@ -27,6 +27,8 @@ import { Button } from '../components/Button';
 import { HowItWorksModal } from '../components/HowItWorksModal';
 import { useAuth } from '../contexts/AuthContext';
 import { formatCurrency } from '../utils/formatters';
+import { TPTotalOutstandingCard } from '../components/v2/TPTotalOutstandingCard';
+import { TPClientRow } from '../components/v2/TPClientRow';
 import {
   getClients,
   addClient,
@@ -284,53 +286,38 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     );
   }, [actioningClientId, handleStartSession, handleStopSession]);
 
-  const renderClientCard = useCallback(({ item }: { item: ClientWithSummary }) => (
-    <Swipeable
-      renderLeftActions={() => renderLeftActions(item)}
-      overshootLeft={false}
-    >
-      <TouchableOpacity
-        onPress={() => handleClientPress(item)}
-        style={[
-          styles.clientCard,
-          item.hasActiveSession && styles.clientCardActive
-        ]}
-        accessible
-        accessibilityLabel={item.hasActiveSession ? `${item.name}, active session` : item.name}
-      >
-        <View style={styles.clientCardHeader}>
-          <View style={styles.clientInfo}>
-            <Text style={styles.clientName}>{item.name}</Text>
-            <View style={styles.rateRow}>
-              <Text style={styles.rateAmount}>${item.hourlyRate}</Text>
-              <Text style={styles.rateLabel}>/hour</Text>
-            </View>
-          </View>
+  const renderClientCard = useCallback(({ item }: { item: ClientWithSummary }) => {
+    const clientForRow = {
+      id: item.id,
+      name: item.name,
+      imageUri: undefined, // TODO: Add image support when available
+      rate: item.hourlyRate,
+      balance: item.unpaidBalance,
+      hours: item.unpaidHours,
+      status: (item.unpaidBalance > 0
+        ? (item.paymentStatus === 'requested' ? 'requested' : 'due')
+        : 'paid') as 'paid' | 'due' | 'requested',
+    };
 
-          <View style={styles.clientStatus}>
-            {item.unpaidBalance > 0 ? (
-              <View style={styles.dueSection}>
-                <View style={[styles.statusPill, styles.duePill]}>
-                  <Text style={[styles.statusPillText, styles.duePillText]}>
-                    Due: {formatCurrency(item.unpaidBalance)}
-                  </Text>
-                </View>
-                {item.paymentStatus === 'requested' && (
-                  <Text style={styles.requestedText}>Requested</Text>
-                )}
-              </View>
-            ) : item.totalHours > 0 ? (
-              <View style={[styles.statusPill, styles.paidPill]}>
-                <Text style={[styles.statusPillText, styles.paidPillText]}>
-                  Paid up
-                </Text>
-              </View>
-            ) : null}
-          </View>
+    return (
+      <Swipeable
+        renderLeftActions={() => renderLeftActions(item)}
+        overshootLeft={false}
+      >
+        <View
+          style={[
+            item.hasActiveSession && styles.activeSessionIndicator
+          ]}
+        >
+          <TPClientRow
+            client={clientForRow}
+            onPress={() => handleClientPress(item)}
+            showDivider={false}
+          />
         </View>
-      </TouchableOpacity>
-    </Swipeable>
-  ), [renderLeftActions]);
+      </Swipeable>
+    );
+  }, [renderLeftActions]);
 
   const renderSectionHeader = useCallback(({ section }: { section: ClientSection }) => {
     if (section.title === 'Other Clients') {
@@ -373,29 +360,11 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
       <Text style={styles.headerTitle}>TrackPay</Text>
 
       {showOutstanding && (
-        <View style={styles.outstandingCard}>
-          <View style={styles.outstandingContent}>
-            <Text style={styles.outstandingLabel}>Total Outstanding</Text>
-            <View style={styles.outstandingRow}>
-              <Text style={styles.outstandingAmount}>
-                {formatCurrency(totalUnpaid)}
-              </Text>
-              {totalUnpaid > 0 ? (
-                <View style={[styles.statusPill, styles.duePill]}>
-                  <Text style={[styles.statusPillText, styles.duePillText]}>
-                    Due {formatCurrency(totalUnpaid)}
-                  </Text>
-                </View>
-              ) : totalHoursAcrossClients > 0 ? (
-                <View style={[styles.statusPill, styles.paidPill]}>
-                  <Text style={[styles.statusPillText, styles.paidPillText]}>
-                    Paid up
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          </View>
-        </View>
+        <TPTotalOutstandingCard
+          amount={totalUnpaid}
+          hours={totalHoursAcrossClients}
+          showRequestButton={false}
+        />
       )}
     </View>
   );
@@ -631,60 +600,10 @@ const styles = StyleSheet.create({
     marginBottom: theme.space.x16,
   },
 
-  // Outstanding Card
-  outstandingCard: {
-    backgroundColor: theme.color.cardBg,
-    borderRadius: theme.radius.card,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    padding: theme.space.x16,
-  },
-  outstandingContent: {
-    flexDirection: 'column',
-  },
-  outstandingLabel: {
-    fontSize: theme.font.body,
-    fontWeight: '400',
-    color: theme.color.textSecondary,
-    fontFamily: theme.typography.fontFamily.primary,
-    marginBottom: theme.space.x8,
-  },
-  outstandingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  outstandingAmount: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: theme.color.text,
-    fontFamily: theme.typography.fontFamily.primary,
-    fontVariant: ['tabular-nums'],
-  },
-  statusPill: {
-    paddingHorizontal: theme.space.x12,
-    paddingVertical: theme.space.x4,
-    borderRadius: theme.radius.pill,
-    borderWidth: 1,
-  },
-  paidPill: {
-    backgroundColor: theme.color.pillPaidBg,
-    borderColor: theme.color.pillPaidBg,
-  },
-  duePill: {
-    backgroundColor: theme.color.pillDueBg,
-    borderColor: theme.color.pillDueBg,
-  },
-  statusPillText: {
-    fontSize: theme.font.small,
-    fontWeight: '600',
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  paidPillText: {
-    color: theme.color.pillPaidText,
-  },
-  duePillText: {
-    color: theme.color.pillDueText,
+  // Active session indicator (for v2 client row)
+  activeSessionIndicator: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#22C55E', // TP green for active session
   },
 
   // Loading State
@@ -790,64 +709,6 @@ const styles = StyleSheet.create({
   listContent: {
     padding: theme.space.x16,
     paddingTop: 0,
-  },
-
-  // Client Card
-  clientCard: {
-    backgroundColor: theme.color.cardBg,
-    borderRadius: theme.radius.card,
-    padding: theme.space.x16,
-    marginBottom: theme.space.x12,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-  },
-  clientCardActive: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#10B981', // Green accent for active session
-  },
-  clientCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: theme.space.x12,
-  },
-  clientInfo: {
-    flex: 1,
-  },
-  clientName: {
-    fontSize: theme.font.body,
-    fontWeight: '600',
-    color: theme.color.text,
-    fontFamily: theme.typography.fontFamily.primary,
-    marginBottom: 4,
-  },
-  rateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  rateAmount: {
-    fontSize: theme.font.body,
-    fontWeight: '600',
-    color: theme.color.money,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  rateLabel: {
-    fontSize: theme.font.small,
-    color: theme.color.textSecondary,
-    fontFamily: theme.typography.fontFamily.primary,
-    marginLeft: 4,
-  },
-  clientStatus: {
-    alignItems: 'flex-end',
-  },
-  dueSection: {
-    alignItems: 'flex-end',
-  },
-  requestedText: {
-    fontSize: theme.font.small,
-    color: '#9CA3AF',
-    fontFamily: theme.typography.fontFamily.primary,
-    marginTop: 4,
   },
 
   // Modal Styles
