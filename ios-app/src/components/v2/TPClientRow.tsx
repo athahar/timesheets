@@ -3,8 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { TPAvatar } from './TPAvatar';
 import { TPStatusPill } from './TPStatusPill';
 import { TP } from '../../styles/themeV2';
-import { formatCurrency } from '../../utils/formatters';
-import { useTranslation } from 'react-i18next';
+import { formatCurrency, formatHours } from '../../utils/formatters';
+import { simpleT } from '../../i18n/simple';
 
 export interface TPClientRowProps {
   client: {
@@ -47,8 +47,6 @@ export const TPClientRow: React.FC<TPClientRowProps> = ({
   actionButton,
   showStatusPill = true,
 }) => {
-  const { t } = useTranslation();
-
   return (
     <>
       <TouchableOpacity
@@ -61,7 +59,7 @@ export const TPClientRow: React.FC<TPClientRowProps> = ({
         <View style={styles.content}>
           <Text style={styles.name}>{client.name}</Text>
           <Text style={styles.meta}>
-            {t('common.due')}: {formatCurrency(client.balance)} ({client.hours} {t('common.hrs')})
+            {simpleT('common.due')}: {formatCurrency(client.balance)}{client.balance > 0 ? ` • ${formatHours(client.hours)}` : ''}
           </Text>
         </View>
 

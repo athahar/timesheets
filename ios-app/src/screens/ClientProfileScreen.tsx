@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,7 @@ import { getClientById, updateClient, directSupabase, deleteClientRelationshipSa
 import { generateInviteLink } from '../utils/inviteCodeGenerator';
 import { formatCurrency } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
+import { simpleT } from '../i18n/simple';
 
 // Helper function to format names in proper sentence case
 const formatName = (name: string): string => {
@@ -55,6 +56,8 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
   const { userProfile } = useAuth();
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
+  const lastFetchedRef = useRef<number>(0);
   const [editing, setEditing] = useState(false);
   const [editedName, setEditedName] = useState('');
   const [editedEmail, setEditedEmail] = useState('');
@@ -71,11 +74,13 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
     return () => unsubscribe();
   }, []);
 
-  const loadData = async () => {
+  const loadData = useCallback(async (silent = false) => {
     try {
+      if (!silent) setLoading(true);
+
       const clientData = await getClientById(clientId);
       if (!clientData) {
-        Alert.alert('Error', 'Client not found');
+        Alert.alert(simpleT('common.error'), simpleT('clientProfile.clientNotFound'));
         navigation.goBack();
         return;
       }
@@ -95,21 +100,35 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
             setInviteCode(clientInvite.inviteCode);
           }
         } catch (error) {
-          console.error('Error loading invite code:', error);
+          if (__DEV__) console.error('Error loading invite code:', error);
         }
       }
+
+      lastFetchedRef.current = Date.now();
     } catch (error) {
-      console.error('Error loading client:', error);
-      Alert.alert('Error', 'Failed to load client data');
+      if (__DEV__) console.error('Error loading client:', error);
+      Alert.alert(simpleT('common.error'), simpleT('clientProfile.errorLoadData'));
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+        setInitialLoad(false);
+      }
     }
-  };
+  }, [clientId, navigation]);
 
   useFocusEffect(
     useCallback(() => {
-      loadData();
-    }, [clientId])
+      if (initialLoad) {
+        // First load - show spinner
+        loadData(false);
+      } else {
+        // Stale-time pattern: only refetch if >30s old
+        const STALE_MS = 30_000;
+        if (Date.now() - lastFetchedRef.current > STALE_MS) {
+          loadData(true); // Silent refetch
+        }
+      }
+    }, [initialLoad, loadData])
   );
 
   const isValidEmail = (email: string) => {
@@ -122,13 +141,13 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
 
     // Validate email if provided
     if (editedEmail.trim() && !isValidEmail(editedEmail.trim())) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address');
+      Alert.alert(simpleT('clientProfile.invalidEmail'), simpleT('clientProfile.invalidEmailMessage'));
       return;
     }
 
     const rate = parseFloat(editedRate);
     if (isNaN(rate) || rate <= 0) {
-      Alert.alert('Invalid Rate', 'Please enter a valid hourly rate');
+      Alert.alert(simpleT('clientProfile.invalidRate'), simpleT('clientProfile.invalidRateMessage'));
       return;
     }
 
@@ -142,10 +161,10 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
       };
       setClient(updatedClient);
       setEditing(false);
-      Alert.alert('Success', 'Client profile updated successfully');
+      Alert.alert(simpleT('common.success'), simpleT('clientProfile.successUpdated'));
     } catch (error) {
       console.error('Error updating client:', error);
-      Alert.alert('Error', 'Failed to update client profile');
+      Alert.alert(simpleT('common.error'), simpleT('clientProfile.errorUpdateFailed'));
     }
   };
 
@@ -183,32 +202,32 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
       if (!check.canDelete) {
         if (check.reason === 'active_session') {
           Alert.alert(
-            'Cannot Delete',
-            `${formatName(client.name)} has an active session running. Stop the session before deleting.`,
+            simpleT('clientProfile.cannotDeleteTitle'),
+            simpleT('clientProfile.activeSessionMessage', { clientName: formatName(client.name) }),
             [
-              { text: 'Cancel', style: 'cancel' },
+              { text: simpleT('common.cancel'), style: 'cancel' },
               {
-                text: 'View Sessions',
+                text: simpleT('clientProfile.viewSessions'),
                 onPress: () => navigation.navigate('ClientHistory', { clientId: client.id })
               }
             ]
           );
         } else if (check.reason === 'unpaid_balance') {
           Alert.alert(
-            'Cannot Delete',
-            `${formatName(client.name)} has an outstanding balance of ${formatCurrency(check.unpaidBalance || 0)}. Resolve this before deleting.`,
+            simpleT('clientProfile.cannotDeleteTitle'),
+            simpleT('clientProfile.unpaidBalanceMessage', { clientName: formatName(client.name), amount: formatCurrency(check.unpaidBalance || 0) }),
             [
-              { text: 'Cancel', style: 'cancel' },
+              { text: simpleT('common.cancel'), style: 'cancel' },
               {
-                text: 'Request Payment',
+                text: simpleT('common.requestPayment'),
                 onPress: () => navigation.navigate('ClientHistory', { clientId: client.id })
               }
             ]
           );
         } else if (check.reason === 'payment_request') {
           Alert.alert(
-            'Cannot Delete',
-            `${formatName(client.name)} has outstanding payment requests. Resolve these before deleting.`,
+            simpleT('clientProfile.cannotDeleteTitle'),
+            simpleT('clientProfile.paymentRequestMessage', { clientName: formatName(client.name) }),
             [{ text: 'OK', style: 'cancel' }]
           );
         }
@@ -219,9 +238,9 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
       if (Platform.OS === 'ios') {
         ActionSheetIOS.showActionSheetWithOptions(
           {
-            title: 'Delete Client',
-            message: `Remove your connection with ${formatName(client.name)}? This will not delete their account or work history.`,
-            options: ['Delete', 'Cancel'],
+            title: simpleT('clientProfile.deleteConfirmTitle'),
+            message: simpleT('clientProfile.deleteConfirmMessage', { clientName: formatName(client.name) }),
+            options: [simpleT('common.delete'), simpleT('common.cancel')],
             destructiveButtonIndex: 0,
             cancelButtonIndex: 1,
             userInterfaceStyle: Appearance.getColorScheme() || 'light',
@@ -232,11 +251,11 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
         );
       } else {
         Alert.alert(
-          'Delete Client',
-          `Remove your connection with ${formatName(client.name)}? This will not delete their account or work history.`,
+          simpleT('clientProfile.deleteConfirmTitle'),
+          simpleT('clientProfile.deleteConfirmMessage', { clientName: formatName(client.name) }),
           [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Delete', style: 'destructive', onPress: handleDeleteConfirm },
+            { text: simpleT('common.cancel'), style: 'cancel' },
+            { text: simpleT('common.delete'), style: 'destructive', onPress: handleDeleteConfirm },
           ]
         );
       }
@@ -274,11 +293,11 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
 
       // Success message
       const message = deleted
-        ? `${formatName(client.name)} removed from your clients`
-        : 'This client was already removed';
+        ? simpleT('clientProfile.successDeleted', { clientName: formatName(client.name) })
+        : simpleT('clientProfile.alreadyDeleted');
 
       // Wait for alert to be dismissed before navigating
-      Alert.alert('Success', message, [
+      Alert.alert(simpleT('common.success'), message, [
         {
           text: 'OK',
           onPress: () => {
@@ -303,21 +322,43 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
       }
 
       Alert.alert(
-        'Cannot Delete',
-        error.message || 'Please resolve active sessions or unpaid items before deleting.'
+        simpleT('clientProfile.cannotDeleteTitle'),
+        error.message || simpleT('clientProfile.errorDeleteFailed')
       );
       setDeleting(false);
     }
   };
 
-  if (loading || !client) {
+  if (loading && initialLoad) {
     return (
       <SafeAreaView style={styles.container}>
+        {/* Custom Header - always visible */}
+        <View style={styles.customHeader}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.headerButton}
+          >
+            <Feather name="arrow-left" size={24} color={TP.color.ink} />
+          </TouchableOpacity>
+
+          <View style={styles.headerCenter}>
+            <TPAvatar name={client?.name || 'Loading'} size="sm" />
+            <Text style={styles.headerName}>{client ? formatName(client.name) : 'Loading...'}</Text>
+          </View>
+
+          <View style={styles.headerButton} />
+        </View>
+
+        {/* Spinner in content area */}
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading Client Profile...</Text>
+          <Text style={styles.loadingText}>{simpleT('clientProfile.loading')}</Text>
         </View>
       </SafeAreaView>
     );
+  }
+
+  if (!client) {
+    return null;
   }
 
   return (
@@ -341,7 +382,7 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
             onPress={() => setEditing(true)}
             style={styles.headerButton}
           >
-            <Text style={styles.headerButtonText}>Edit</Text>
+            <Text style={styles.headerButtonText}>{simpleT('common.edit')}</Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.headerButton} />
@@ -354,23 +395,23 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
             <>
               {/* Edit Mode */}
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Client Name</Text>
+                <Text style={styles.fieldLabel}>{simpleT('clientProfile.clientName')}</Text>
                 <TextInput
                   style={styles.textInput}
                   value={editedName}
                   onChangeText={setEditedName}
-                  placeholder="Enter client name"
+                  placeholder={simpleT('clientProfile.namePlaceholder')}
                   placeholderTextColor={TP.color.textSecondary}
                 />
               </View>
 
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Email (Optional)</Text>
+                <Text style={styles.fieldLabel}>{simpleT('clientProfile.emailOptional')}</Text>
                 <TextInput
                   style={styles.textInput}
                   value={editedEmail}
                   onChangeText={setEditedEmail}
-                  placeholder="client@example.com"
+                  placeholder={simpleT('clientProfile.emailPlaceholder')}
                   placeholderTextColor={TP.color.textSecondary}
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -379,14 +420,14 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
               </View>
 
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Hourly Rate</Text>
+                <Text style={styles.fieldLabel}>{simpleT('clientProfile.hourlyRate')}</Text>
                 <View style={styles.rateInputContainer}>
                   <Text style={styles.currencySymbol}>$</Text>
                   <TextInput
                     style={styles.rateInput}
                     value={editedRate}
                     onChangeText={setEditedRate}
-                    placeholder="0.00"
+                    placeholder={simpleT('clientProfile.ratePlaceholder')}
                     placeholderTextColor={TP.color.textSecondary}
                     keyboardType="numeric"
                   />
@@ -398,7 +439,7 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
               <View style={styles.actionButtonsRow}>
                 <View style={styles.actionButton}>
                   <TPButton
-                    title="Cancel"
+                    title={simpleT('common.cancel')}
                     onPress={handleCancel}
                     variant="secondary"
                     size="md"
@@ -406,7 +447,7 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
                 </View>
                 <View style={styles.actionButton}>
                   <TPButton
-                    title="Save Changes"
+                    title={simpleT('clientProfile.saveChanges')}
                     onPress={handleSave}
                     variant="primary"
                     size="md"
@@ -416,27 +457,33 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
             </>
           ) : (
             <>
-              {/* View Mode */}
+              {/* View Mode - Hourly Rate first, then Invite Code */}
               <View style={styles.rateSection}>
-                <Text style={styles.rateLabel}>Hourly Rate</Text>
+                <Text style={styles.rateLabel}>{simpleT('clientProfile.hourlyRate')}</Text>
                 <Text style={styles.rateValue}>{formatCurrency(client.hourlyRate)}/hr</Text>
+              </View>
+
+              <View style={styles.infoSection}>
+                <Text style={styles.infoText}>
+                  {simpleT('clientProfile.hourlyRateInfo', { clientName: formatName(client.name) })}
+                </Text>
               </View>
 
               {/* Invite Section for Unclaimed Clients */}
               {client.claimedStatus === 'unclaimed' && inviteCode && (
                 <View style={styles.inviteSection}>
-                  <Text style={styles.inviteSectionTitle}>Invite Code</Text>
+                  <Text style={styles.inviteSectionTitle}>{simpleT('clientProfile.inviteCodeTitle')}</Text>
                   <Text style={styles.inviteDescription}>
-                    {formatName(client.name)} hasn't claimed their account yet. Share this invite code with them:
+                    {simpleT('clientProfile.inviteCodeDescription', { clientName: formatName(client.name) })}
                   </Text>
 
                   <View style={styles.inviteCodeContainer}>
                     <Text style={styles.inviteCodeText}>{inviteCode}</Text>
                   </View>
 
-                  <View style={styles.inviteActions}>
+                  <View style={styles.inviteActionsWrapper}>
                     <TPButton
-                      title="Share Code"
+                      title={simpleT('clientProfile.shareCode')}
                       onPress={handleShareInvite}
                       variant="primary"
                       size="md"
@@ -444,13 +491,6 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
                   </View>
                 </View>
               )}
-
-              <View style={styles.infoSection}>
-                <Text style={styles.infoText}>
-                  This is your current hourly rate for working with {formatName(client.name)}.
-                  The rate is used to calculate earnings for all work sessions.
-                </Text>
-              </View>
             </>
           )}
         </View>
@@ -459,7 +499,7 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
         {!editing && (
           <View style={styles.dangerZone}>
             <TPButton
-              title={deleting ? 'Deleting...' : 'Delete Client'}
+              title={deleting ? simpleT('common.deleting') : simpleT('clientProfile.deleteClient')}
               onPress={handleDeletePress}
               variant="danger"
               size="md"
@@ -469,7 +509,7 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
             />
             {!isOnline && (
               <Text style={styles.offlineWarning}>
-                No internet connection
+                {simpleT('clientProfile.offlineWarning')}
               </Text>
             )}
           </View>
@@ -712,6 +752,9 @@ const styles = StyleSheet.create({
   inviteActions: {
     flexDirection: 'row',
     gap: TP.spacing.x16,
+  },
+  inviteActionsWrapper: {
+    marginTop: TP.spacing.x16,
   },
   inviteActionButton: {
     flex: 1,

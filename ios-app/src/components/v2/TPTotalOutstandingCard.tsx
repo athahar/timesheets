@@ -4,8 +4,8 @@ import { TPCard } from './TPCard';
 import { TPButton } from './TPButton';
 import { TP } from '../../styles/themeV2';
 import { CardStyles } from '../../styles/components';
-import { useTranslation } from 'react-i18next';
-import { formatCurrency } from '../../utils/formatters';
+import { simpleT } from '../../i18n/simple';
+import { formatCurrency, formatHours } from '../../utils/formatters';
 
 export interface TPTotalOutstandingCardProps {
   amount: number;
@@ -34,19 +34,19 @@ export const TPTotalOutstandingCard: React.FC<TPTotalOutstandingCardProps> = ({
   onRequestPayment,
   loading = false,
 }) => {
-  const { t } = useTranslation();
-
   return (
     <TPCard padding="lg">
-      <Text style={CardStyles.label}>{t('common.totalOutstanding')}</Text>
+      <Text style={CardStyles.label}>{simpleT('common.totalOutstanding')}</Text>
       <Text style={CardStyles.amount}>{formatCurrency(amount)}</Text>
-      <Text style={CardStyles.meta}>
-        {t('common.hoursUnpaid', { count: hours.toFixed(1) })}
-      </Text>
+      {amount > 0 && (
+        <Text style={CardStyles.meta}>
+          {formatHours(hours)}
+        </Text>
+      )}
 
       {showRequestButton && onRequestPayment && (
         <TPButton
-          title={t('common.requestPayment')}
+          title={simpleT('common.requestPayment')}
           variant="primary"
           icon="send"
           onPress={onRequestPayment}

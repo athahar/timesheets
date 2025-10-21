@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Pressable,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
@@ -74,6 +75,8 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
   const [totalEarned, setTotalEarned] = useState(0);
   const [totalHours, setTotalHours] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
+  const lastFetchedRef = useRef<number>(0);
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [sessionTime, setSessionTime] = useState(0);
   const [pendingRequest, setPendingRequest] = useState<any>(null);
@@ -83,12 +86,14 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
   const [crewSize, setCrewSize] = useState(1);
   const [crewMessage, setCrewMessage] = useState<string | null>(null);
   const [isUpdatingCrew, setIsUpdatingCrew] = useState(false);
+  const [isSessionLoading, setIsSessionLoading] = useState(false);
   const { toast, showSuccess, showError, hideToast } = useToast();
   const t = simpleT;
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
+
       const clientData = await getClientById(clientId);
       if (!clientData) {
         Alert.alert(simpleT('clientHistory.errorTitle'), simpleT('clientHistory.clientNotFound'));
@@ -126,22 +131,36 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       const clientMoneyState = await getClientMoneyState(clientId);
       setMoneyState(clientMoneyState);
 
+      lastFetchedRef.current = Date.now();
+
       if (__DEV__) {
         console.debug('[moneyState]', clientId, clientMoneyState);
         console.debug('[pendingRequest]', pendingPaymentRequest);
       }
     } catch (error) {
-      console.error('Error loading data:', error);
+      if (__DEV__) console.error('Error loading data:', error);
       Alert.alert(simpleT('clientHistory.errorTitle'), simpleT('clientHistory.loadError'));
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+        setInitialLoad(false);
+      }
     }
-  }, [clientId]); // Only depend on clientId - navigation and simpleT are stable
+  }, [clientId, navigation]); // Only depend on clientId - navigation and simpleT are stable
 
   useFocusEffect(
     useCallback(() => {
-      loadData();
-    }, [loadData]) // Now properly depends on loadData
+      if (initialLoad) {
+        // First load - show spinner
+        loadData(false);
+      } else {
+        // Stale-time pattern: only refetch if >30s old
+        const STALE_MS = 30_000;
+        if (Date.now() - lastFetchedRef.current > STALE_MS) {
+          loadData(true); // Silent refetch
+        }
+      }
+    }, [initialLoad, loadData])
   );
 
   // Session timer effect - update less frequently to reduce re-renders
@@ -185,7 +204,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       })),
       // Map payment activities to timeline items
       ...activities
-        .filter(a => a.type === 'payment_completed' || a.type === 'payment_request_created')
+        .filter(a => a.type === 'payment_completed' || a.type === 'payment_request')
         .map(activity => ({
           type: activity.type === 'payment_completed' ? 'payment' as const : 'payment_request' as const,
           id: activity.id,
@@ -255,16 +274,16 @@ const handleCrewAdjust = async (delta: number) => {
         const normalized = updated.crewSize ?? targetSize;
         setActiveSession(prev => prev ? { ...prev, crewSize: normalized } : prev);
         setCrewSize(normalized);
-        setCrewMessage(`${normalized} ${normalized === 1 ? 'person' : 'people'} logged for this session.`);
+        setCrewMessage(`${normalized} ${normalized === 1 ? t('common.person') : t('common.people')} logged for this session.`);
       } catch (error) {
         console.error('Error updating crew size:', error);
-        Alert.alert(t('clientHistory.errorTitle'), 'Unable to update crew size. Please try again.');
+        Alert.alert(t('clientHistory.errorTitle'), t('clientHistory.errorUpdateCrewSize'));
       } finally {
         setIsUpdatingCrew(false);
       }
     } else {
       setCrewSize(targetSize);
-      setCrewMessage(`${targetSize} ${targetSize === 1 ? 'person' : 'people'} will be tracked when the session starts.`);
+      setCrewMessage(`${targetSize} ${targetSize === 1 ? t('common.person') : t('common.people')} will be tracked when the session starts.`);
     }
   };
 
@@ -274,7 +293,7 @@ const handleCrewAdjust = async (delta: number) => {
 
     return (
       <View style={styles.crewSelector}>
-        <Text style={styles.crewLabel}>Crew size</Text>
+        <Text style={styles.crewLabel}>{t('clientHistory.crewSize')}</Text>
         <View style={styles.crewStepper}>
           <TouchableOpacity
             onPress={() => handleCrewAdjust(-1)}
@@ -297,7 +316,7 @@ const handleCrewAdjust = async (delta: number) => {
           </TouchableOpacity>
         </View>
         <Text style={styles.crewHint}>
-          {activeSession ? 'Applies to the entire session' : 'Set before starting'}
+          {activeSession ? t('clientHistory.crewApplies') : t('clientHistory.crewSetBefore')}
         </Text>
         {crewMessage ? <Text style={styles.crewMessage}>{crewMessage}</Text> : null}
       </View>
@@ -305,21 +324,39 @@ const handleCrewAdjust = async (delta: number) => {
   };
 
   const handleStartSession = async () => {
+    if (isSessionLoading) return; // Prevent double-tap
     try {
-      await startSession(clientId, crewSize);
-      loadData();
+      setIsSessionLoading(true);
+      const newSession = await startSession(clientId, crewSize);
+
+      // Optimistic update - just update the active session state
+      setActiveSession(newSession);
+      setCrewSize(newSession.crewSize);
+
+      // Silent refetch to update timeline (no full-page spinner)
+      await loadData(true);
     } catch (error) {
       Alert.alert(t('clientHistory.errorTitle'), t('clientHistory.sessionStartError'));
+    } finally {
+      setIsSessionLoading(false);
     }
   };
 
   const handleEndSession = async () => {
-    if (!activeSession) return;
+    if (!activeSession || isSessionLoading) return; // Prevent double-tap
     try {
+      setIsSessionLoading(true);
       await endSession(activeSession.id);
-      loadData();
+
+      // Optimistic update - clear active session
+      setActiveSession(null);
+
+      // Silent refetch to update timeline and summary
+      await loadData(true);
     } catch (error) {
       Alert.alert(t('clientHistory.errorTitle'), t('clientHistory.sessionEndError'));
+    } finally {
+      setIsSessionLoading(false);
     }
   };
 
@@ -393,11 +430,16 @@ const handleCrewAdjust = async (delta: number) => {
         }
       }
 
-      // Refresh data to show the new pending request
-      await loadData();
-
+      // Close modal first
       setShowConfirmModal(false);
+
+      // Show success message
       showSuccess(t('clientHistory.paymentRequested', { amount: formatCurrency(unpaidAmount), clientName: client?.name }));
+
+      // Small delay to ensure activity is written to DB, then refresh
+      setTimeout(async () => {
+        await loadData();
+      }, 500);
     } catch (error) {
       if (__DEV__) {
         console.error('❌ Payment request failed:', error);
@@ -413,11 +455,24 @@ const handleCrewAdjust = async (delta: number) => {
     setShowConfirmModal(false);
   };
 
-  if (loading) {
+  if (loading && initialLoad) {
     return (
       <SafeAreaView style={styles.container}>
+        {/* Custom Header - always visible */}
+        <View style={styles.customHeader}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
+            <Feather name="arrow-left" size={24} color={TP.color.ink} />
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <TPAvatar name={client?.name || 'Loading'} size="sm" />
+            <Text style={styles.headerName}>{client ? formatName(client.name) : 'Loading...'}</Text>
+          </View>
+          <View style={styles.headerButton} />
+        </View>
+
+        {/* Spinner in content area */}
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>{t('clientHistory.loading')}</Text>
+          <ActivityIndicator size="large" color={TP.color.ink} />
         </View>
       </SafeAreaView>
     );
@@ -460,10 +515,10 @@ const handleCrewAdjust = async (delta: number) => {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Total Outstanding Card */}
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Total Outstanding</Text>
+          <Text style={styles.summaryLabel}>{t('common.totalOutstanding')}</Text>
           <Text style={styles.summaryAmountLarge}>{formatCurrency(totalUnpaidBalance)}</Text>
           <Text style={styles.summaryHoursUnpaid}>
-            {formatHours(unpaidHours + requestedHours)} unpaid
+            {formatHours(unpaidHours + requestedHours)} {t('clientHistory.unpaid')}
           </Text>
 
           {(() => {
@@ -481,7 +536,7 @@ const handleCrewAdjust = async (delta: number) => {
                   accessibilityLabel={`Request payment of ${formatCurrency(unpaidUnrequestedCents / 100)}`}
                 >
                   <Text style={styles.requestPaymentButtonText}>
-                    → Request Payment
+                    → {t('common.requestPayment')}
                   </Text>
                 </TouchableOpacity>
               );
@@ -544,7 +599,7 @@ const handleCrewAdjust = async (delta: number) => {
                         // Work Session - Simplified format
                         <View style={styles.timelineCard}>
                           <View style={styles.timelineCardHeader}>
-                            <Text style={styles.timelineCardTitle}>Work Session</Text>
+                            <Text style={styles.timelineCardTitle}>{t('clientHistory.workSession')}</Text>
                             <Text style={styles.timelineCardAmount}>
                               {item.data.endTime ? formatCurrency(item.data.amount || 0) : ''}
                             </Text>
@@ -561,10 +616,10 @@ const handleCrewAdjust = async (delta: number) => {
                                 const baseDuration =
                                   session.duration ??
                                   ((end.getTime() - start.getTime()) / (1000 * 60 * 60));
-                                const personText = crewSize === 1 ? '1 person' : `${crewSize} person`;
+                                const personText = crewSize === 1 ? `1 ${t('common.person')}` : `${crewSize} ${t('common.person')}`;
                                 return `${startLabel} - ${endLabel} • ${personText} • ${formatHours(baseDuration)}`;
                               }
-                              return `Active since ${startLabel} • ${crewSize} person`;
+                              return `${t('clientHistory.activeSince', { time: startLabel })} • ${crewSize} ${t('common.person')}`;
                             })()}
                           </Text>
                         </View>
@@ -590,13 +645,20 @@ const handleCrewAdjust = async (delta: number) => {
                         // Payment Request - Simplified format
                         <View style={styles.timelineCard}>
                           <View style={styles.timelineCardHeader}>
-                            <Text style={styles.timelineCardTitle}>Payment Requested</Text>
+                            <Text style={styles.timelineCardTitle}>{t('clientHistory.paymentRequestedActivity')}</Text>
                             <Text style={styles.timelineCardAmount}>
                               {formatCurrency(item.data.data.amount || 0)}
                             </Text>
                           </View>
                           <Text style={styles.timelineCardMeta}>
-                            Total: {formatCurrency(item.data.data.amount || 0)} • {formatHours(item.data.data.personHours || 0)}
+                            {(() => {
+                              const sessionCount = item.data.data.sessionIds?.length || 0;
+                              const personHours = item.data.data.personHours || 0;
+                              const sessionText = sessionCount === 1
+                                ? `1 ${t('clientHistory.session')}`
+                                : `${sessionCount} ${t('clientHistory.sessions')}`;
+                              return `${sessionText} • ${formatHours(personHours)}`;
+                            })()}
                           </Text>
                         </View>
                       )}
@@ -612,7 +674,7 @@ const handleCrewAdjust = async (delta: number) => {
       {/* Fixed Footer with Crew Counter and Start/Stop */}
       <View style={styles.fixedFooter}>
         <View style={styles.footerCrewCounter}>
-          <Text style={styles.footerCrewLabel}>Person(s)</Text>
+          <Text style={styles.footerCrewLabel}>{t('clientHistory.persons')}</Text>
           <TouchableOpacity
             onPress={() => handleCrewAdjust(-1)}
             disabled={currentCrewSize <= 1 || isUpdatingCrew}
@@ -632,14 +694,20 @@ const handleCrewAdjust = async (delta: number) => {
 
         <TouchableOpacity
           onPress={activeSession ? handleEndSession : handleStartSession}
+          disabled={isSessionLoading}
           style={[
             styles.footerActionButton,
-            activeSession ? styles.footerActionButtonStop : styles.footerActionButtonStart
+            activeSession ? styles.footerActionButtonStop : styles.footerActionButtonStart,
+            isSessionLoading && styles.footerActionButtonLoading
           ]}
         >
-          <Text style={styles.footerActionButtonText}>
-            {activeSession ? 'Stop' : 'Start'}
-          </Text>
+          {isSessionLoading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.footerActionButtonText}>
+              {activeSession ? t('common.stop') : t('common.start')}
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -1212,10 +1280,6 @@ const styles = StyleSheet.create({
 
   // Fixed Footer Styles
   fixedFooter: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1274,6 +1338,9 @@ const styles = StyleSheet.create({
   },
   footerActionButtonStop: {
     backgroundColor: TP.color.btn.dangerBg, // Red
+  },
+  footerActionButtonLoading: {
+    opacity: 0.7,
   },
   footerActionButtonText: {
     fontSize: TP.font.body,
