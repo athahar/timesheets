@@ -164,22 +164,129 @@ A comprehensive schema diff was captured from the staging database showing signi
 
 ---
 
-## Risk Assessment
+## Detailed Drift Analysis (October 21, 2025)
 
-### 🔴 High Risk Changes
-- **DROP POLICY statements** - Could expose data if RLS was protecting it
-- **DROP CONSTRAINT checks** - Could allow invalid data
-- **Disabling RLS** on trackpay_invites - Security risk
+### Category Breakdown
 
-### 🟡 Medium Risk Changes
-- **DROP COLUMN statements** - Potential data loss if columns have data
-- **DROP NOT NULL** on FK columns - Could create orphaned records
-- **Column type changes** - Might fail if data doesn't fit new type
+#### 1. DROP POLICY (19 statements) - LOW RISK ✅
+These policies likely don't exist in production since RLS was probably not fully configured:
+- `tp_users_*` (3 policies: insert_self, select_self, update_self)
+- `tp_sessions_*` (3 policies: insert_provider, select_party, update_provider)
+- `tp_payments_*` (3 policies: insert_provider, select_party, update_provider)
+- `tp_invites_*` (2 policies: insert_provider, select_party)
+- `tp_requests_*` (3 policies: insert_provider, select_party, update_provider)
+- `tp_rels_*` (3 policies: insert_provider, select_party, update_provider)
+- `tp_activities_select_party` (1 policy)
+- `tp_rel_audit_select_provider` (1 policy)
 
-### 🟢 Low Risk Changes
-- **ADD COLUMN** statements - Safe, just new fields
+**Risk Level**: LOW - If policies don't exist in production, DROP will be no-op or fail harmlessly
+
+#### 2. DROP FUNCTION (1 statement) - LOW RISK ✅
+- `current_trackpay_user_id()` - Helper function for RLS
+
+**Risk Level**: LOW - Not used if RLS policies are gone
+
+#### 3. DROP CONSTRAINT (5 statements) - MEDIUM RISK ⚠️
+- `trackpay_activities_user_id_fkey` (FK constraint - replaced by new schema)
+- `trackpay_users.claimed_status_check` (replaced by new check constraint)
+- `trackpay_users.trackpay_users_auth_user_id_key` (unique constraint)
+- `trackpay_invites.trackpay_invites_status_check` (replaced by new check constraint)
+- `trackpay_requests.trackpay_requests_status_check` (replaced by new check constraint)
+
+**Risk Level**: MEDIUM - Old constraints dropped, new ones added (verify replacements exist)
+
+#### 4. ALTER TABLE - Column Changes
+
+**trackpay_invites** - ✅ DONE (Applied: 20251021070000_fix_invites_schema_production.sql)
+- DROP client_name, client_email, hourly_rate, updated_at
+- ALTER client_id SET NOT NULL
+- Status column type changes
+
+**trackpay_users** - ✅ PARTIALLY DONE
+- ✅ DONE: email DROP NOT NULL (Applied: 20251021064751_make_email_nullable_production_fix.sql)
+- ⏳ PENDING: DROP phone column
+- ⏳ PENDING: ADD display_name, phone_e164, phone_verified_at
+- ⏳ PENDING: ALTER claimed_status type to VARCHAR(20)
+
+**trackpay_activities** - ⏳ NOT APPLIED
+- DROP activity_type, description, metadata, user_id
+- ADD data (jsonb), type (text)
+- Complete restructure to new activity format
+
+**trackpay_payments** - ⏳ NOT APPLIED
+- DROP notes, payment_date, payment_method, updated_at
+- ADD method, note, status
+- Column renames (payment_method → method, notes → note)
+
+**trackpay_sessions** - ⏳ NOT APPLIED (Minor changes)
+- DROP notes
+- DROP NOT NULL on client_id, provider_id, status, updated_at
+- SET crew_size NOT NULL
+
+**trackpay_relationships** - ⏳ NOT APPLIED (Minor changes)
+- DROP hourly_rate, updated_at
+- DROP NOT NULL on client_id, provider_id
+
+**trackpay_requests** - ⏳ NOT APPLIED (Minor changes)
+- DROP requested_at, responded_at
+- DROP NOT NULL on various columns
+
+#### 5. CREATE CONSTRAINT - NEW (Safe additions) ✅
+- `trackpay_payments_method_check` - Validates payment methods (cash, zelle, paypal, etc.)
+- `trackpay_users_auth_user_id_fkey` - FK to auth.users ON DELETE CASCADE
+- `trackpay_users_claimed_status_check` - Validates claimed/unclaimed values
+- `trackpay_invites_status_check` - Validates pending/claimed/expired
+- `trackpay_requests_status_check` - Validates status values
+
+**Risk Level**: LOW - These are data quality improvements, beneficial to add
+
+#### 6. CREATE UNIQUE INDEX - NEW (Safe additions) ✅
+- `trackpay_users_phone_e164_key` - Ensures unique phone numbers
+- `ux_relationships_provider_client` - Prevents duplicate provider-client relationships
+
+**Risk Level**: LOW - Prevents bad data, improves performance
+
+#### 7. CREATE TRIGGER - NEW (Safe/Beneficial) ✅
+- `update_trackpay_requests_updated_at` - Auto-update timestamps
+- `update_trackpay_sessions_updated_at` - Auto-update timestamps
+- `update_trackpay_users_updated_at` - Auto-update timestamps
+- `trigger_set_display_name_from_email` - Auto-populate display name from email
+- `trg_trackpay_sessions_person_hours` - Calculate person hours automatically
+
+**Risk Level**: LOW - Helpful automation, improves data consistency
+
+---
+
+## Risk Assessment Summary
+
+### 🔴 High Risk Changes (Handle with Care)
+- **trackpay_activities restructure** - Complete schema change, could break activity feed
+- **trackpay_payments column changes** - Renames and restructure, could break payment tracking
+- **DROP POLICY statements** - Could expose data IF policies actually exist in production
+
+### 🟡 Medium Risk Changes (Review Before Applying)
+- **DROP old constraints, ADD new constraints** - Verify all old constraints have replacements
+- **DROP COLUMN statements** - Potential data loss if columns have data (check first!)
+- **DROP NOT NULL on FK columns** - Could allow orphaned records if app doesn't validate
+
+### 🟢 Low Risk Changes (Safe to Apply)
+- **ADD COLUMN** statements - Safe, just new fields for future features
 - **CREATE INDEX** - Performance improvement, no data risk
-- **CREATE TRIGGER** - New functionality, shouldn't break existing
+- **CREATE TRIGGER** - Helpful automation for timestamps and computed fields
+- **DROP POLICY where policies don't exist** - Harmless if RLS wasn't configured
+
+---
+
+## What's Already Fixed ✅
+
+### Production Migrations Applied:
+1. ✅ **20251021064751** - Made `trackpay_users.email` nullable for unclaimed clients
+2. ✅ **20251021070000** - Removed redundant columns from `trackpay_invites` (client_name, client_email, hourly_rate)
+
+### Impact:
+- Client creation now works without email address
+- Invite code generation now works correctly
+- Production database partially aligned with staging
 
 ---
 
@@ -266,11 +373,19 @@ See `docs/deploy/DATABASE_WORKFLOW.md` for the new migration-first workflow.
 
 ## Timeline
 
-- **Oct 20, 2025**: Schema drift discovered during client creation error investigation
-- **Oct 20, 2025**: Full diff captured (106KB), filtered to TrackPay only (13KB)
-- **Oct 20, 2025**: Focused email migration created and applied to production ✅
+- **Oct 20, 2025 23:00**: Schema drift discovered during client creation error investigation
+- **Oct 20, 2025 23:30**: Full diff captured (106KB), filtered to TrackPay only (13KB)
+- **Oct 20, 2025 23:57**: Focused email migration created and applied to production ✅
 - **Oct 20, 2025**: This spec created for remaining drift
-- **TBD**: Review and incremental migration plan
+- **Oct 21, 2025 00:00**: Applied invites schema fix (removed client_name, client_email, hourly_rate) ✅
+- **Oct 21, 2025 00:30**: Detailed drift analysis added to spec
+- **Oct 21, 2025**: User confirmed activity feed and payments are in use, phone auth NOT used
+
+### Next Steps (Pending)
+- Remove phone auth columns from remaining drift (not needed)
+- Apply trackpay_activities and trackpay_payments schema changes (HIGH PRIORITY - features in use)
+- Apply safe additions (constraints, indexes, triggers)
+- Test in staging before production deployment
 
 ---
 
@@ -278,6 +393,6 @@ See `docs/deploy/DATABASE_WORKFLOW.md` for the new migration-first workflow.
 
 For questions about this migration, contact the developer who made the manual changes in staging, or review the Supabase SQL Editor history.
 
-**Last Updated**: October 20, 2025
+**Last Updated**: October 21, 2025
 **Author**: Claude (AI Assistant)
 **Reviewers**: Pending
