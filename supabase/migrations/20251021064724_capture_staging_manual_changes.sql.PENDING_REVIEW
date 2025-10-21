@@ -1,0 +1,1000 @@
+
+
+
+
+
+
+
+
+
+
+
+
+drop policy "tp_activities_select_party" on "public"."trackpay_activities";
+
+drop policy "tp_invites_insert_provider" on "public"."trackpay_invites";
+
+drop policy "tp_invites_select_party" on "public"."trackpay_invites";
+
+drop policy "tp_payments_insert_provider" on "public"."trackpay_payments";
+
+drop policy "tp_payments_select_party" on "public"."trackpay_payments";
+
+drop policy "tp_payments_update_provider" on "public"."trackpay_payments";
+
+drop policy "tp_rel_audit_select_provider" on "public"."trackpay_relationship_audit";
+
+drop policy "tp_rels_insert_provider" on "public"."trackpay_relationships";
+
+drop policy "tp_rels_select_party" on "public"."trackpay_relationships";
+
+drop policy "tp_rels_update_provider" on "public"."trackpay_relationships";
+
+drop policy "tp_requests_insert_provider" on "public"."trackpay_requests";
+
+drop policy "tp_requests_select_party" on "public"."trackpay_requests";
+
+drop policy "tp_requests_update_provider" on "public"."trackpay_requests";
+
+drop policy "tp_sessions_insert_provider" on "public"."trackpay_sessions";
+
+drop policy "tp_sessions_select_party" on "public"."trackpay_sessions";
+
+drop policy "tp_sessions_update_provider" on "public"."trackpay_sessions";
+
+drop policy "tp_users_insert_self" on "public"."trackpay_users";
+
+drop policy "tp_users_select_self" on "public"."trackpay_users";
+
+drop policy "tp_users_update_self" on "public"."trackpay_users";
+
+revoke insert on table "public"."trackpay_users" from "authenticated";
+
+alter table "public"."trackpay_activities" drop constraint "trackpay_activities_user_id_fkey";
+
+alter table "public"."trackpay_users" drop constraint "claimed_status_check";
+
+alter table "public"."trackpay_users" drop constraint "trackpay_users_auth_user_id_key";
+
+alter table "public"."trackpay_invites" drop constraint "trackpay_invites_status_check";
+
+alter table "public"."trackpay_requests" drop constraint "trackpay_requests_status_check";
+
+drop function if exists "public"."current_trackpay_user_id"();
+
+
+
+
+
+
+
+
+drop index if exists "public"."trackpay_users_auth_user_id_key";
+
+drop index if exists "public"."ux_trackpay_users_auth_user";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+alter table "public"."trackpay_activities" drop column "activity_type";
+
+alter table "public"."trackpay_activities" drop column "description";
+
+alter table "public"."trackpay_activities" drop column "metadata";
+
+alter table "public"."trackpay_activities" drop column "user_id";
+
+alter table "public"."trackpay_activities" add column "data" jsonb;
+
+alter table "public"."trackpay_activities" add column "type" text not null;
+
+alter table "public"."trackpay_activities" alter column "created_at" drop not null;
+
+alter table "public"."trackpay_invites" drop column "client_email";
+
+alter table "public"."trackpay_invites" drop column "client_name";
+
+alter table "public"."trackpay_invites" drop column "hourly_rate";
+
+alter table "public"."trackpay_invites" drop column "updated_at";
+
+alter table "public"."trackpay_invites" alter column "client_id" set not null;
+
+alter table "public"."trackpay_invites" alter column "created_at" drop not null;
+
+alter table "public"."trackpay_invites" alter column "invite_code" set data type character varying(8) using "invite_code"::character varying(8);
+
+alter table "public"."trackpay_invites" alter column "status" set default 'pending'::character varying;
+
+alter table "public"."trackpay_invites" alter column "status" drop not null;
+
+alter table "public"."trackpay_invites" alter column "status" set data type character varying(20) using "status"::character varying(20);
+
+alter table "public"."trackpay_invites" disable row level security;
+
+alter table "public"."trackpay_payments" drop column "notes";
+
+alter table "public"."trackpay_payments" drop column "payment_date";
+
+alter table "public"."trackpay_payments" drop column "payment_method";
+
+alter table "public"."trackpay_payments" drop column "updated_at";
+
+alter table "public"."trackpay_payments" add column "method" text;
+
+alter table "public"."trackpay_payments" add column "note" text;
+
+alter table "public"."trackpay_payments" add column "status" text default 'completed'::text;
+
+alter table "public"."trackpay_payments" alter column "client_id" drop not null;
+
+alter table "public"."trackpay_payments" alter column "created_at" drop not null;
+
+alter table "public"."trackpay_payments" alter column "provider_id" drop not null;
+
+alter table "public"."trackpay_payments" alter column "session_ids" drop default;
+
+alter table "public"."trackpay_payments" alter column "session_ids" drop not null;
+
+alter table "public"."trackpay_payments" alter column "session_ids" set data type text[] using "session_ids"::text[];
+
+alter table "public"."trackpay_relationships" drop column "hourly_rate";
+
+alter table "public"."trackpay_relationships" drop column "updated_at";
+
+alter table "public"."trackpay_relationships" alter column "client_id" drop not null;
+
+alter table "public"."trackpay_relationships" alter column "created_at" drop not null;
+
+alter table "public"."trackpay_relationships" alter column "provider_id" drop not null;
+
+alter table "public"."trackpay_requests" drop column "requested_at";
+
+alter table "public"."trackpay_requests" drop column "responded_at";
+
+alter table "public"."trackpay_requests" alter column "client_id" drop not null;
+
+alter table "public"."trackpay_requests" alter column "created_at" drop not null;
+
+alter table "public"."trackpay_requests" alter column "provider_id" drop not null;
+
+alter table "public"."trackpay_requests" alter column "status" drop not null;
+
+alter table "public"."trackpay_requests" alter column "updated_at" drop not null;
+
+alter table "public"."trackpay_sessions" drop column "notes";
+
+alter table "public"."trackpay_sessions" alter column "client_id" drop not null;
+
+alter table "public"."trackpay_sessions" alter column "created_at" drop not null;
+
+alter table "public"."trackpay_sessions" alter column "crew_size" set not null;
+
+alter table "public"."trackpay_sessions" alter column "provider_id" drop not null;
+
+alter table "public"."trackpay_sessions" alter column "status" set default 'unpaid'::text;
+
+alter table "public"."trackpay_sessions" alter column "status" drop not null;
+
+alter table "public"."trackpay_sessions" alter column "updated_at" drop not null;
+
+alter table "public"."trackpay_users" drop column "phone";
+
+alter table "public"."trackpay_users" add column "display_name" text;
+
+alter table "public"."trackpay_users" add column "phone_e164" text;
+
+alter table "public"."trackpay_users" add column "phone_verified_at" timestamp with time zone;
+
+alter table "public"."trackpay_users" alter column "claimed_status" set default 'claimed'::character varying;
+
+alter table "public"."trackpay_users" alter column "claimed_status" set data type character varying(20) using "claimed_status"::character varying(20);
+
+alter table "public"."trackpay_users" alter column "created_at" drop not null;
+
+alter table "public"."trackpay_users" alter column "email" drop not null;
+
+alter table "public"."trackpay_users" alter column "updated_at" drop not null;
+
+alter table "public"."trackpay_users" enable row level security;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+CREATE INDEX idx_activities_provider_client ON public.trackpay_activities USING btree (provider_id, client_id);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+CREATE INDEX idx_payments_session ON public.trackpay_payments USING btree (session_id);
+
+
+
+
+CREATE INDEX idx_sessions_created_at ON public.trackpay_sessions USING btree (created_at);
+
+CREATE INDEX idx_sessions_provider_client ON public.trackpay_sessions USING btree (provider_id, client_id);
+
+CREATE INDEX idx_sessions_status ON public.trackpay_sessions USING btree (status);
+
+CREATE INDEX idx_trackpay_invites_client_id ON public.trackpay_invites USING btree (client_id);
+
+CREATE INDEX idx_trackpay_invites_invite_code ON public.trackpay_invites USING btree (invite_code);
+
+CREATE INDEX idx_trackpay_invites_provider_id ON public.trackpay_invites USING btree (provider_id);
+
+CREATE INDEX idx_trackpay_invites_status ON public.trackpay_invites USING btree (status);
+
+CREATE INDEX idx_trackpay_users_auth_user_id ON public.trackpay_users USING btree (auth_user_id);
+
+CREATE INDEX idx_trackpay_users_email ON public.trackpay_users USING btree (email);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+CREATE UNIQUE INDEX trackpay_users_phone_e164_key ON public.trackpay_users USING btree (phone_e164);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+CREATE UNIQUE INDEX ux_relationships_provider_client ON public.trackpay_relationships USING btree (provider_id, client_id);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+alter table "public"."trackpay_payments" add constraint "trackpay_payments_method_check" CHECK ((method = ANY (ARRAY['cash'::text, 'zelle'::text, 'paypal'::text, 'bank_transfer'::text, 'other'::text]))) not valid;
+
+alter table "public"."trackpay_payments" validate constraint "trackpay_payments_method_check";
+
+alter table "public"."trackpay_users" add constraint "trackpay_users_auth_user_id_fkey" FOREIGN KEY (auth_user_id) REFERENCES auth.users(id) ON DELETE CASCADE not valid;
+
+alter table "public"."trackpay_users" validate constraint "trackpay_users_auth_user_id_fkey";
+
+alter table "public"."trackpay_users" add constraint "trackpay_users_claimed_status_check" CHECK (((claimed_status)::text = ANY ((ARRAY['claimed'::character varying, 'unclaimed'::character varying])::text[]))) not valid;
+
+alter table "public"."trackpay_users" validate constraint "trackpay_users_claimed_status_check";
+
+alter table "public"."trackpay_users" add constraint "trackpay_users_phone_e164_key" UNIQUE using index "trackpay_users_phone_e164_key";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+alter table "public"."trackpay_invites" add constraint "trackpay_invites_status_check" CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'claimed'::character varying, 'expired'::character varying])::text[]))) not valid;
+
+alter table "public"."trackpay_invites" validate constraint "trackpay_invites_status_check";
+
+alter table "public"."trackpay_requests" add constraint "trackpay_requests_status_check" CHECK ((status = ANY (ARRAY['pending'::text, 'approved'::text, 'declined'::text]))) not valid;
+
+alter table "public"."trackpay_requests" validate constraint "trackpay_requests_status_check";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+CREATE OR REPLACE FUNCTION public.trackpay_sessions_person_hours_default()
+
+
+
+create or replace view "public"."trackpay_unpaid_balances" as  SELECT s.client_id,
+   FROM (trackpay_sessions s
+     LEFT JOIN trackpay_payments p ON ((s.id = p.session_id)))
+
+
+
+
+
+
+
+
+
+
+
+  -- Look up trackpay_users.id from auth_user_id
+  FROM public.trackpay_users
+
+
+    DELETE FROM public.trackpay_relationships r
+        SELECT 1 FROM public.trackpay_sessions s
+        SELECT 1 FROM public.trackpay_requests pr
+
+    INSERT INTO public.trackpay_relationship_audit (provider_id, client_id, action, created_at)
+
+    SELECT 1 FROM public.trackpay_sessions s
+    INSERT INTO public.trackpay_relationship_audit (provider_id, client_id, action, reason, created_at)
+
+    SELECT 1 FROM public.trackpay_requests pr
+    INSERT INTO public.trackpay_relationship_audit (provider_id, client_id, action, reason, created_at)
+
+  INSERT INTO public.trackpay_relationship_audit (provider_id, client_id, action, created_at)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+on "public"."trackpay_activities"
+
+
+on "public"."trackpay_activities"
+   FROM trackpay_users
+  WHERE ((trackpay_users.id = trackpay_activities.provider_id) AND (trackpay_users.auth_user_id = auth.uid())))));
+
+
+on "public"."trackpay_payments"
+
+
+on "public"."trackpay_payments"
+   FROM trackpay_users
+  WHERE ((trackpay_users.id = trackpay_payments.provider_id) AND (trackpay_users.auth_user_id = auth.uid())))));
+
+
+on "public"."trackpay_payments"
+   FROM trackpay_users
+  WHERE ((trackpay_users.id = trackpay_payments.provider_id) AND (trackpay_users.auth_user_id = auth.uid())))));
+
+
+on "public"."trackpay_relationships"
+
+
+on "public"."trackpay_relationships"
+
+
+on "public"."trackpay_requests"
+
+
+on "public"."trackpay_sessions"
+
+
+on "public"."trackpay_sessions"
+   FROM trackpay_users
+  WHERE ((trackpay_users.id = trackpay_sessions.provider_id) AND (trackpay_users.auth_user_id = auth.uid())))));
+
+
+on "public"."trackpay_sessions"
+   FROM trackpay_users
+  WHERE ((trackpay_users.id = trackpay_sessions.provider_id) AND (trackpay_users.auth_user_id = auth.uid())))));
+
+
+on "public"."trackpay_sessions"
+   FROM trackpay_users
+  WHERE ((trackpay_users.id = trackpay_sessions.provider_id) AND (trackpay_users.auth_user_id = auth.uid())))));
+
+
+on "public"."trackpay_users"
+
+
+on "public"."trackpay_users"
+
+
+on "public"."trackpay_users"
+
+
+
+
+
+CREATE TRIGGER update_trackpay_requests_updated_at BEFORE UPDATE ON public.trackpay_requests FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER trg_trackpay_sessions_person_hours BEFORE INSERT OR UPDATE ON public.trackpay_sessions FOR EACH ROW EXECUTE FUNCTION trackpay_sessions_person_hours_default();
+
+CREATE TRIGGER update_trackpay_sessions_updated_at BEFORE UPDATE ON public.trackpay_sessions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER trigger_set_display_name_from_email BEFORE INSERT OR UPDATE ON public.trackpay_users FOR EACH ROW EXECUTE FUNCTION set_display_name_from_email();
+
+CREATE TRIGGER update_trackpay_users_updated_at BEFORE UPDATE ON public.trackpay_users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+
+

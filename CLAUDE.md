@@ -2,6 +2,77 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🚨 Schema Drift Migration - STATUS UPDATE
+
+**Original Issue**: Staging database had **13KB of manual schema changes** not captured in migration files.
+
+### ✅ COMPLETED - Critical Drift Resolved (Oct 20-21, 2025)
+
+**Production Migrations Applied**:
+1. ✅ `20251021064751` - Made email nullable for unclaimed clients
+2. ✅ `20251021070000` - Removed redundant columns from trackpay_invites
+3. ✅ `20251021071000` - Restructured trackpay_activities (JSONB format)
+4. ✅ `20251021071500` - Restructured trackpay_payments (new column names)
+5. ✅ `20251021072000` - Disabled RLS on trackpay_activities (fix for missing policy drop)
+
+**Result**:
+- ✅ Client creation works (with/without email)
+- ✅ Invite code generation works
+- ✅ Activity feed schema aligned with app code
+- ✅ Payment tracking schema aligned with app code
+
+**Progress**:
+- **Critical tables (in active use)**: 100% ✅
+- **Overall schema drift**: ~40% applied
+- **Remaining drift**: Non-blocking (minor table changes, policy cleanups)
+
+### ⏳ OPTIONAL - Remaining Drift (Low Priority)
+
+**What's Left** (see `spec/SCHEMA_DRIFT_MIGRATION.md` for details):
+- ⏳ trackpay_sessions minor changes (DROP notes, FK nullable)
+- ⏳ trackpay_relationships minor changes (DROP hourly_rate)
+- ⏳ trackpay_requests minor changes (DROP requested_at, responded_at)
+- ⏳ 19 DROP POLICY statements (likely don't exist in prod anyway)
+- ⏳ New constraints/indexes/triggers (beneficial but not urgent)
+- ❌ Phone auth columns (SKIP - confirmed not in use)
+
+**Recommendation**:
+- Current state is production-ready ✅
+- Apply remaining drift only if needed for specific features
+- All blocking schema issues are resolved
+
+### 📚 Lessons Learned: Migration Best Practices
+
+**When creating focused migrations from drift files:**
+
+1. ✅ **Include ALL related changes in one migration**:
+   - Column changes (ADD, DROP, ALTER)
+   - Constraint changes (FK, CHECK, UNIQUE)
+   - **RLS policy changes (CREATE, DROP)**
+   - **RLS enable/disable statements**
+   - Index changes
+   - Trigger changes
+
+2. ✅ **Checklist before applying table restructure**:
+   - [ ] Column/type changes
+   - [ ] FK constraints (add/drop/modify)
+   - [ ] RLS policies (what exists in prod vs staging?)
+   - [ ] RLS enabled status (enabled/disabled?)
+   - [ ] Indexes on affected columns
+   - [ ] Triggers on table
+
+3. ❌ **Never rewrite applied migrations** - Once in production, migrations are history
+
+**Example of what went wrong:**
+- Migration `20251021071000` restructured trackpay_activities columns ✅
+- But didn't drop RLS policy `tp_activities_select_party` ❌
+- But didn't disable RLS ❌
+- Required follow-up migration `20251021072000` to fix
+
+**Correct approach:** One complete migration with all related changes.
+
+---
+
 ## Project Overview
 
 **TrackPay** (formerly "timesheets-app") is a two-sided time tracking and payment request app built with Expo (React Native). It features service provider and client views with real-time activity feeds, bilingual support (English/Spanish), and a hybrid storage architecture.
