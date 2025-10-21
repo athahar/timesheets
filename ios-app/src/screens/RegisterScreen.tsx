@@ -1,23 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
   StyleSheet,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { TP } from '../styles/themeV2';
 import { theme } from '../styles/theme';
 import { useAuth } from '../contexts/AuthContext';
-import { Button } from '../components/Button';
-import { StickyCTA } from '../components/StickyCTA';
+import { TPButton } from '../components/v2/TPButton';
+import { TPInput } from '../components/v2/TPInput';
+import { AuthScreenTemplate } from '../components/AuthScreenTemplate';
 import { directSupabase } from '../services/storageService';
-import { simpleT, getCurrentLanguageSimple } from '../i18n/simple';
+import { simpleT } from '../i18n/simple';
 
 interface RegisterScreenProps {
   navigation: any;
@@ -42,32 +39,49 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
   // Determine user role based on inviter role
   const autoRole = inviteParams?.inviterRole === 'provider' ? 'client' : 'provider';
 
+  // Refs for return key flow
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const confirmPasswordRef = useRef<TextInput>(null);
+
+  // Form state
   const [displayName, setDisplayName] = useState(inviteParams?.clientName || '');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState<'provider' | 'client' | null>(isInviteFlow ? autoRole : null);
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<{displayName?: string; email?: string; password?: string; confirmPassword?: string; role?: string}>({});
+  const [errors, setErrors] = useState<{
+    displayName?: string;
+    email?: string;
+    password?: string;
+    confirmPassword?: string;
+    role?: string;
+  }>({});
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const { signUp, reloadUserProfile, isAuthenticated, user } = useAuth();
 
   // Monitor auth state changes after successful registration
   useEffect(() => {
     if (registrationSuccess && isAuthenticated && user) {
-      // Give a moment for the auth state to fully settle
       const timer = setTimeout(() => {
-        // The AuthNavigator will handle the navigation automatically
-        // No need to manually navigate here - just clear the flag
         setRegistrationSuccess(false);
       }, 500);
-
       return () => clearTimeout(timer);
     }
   }, [registrationSuccess, isAuthenticated, user]);
 
   const validateForm = () => {
-    const newErrors: {displayName?: string; email?: string; password?: string; confirmPassword?: string; role?: string} = {};
+    const newErrors: {
+      displayName?: string;
+      email?: string;
+      password?: string;
+      confirmPassword?: string;
+      role?: string;
+    } = {};
 
     if (!displayName.trim()) {
       newErrors.displayName = t('register.errors.displayNameRequired');
@@ -105,35 +119,35 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
   const handleDisplayNameChange = (text: string) => {
     setDisplayName(text);
     if (errors.displayName) {
-      setErrors(prev => ({ ...prev, displayName: undefined }));
+      setErrors((prev) => ({ ...prev, displayName: undefined }));
     }
   };
 
   const handleEmailChange = (text: string) => {
     setEmail(text);
     if (errors.email) {
-      setErrors(prev => ({ ...prev, email: undefined }));
+      setErrors((prev) => ({ ...prev, email: undefined }));
     }
   };
 
   const handlePasswordChange = (text: string) => {
     setPassword(text);
     if (errors.password) {
-      setErrors(prev => ({ ...prev, password: undefined }));
+      setErrors((prev) => ({ ...prev, password: undefined }));
     }
   };
 
   const handleConfirmPasswordChange = (text: string) => {
     setConfirmPassword(text);
     if (errors.confirmPassword) {
-      setErrors(prev => ({ ...prev, confirmPassword: undefined }));
+      setErrors((prev) => ({ ...prev, confirmPassword: undefined }));
     }
   };
 
   const handleRoleChange = (newRole: 'provider' | 'client') => {
     setRole(newRole);
     if (errors.role) {
-      setErrors(prev => ({ ...prev, role: undefined }));
+      setErrors((prev) => ({ ...prev, role: undefined }));
     }
   };
 
@@ -147,48 +161,49 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
       if (error) {
         Alert.alert(t('register.errors.failed'), error);
       } else {
-        // Set registration success flag to trigger auth state monitoring
         setRegistrationSuccess(true);
 
         // If this is an invite flow, automatically claim the invite
         if (isInviteFlow && inviteParams?.inviteCode && data?.user) {
           try {
-            const { providerId } = await directSupabase.claimInvite(inviteParams.inviteCode, data.user.id, email, displayName);
+            await directSupabase.claimInvite(
+              inviteParams.inviteCode,
+              data.user.id,
+              email,
+              displayName
+            );
 
-            // Wait a moment for auth state to update, then reload the user profile
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise((resolve) => setTimeout(resolve, 1000));
             await reloadUserProfile(data.user.id);
 
-            // Show success message but don't navigate manually - let auth state handle it
             Alert.alert(
               t('register.success.welcome'),
-              t('register.success.joinedWorkspace').replace('{{inviterName}}', inviteParams.inviterName)
+              t('register.success.joinedWorkspace').replace(
+                '{{inviterName}}',
+                inviteParams.inviterName || ''
+              )
             );
           } catch (inviteError) {
-            console.error('Error claiming invite after registration:', inviteError);
-            // Still show success - the user can claim the invite later
+            if (__DEV__) console.error('Error claiming invite after registration:', inviteError);
             Alert.alert(
               t('register.success.accountCreated'),
               t('register.success.useInviteAgain')
             );
           }
         } else {
-          // Normal registration flow - reload user profile to ensure it's available
+          // Normal registration flow
           if (data?.user) {
             try {
-              await new Promise(resolve => setTimeout(resolve, 1000));
+              await new Promise((resolve) => setTimeout(resolve, 1000));
               await reloadUserProfile(data.user.id);
             } catch (profileError) {
-              if (__DEV__) { if (__DEV__) console.log('Profile reload error (non-critical):', profileError); }
+              if (__DEV__) {
+                if (__DEV__) console.log('Profile reload error (non-critical):', profileError);
+              }
             }
           }
 
-          // Show success message without navigation
-          // The auth state monitoring will handle navigation automatically
-          Alert.alert(
-            t('register.success.welcome'),
-            t('register.success.canStartUsing')
-          );
+          Alert.alert(t('register.success.welcome'), t('register.success.canStartUsing'));
         }
       }
     } catch (error) {
@@ -199,210 +214,183 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        style={styles.keyboardAvoid}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.content}>
-            {/* Header */}
-            <View style={styles.header}>
-              <TouchableOpacity
-                onPress={() => navigation.goBack()}
-                style={styles.backButton}
-              >
-                <Feather name="chevron-left" size={24} color={theme.color.text} />
-              </TouchableOpacity>
-              <View style={styles.headerContent}>
-                <Text style={styles.title}>{t('register.title')}</Text>
-                <Text style={styles.subtitle}>{t('register.subtitle')}</Text>
-              </View>
-            </View>
-
-            {/* Form */}
-            <View style={styles.form}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>{t('register.fullName')}</Text>
-                <TextInput
-                  style={[styles.input, errors.displayName && styles.inputError]}
-                  value={displayName}
-                  onChangeText={handleDisplayNameChange}
-                  placeholder={t('register.fullNamePlaceholder')}
-                  placeholderTextColor={theme.color.textSecondary}
-                  autoComplete="name"
-                />
-                {errors.displayName && <Text style={styles.errorText}>{errors.displayName}</Text>}
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>{t('register.email')}</Text>
-                <TextInput
-                  style={[styles.input, errors.email && styles.inputError]}
-                  value={email}
-                  onChangeText={handleEmailChange}
-                  placeholder={t('register.emailPlaceholder')}
-                  placeholderTextColor={theme.color.textSecondary}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="email"
-                />
-                {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>{t('register.password')}</Text>
-                <TextInput
-                  style={[styles.input, errors.password && styles.inputError]}
-                  value={password}
-                  onChangeText={handlePasswordChange}
-                  placeholder={t('register.passwordPlaceholder')}
-                  placeholderTextColor={theme.color.textSecondary}
-                  secureTextEntry
-                  autoComplete="password-new"
-                />
-                {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>{t('register.confirmPassword')}</Text>
-                <TextInput
-                  style={[styles.input, errors.confirmPassword && styles.inputError]}
-                  value={confirmPassword}
-                  onChangeText={handleConfirmPasswordChange}
-                  placeholder={t('register.confirmPasswordPlaceholder')}
-                  placeholderTextColor={theme.color.textSecondary}
-                  secureTextEntry
-                  autoComplete="password-new"
-                />
-                {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
-              </View>
-
-              {/* Account Type Selection */}
-              {isInviteFlow ? (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>{t('register.accountType')}</Text>
-                  <View style={styles.inviteRoleInfo}>
-                    <Text style={styles.inviteRoleText}>
-                      {role === 'client' ? t('register.roleClient') : t('register.roleProvider')}
-                    </Text>
-                    <Text style={styles.inviteRoleDescription}>
-                      {t('register.inviteJoiningAs').replace('{{role}}', role === 'client' ? t('register.roleClient').toLowerCase() : t('register.roleProvider').toLowerCase()).replace('{{inviterName}}', inviteParams?.inviterName || '')}
-                    </Text>
-                  </View>
-                </View>
-              ) : (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>{t('register.accountType')}</Text>
-                  <View style={styles.roleSelection}>
-                    <TouchableOpacity
-                      style={[
-                        styles.roleCard,
-                        role === 'provider' && styles.roleCardSelected,
-                      ]}
-                      onPress={() => handleRoleChange('provider')}
-                    >
-                      <Text style={styles.roleTitle}>{t('register.roleProvider')}</Text>
-                      <Text style={styles.roleDescription}>
-                        {t('register.roleProviderDescription')}
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.roleCard,
-                        role === 'client' && styles.roleCardSelected,
-                      ]}
-                      onPress={() => handleRoleChange('client')}
-                    >
-                      <Text style={styles.roleTitle}>{t('register.roleClient')}</Text>
-                      <Text style={styles.roleDescription}>
-                        {t('register.roleClientDescription')}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-              {errors.role && <Text style={styles.errorText}>{errors.role}</Text>}
-
-              {/* Footer */}
-              <View style={styles.footer}>
-                <Text style={styles.footerText}>{t('register.hasAccount')} </Text>
-                <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                  <Text style={styles.footerLink}>{t('register.signIn')}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-
-      {/* Sticky bottom CTA */}
-      <StickyCTA
-        primaryButton={{
-          title: isLoading ? t('register.creating') : t('register.createButton'),
-          onPress: handleSignUp,
-          disabled: isLoading,
-          loading: isLoading,
-        }}
-        backgroundColor={theme.color.appBg}
+    <AuthScreenTemplate
+      title={t('register.title')}
+      onBack={() => navigation.goBack()}
+      subtitle={
+        <Text style={styles.subtitle}>
+          {t('register.subtitle')}
+        </Text>
+      }
+      footer={
+        <TPButton
+          title={isLoading ? t('register.creating') : t('register.createButton')}
+          onPress={handleSignUp}
+          size="lg"
+          disabled={isLoading}
+        />
+      }
+    >
+      {/* Full Name */}
+      <TPInput
+        label={t('register.fullName')}
+        value={displayName}
+        onChangeText={handleDisplayNameChange}
+        placeholder={t('register.fullNamePlaceholder')}
+        textContentType="name"
+        autoCapitalize="words"
+        returnKeyType="next"
+        onSubmitEditing={() => emailRef.current?.focus()}
+        error={!!errors.displayName}
+        errorMessage={errors.displayName}
       />
-    </SafeAreaView>
+
+      {/* Email */}
+      <TPInput
+        ref={emailRef}
+        label={t('register.email')}
+        value={email}
+        onChangeText={handleEmailChange}
+        placeholder={t('register.emailPlaceholder')}
+        keyboardType="email-address"
+        textContentType="emailAddress"
+        autoCapitalize="none"
+        autoCorrect={false}
+        returnKeyType="next"
+        onSubmitEditing={() => passwordRef.current?.focus()}
+        error={!!errors.email}
+        errorMessage={errors.email}
+      />
+
+      {/* Password */}
+      <TPInput
+        ref={passwordRef}
+        label={t('register.password')}
+        value={password}
+        onChangeText={handlePasswordChange}
+        placeholder={t('register.passwordPlaceholder')}
+        secureTextEntry={!showPassword}
+        textContentType="newPassword"
+        autoCapitalize="none"
+        autoCorrect={false}
+        returnKeyType="next"
+        onSubmitEditing={() => confirmPasswordRef.current?.focus()}
+        rightIcon={showPassword ? 'eye-off' : 'eye'}
+        onRightIconPress={() => setShowPassword(!showPassword)}
+        error={!!errors.password}
+        errorMessage={errors.password}
+      />
+
+      {/* Confirm Password */}
+      <TPInput
+        ref={confirmPasswordRef}
+        label={t('register.confirmPassword')}
+        value={confirmPassword}
+        onChangeText={handleConfirmPasswordChange}
+        placeholder={t('register.confirmPasswordPlaceholder')}
+        secureTextEntry={!showConfirmPassword}
+        textContentType="newPassword"
+        autoCapitalize="none"
+        autoCorrect={false}
+        returnKeyType="done"
+        onSubmitEditing={handleSignUp}
+        rightIcon={showConfirmPassword ? 'eye-off' : 'eye'}
+        onRightIconPress={() => setShowConfirmPassword(!showConfirmPassword)}
+        error={!!errors.confirmPassword}
+        errorMessage={errors.confirmPassword}
+      />
+
+      {/* Account Type Selection */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>{t('register.accountType')}</Text>
+
+        {isInviteFlow ? (
+          // Invite flow - show locked role
+          <View style={styles.inviteRoleInfo}>
+            <Text style={styles.inviteRoleText}>
+              {role === 'client' ? t('register.roleClient') : t('register.roleProvider')}
+            </Text>
+            <Text style={styles.inviteRoleDescription}>
+              {t('register.inviteJoiningAs')
+                .replace(
+                  '{{role}}',
+                  role === 'client'
+                    ? t('register.roleClient').toLowerCase()
+                    : t('register.roleProvider').toLowerCase()
+                )
+                .replace('{{inviterName}}', inviteParams?.inviterName || '')}
+            </Text>
+          </View>
+        ) : (
+          // Normal flow - show role selection cards
+          <View style={styles.roleSelection}>
+            <TouchableOpacity
+              style={[styles.roleCard, role === 'provider' && styles.roleCardSelected]}
+              onPress={() => handleRoleChange('provider')}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: role === 'provider' }}
+            >
+              <View style={styles.roleCardContent}>
+                <View style={styles.radioContainer}>
+                  <View
+                    style={[styles.radioOuter, role === 'provider' && styles.radioOuterSelected]}
+                  >
+                    {role === 'provider' && <View style={styles.radioDot} />}
+                  </View>
+                </View>
+                <View style={styles.roleTextContainer}>
+                  <Text style={styles.roleTitle}>{t('register.roleProvider')}</Text>
+                  <Text style={styles.roleDescription}>
+                    {t('register.roleProviderDescription')}
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.roleCard, role === 'client' && styles.roleCardSelected]}
+              onPress={() => handleRoleChange('client')}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: role === 'client' }}
+            >
+              <View style={styles.roleCardContent}>
+                <View style={styles.radioContainer}>
+                  <View
+                    style={[styles.radioOuter, role === 'client' && styles.radioOuterSelected]}
+                  >
+                    {role === 'client' && <View style={styles.radioDot} />}
+                  </View>
+                </View>
+                <View style={styles.roleTextContainer}>
+                  <Text style={styles.roleTitle}>{t('register.roleClient')}</Text>
+                  <Text style={styles.roleDescription}>
+                    {t('register.roleClientDescription')}
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {errors.role && <Text style={styles.errorText}>{errors.role}</Text>}
+      </View>
+
+      {/* Footer - Sign In Link */}
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>{t('register.hasAccount')} </Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+          <Text style={styles.footerLink}>{t('register.signIn')}</Text>
+        </TouchableOpacity>
+      </View>
+    </AuthScreenTemplate>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.color.appBg,
-  },
-  keyboardAvoid: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-
-  // Header
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 16,
-    paddingBottom: 20,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
-  headerContent: {
-    flex: 1,
-    paddingLeft: 8,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: theme.color.text,
-    fontFamily: theme.typography.fontFamily.display,
-    marginBottom: 4,
-  },
   subtitle: {
     fontSize: 16,
-    fontWeight: '400',
-    color: theme.color.textSecondary,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-
-  // Form
-  form: {
-    flex: 1,
-    paddingTop: 8,
+    color: '#6B7280',
+    textAlign: 'left',
   },
   inputGroup: {
     marginBottom: 16,
@@ -410,62 +398,73 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.color.text,
-    fontFamily: theme.typography.fontFamily.primary,
+    color: TP.color.ink,
     marginBottom: 8,
   },
-  input: {
-    height: 48,
-    backgroundColor: theme.color.cardBg,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: theme.color.text,
-    fontFamily: theme.typography.fontFamily.primary,
-  },
-  inputError: {
-    borderColor: '#EF4444',
-    backgroundColor: 'rgba(239, 68, 68, 0.05)',
-  },
-  errorText: {
-    fontSize: 13,
-    color: '#EF4444',
-    fontFamily: theme.typography.fontFamily.primary,
-    marginTop: 4,
-    marginLeft: 4,
-  },
 
-  // Role Selection
+  // Role Selection Cards
   roleSelection: {
     gap: 12,
   },
   roleCard: {
     backgroundColor: theme.color.cardBg,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: theme.color.border,
+    borderColor: '#E5E7EB',
     padding: 16,
     minHeight: 72,
-    justifyContent: 'center',
   },
   roleCardSelected: {
-    borderColor: theme.color.brand,
+    borderColor: '#111827',
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  roleCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  radioContainer: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     borderWidth: 2,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioOuterSelected: {
+    borderColor: '#111827',
+  },
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#111827',
+  },
+  roleTextContainer: {
+    flex: 1,
   },
   roleTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.color.text,
-    fontFamily: theme.typography.fontFamily.primary,
+    color: TP.color.ink,
     marginBottom: 4,
   },
   roleDescription: {
     fontSize: 13,
     fontWeight: '400',
-    color: theme.color.textSecondary,
-    fontFamily: theme.typography.fontFamily.primary,
+    color: '#6B7280',
     lineHeight: 18,
   },
 
@@ -482,40 +481,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: theme.color.brand,
-    fontFamily: theme.typography.fontFamily.primary,
     marginBottom: 4,
   },
   inviteRoleDescription: {
     fontSize: 13,
     fontWeight: '400',
-    color: theme.color.textSecondary,
-    fontFamily: theme.typography.fontFamily.primary,
+    color: '#6B7280',
     textAlign: 'center',
     lineHeight: 18,
   },
 
-  // Actions
-  signUpButton: {
-    marginTop: 20,
-    marginBottom: 20,
-  },
+  // Footer
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: 20,
+    marginTop: 8,
     minHeight: 44,
   },
   footerText: {
     fontSize: 16,
     fontWeight: '400',
-    color: theme.color.textSecondary,
-    fontFamily: theme.typography.fontFamily.primary,
+    color: '#6B7280',
   },
   footerLink: {
     fontSize: 16,
     fontWeight: '600',
     color: theme.color.brand,
-    fontFamily: theme.typography.fontFamily.primary,
+  },
+  errorText: {
+    fontSize: 13,
+    color: TP.color.errorText,
+    marginTop: 4,
+    marginLeft: 4,
   },
 });
