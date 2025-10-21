@@ -39,6 +39,7 @@ import {
   getActiveSession,
 } from '../services/storageService';
 import { theme } from '../styles/theme';
+import { TP } from '../styles/themeV2';
 
 interface ClientListScreenProps {
   navigation: any;
@@ -95,11 +96,11 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
 
       const byName = (a: ClientWithSummary, b: ClientWithSummary) => a.name.localeCompare(b.name);
       const active = clientsWithSummary.filter(c => c.hasActiveSession).sort(byName);
-      const other = clientsWithSummary.filter(c => !c.hasActiveSession).sort(byName);
+      const inactive = clientsWithSummary.filter(c => !c.hasActiveSession).sort(byName);
 
       const newSections: ClientSection[] = [];
-      if (active.length > 0) newSections.push({ title: 'Active', data: active });
-      if (other.length > 0) newSections.push({ title: 'Other Clients', data: other });
+      if (active.length > 0) newSections.push({ title: 'Work In Progress', data: active });
+      if (inactive.length > 0) newSections.push({ title: 'My Clients', data: inactive });
 
       setSections(newSections);
     } catch (error) {
@@ -299,35 +300,33 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
         : 'paid') as 'paid' | 'due' | 'requested',
     };
 
+    const isActive = item.hasActiveSession;
+    const isLoading = actioningClientId === item.id;
+
     return (
-      <Swipeable
-        renderLeftActions={() => renderLeftActions(item)}
-        overshootLeft={false}
-      >
-        <View
-          style={[
-            item.hasActiveSession && styles.activeSessionIndicator
-          ]}
-        >
-          <TPClientRow
-            client={clientForRow}
-            onPress={() => handleClientPress(item)}
-            showDivider={false}
-          />
-        </View>
-      </Swipeable>
+      <View style={[item.hasActiveSession && styles.activeSessionIndicator]}>
+        <TPClientRow
+          client={clientForRow}
+          onPress={() => handleClientPress(item)}
+          showDivider={false}
+          actionButton={{
+            label: isActive ? '⏹ Stop' : '▶ Start',
+            variant: isActive ? 'stop' : 'start',
+            onPress: () => isActive ? handleStopSession(item) : handleStartSession(item),
+            loading: isLoading,
+          }}
+          showStatusPill={false}
+        />
+      </View>
     );
-  }, [renderLeftActions]);
+  }, [actioningClientId, handleStartSession, handleStopSession]);
 
   const renderSectionHeader = useCallback(({ section }: { section: ClientSection }) => {
-    if (section.title === 'Other Clients') {
-      return (
-        <View style={styles.sectionDivider}>
-          <View style={styles.dividerLine} />
-        </View>
-      );
-    }
-    return null;
+    return (
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{section.title}</Text>
+      </View>
+    );
   }, []);
 
   const allClients = useMemo(() => sections.flatMap(s => s.data), [sections]);
@@ -604,6 +603,20 @@ const styles = StyleSheet.create({
   activeSessionIndicator: {
     borderLeftWidth: 4,
     borderLeftColor: '#22C55E', // TP green for active session
+  },
+
+  // Section Header
+  sectionHeader: {
+    paddingVertical: TP.spacing.x12,
+    paddingHorizontal: TP.spacing.x16,
+    backgroundColor: TP.color.appBg,
+  },
+  sectionTitle: {
+    fontSize: TP.font.footnote,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 
   // Loading State

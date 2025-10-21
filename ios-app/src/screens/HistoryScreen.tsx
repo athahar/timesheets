@@ -10,6 +10,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Session, Client } from '../types';
 import { formatCurrency } from '../utils/formatters';
+import { simpleT as t } from '../i18n/simple';
 import {
   getSessions,
   getClients,

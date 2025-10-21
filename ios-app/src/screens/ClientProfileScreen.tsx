@@ -12,14 +12,17 @@ import {
   Platform,
   Appearance,
   ActionSheetIOS,
+  Share,
 } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import * as Haptics from 'expo-haptics';
+import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { Client } from '../types';
-import { Button } from '../components/Button';
+import { TPButton } from '../components/v2/TPButton';
+import { TPAvatar } from '../components/v2/TPAvatar';
 import { IOSHeader } from '../components/IOSHeader';
-import { theme } from '../styles/theme';
+import { TP } from '../styles/themeV2';
 import { getClientById, updateClient, directSupabase, deleteClientRelationshipSafely, canDeleteClient } from '../services/storageService';
 import { generateInviteLink } from '../utils/inviteCodeGenerator';
 import { formatCurrency } from '../utils/formatters';
@@ -152,6 +155,22 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
     setEditedEmail(client.email || '');
     setEditedRate(client.hourlyRate.toString());
     setEditing(false);
+  };
+
+  const handleShareInvite = async () => {
+    if (!inviteCode) return;
+
+    try {
+      const link = generateInviteLink(inviteCode, false);
+      const message = `You've been invited to join TrackPay!\n\nInvite Code: ${inviteCode}\n\nOr use this link: ${link}`;
+
+      await Share.share({
+        message,
+        title: 'TrackPay Invite',
+      });
+    } catch (error) {
+      console.error('Error sharing invite:', error);
+    }
   };
 
   const handleDeletePress = async () => {
@@ -303,21 +322,34 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      <IOSHeader
-        title="Client Profile"
-        leftAction={{
-          title: "Back",
-          onPress: () => navigation.goBack(),
-        }}
-        rightAction={!editing ? {
-          title: "Edit",
-          onPress: () => setEditing(true),
-        } : undefined}
-        largeTitleStyle="always"
-      />
+      {/* Custom Header */}
+      <View style={styles.customHeader}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.headerButton}
+        >
+          <Feather name="arrow-left" size={24} color={TP.color.ink} />
+        </TouchableOpacity>
+
+        <View style={styles.headerCenter}>
+          <TPAvatar name={client.name} size="sm" />
+          <Text style={styles.headerName}>{formatName(client.name)}</Text>
+        </View>
+
+        {!editing ? (
+          <TouchableOpacity
+            onPress={() => setEditing(true)}
+            style={styles.headerButton}
+          >
+            <Text style={styles.headerButtonText}>Edit</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerButton} />
+        )}
+      </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <View style={[styles.profileCard, theme.shadows.card]}>
+        <View style={styles.profileCard}>
           {editing ? (
             <>
               {/* Edit Mode */}
@@ -328,7 +360,7 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
                   value={editedName}
                   onChangeText={setEditedName}
                   placeholder="Enter client name"
-                  placeholderTextColor={theme.colors.text.secondary}
+                  placeholderTextColor={TP.color.textSecondary}
                 />
               </View>
 
@@ -339,7 +371,7 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
                   value={editedEmail}
                   onChangeText={setEditedEmail}
                   placeholder="client@example.com"
-                  placeholderTextColor={theme.colors.text.secondary}
+                  placeholderTextColor={TP.color.textSecondary}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -355,7 +387,7 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
                     value={editedRate}
                     onChangeText={setEditedRate}
                     placeholder="0.00"
-                    placeholderTextColor={theme.colors.text.secondary}
+                    placeholderTextColor={TP.color.textSecondary}
                     keyboardType="numeric"
                   />
                   <Text style={styles.rateUnit}>/hr</Text>
@@ -364,33 +396,27 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
 
               {/* Action Buttons */}
               <View style={styles.actionButtonsRow}>
-                <Button
-                  title="Cancel"
-                  onPress={handleCancel}
-                  variant="secondary"
-                  size="md"
-                  style={styles.actionButton}
-                />
-                <Button
-                  title="Save Changes"
-                  onPress={handleSave}
-                  variant="primary"
-                  size="md"
-                  style={styles.actionButton}
-                />
+                <View style={styles.actionButton}>
+                  <TPButton
+                    title="Cancel"
+                    onPress={handleCancel}
+                    variant="secondary"
+                    size="md"
+                  />
+                </View>
+                <View style={styles.actionButton}>
+                  <TPButton
+                    title="Save Changes"
+                    onPress={handleSave}
+                    variant="primary"
+                    size="md"
+                  />
+                </View>
               </View>
             </>
           ) : (
             <>
               {/* View Mode */}
-              <View style={styles.profileInfo}>
-                <Text style={styles.clientName}>{formatName(client.name)}</Text>
-                <Text style={styles.clientRole}>Client</Text>
-                {client.email && (
-                  <Text style={styles.clientEmail}>{client.email}</Text>
-                )}
-              </View>
-
               <View style={styles.rateSection}>
                 <Text style={styles.rateLabel}>Hourly Rate</Text>
                 <Text style={styles.rateValue}>{formatCurrency(client.hourlyRate)}/hr</Text>
@@ -409,26 +435,11 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
                   </View>
 
                   <View style={styles.inviteActions}>
-                    <Button
-                      title="Copy Code"
-                      onPress={() => {
-                        Clipboard.setString(inviteCode);
-                        Alert.alert('Copied!', 'Invite code copied to clipboard');
-                      }}
-                      variant="secondary"
-                      size="sm"
-                      style={styles.inviteActionButton}
-                    />
-                    <Button
-                      title="Copy Link"
-                      onPress={() => {
-                        const link = generateInviteLink(inviteCode, false);
-                        Clipboard.setString(link);
-                        Alert.alert('Copied!', 'Invite link copied to clipboard');
-                      }}
+                    <TPButton
+                      title="Share Code"
+                      onPress={handleShareInvite}
                       variant="primary"
-                      size="sm"
-                      style={styles.inviteActionButton}
+                      size="md"
                     />
                   </View>
                 </View>
@@ -447,13 +458,12 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
         {/* Delete Client Section - Only shown in view mode */}
         {!editing && (
           <View style={styles.dangerZone}>
-            <Button
+            <TPButton
               title={deleting ? 'Deleting...' : 'Delete Client'}
               onPress={handleDeletePress}
               variant="danger"
               size="md"
               disabled={deleting || !isOnline}
-              style={styles.deleteButton}
               accessibilityLabel={`Delete your connection with ${client.name}`}
               accessibilityHint="This action cannot be undone. Will remove this client from your list."
             />
@@ -472,7 +482,40 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: TP.color.appBg,
+  },
+
+  // Custom Header Styles
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: TP.spacing.x16,
+    paddingVertical: TP.spacing.x12,
+    borderBottomWidth: 1,
+    borderBottomColor: TP.color.divider,
+    backgroundColor: TP.color.cardBg,
+  },
+  headerButton: {
+    width: 60,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerButtonText: {
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.brand,
+  },
+  headerCenter: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: TP.spacing.x8,
+  },
+  headerName: {
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.ink,
   },
   loadingContainer: {
     flex: 1,
@@ -480,221 +523,209 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.secondary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: TP.font.body,
+    color: TP.color.textSecondary,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.xl,
+    paddingHorizontal: TP.spacing.x24,
+    paddingTop: TP.spacing.x12,
+    paddingBottom: TP.spacing.x32,
   },
   backButton: {
     flex: 1,
   },
   backButtonText: {
-    fontSize: theme.fontSize.headline,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.primary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: 17,
+    fontWeight: TP.weight.medium,
+    color: TP.color.ink,
   },
   headerTitle: {
     flex: 2,
     textAlign: 'center',
-    fontSize: theme.fontSize.title,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.display,
+    fontSize: TP.font.title,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.ink,
   },
   editButton: {
     flex: 1,
     alignItems: 'flex-end',
   },
   editButtonText: {
-    fontSize: theme.fontSize.headline,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.primary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: 17,
+    fontWeight: TP.weight.medium,
+    color: TP.color.ink,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.xxl,
+    paddingHorizontal: TP.spacing.x24,
+    paddingBottom: TP.spacing.x32 + TP.spacing.x16,
   },
   profileCard: {
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.borderRadius.card,
-    padding: theme.spacing.xl,
+    backgroundColor: TP.color.cardBg,
+    borderRadius: TP.radius.card,
+    padding: TP.spacing.x32,
+    borderWidth: 1,
+    borderColor: TP.color.border,
   },
   profileInfo: {
     alignItems: 'center',
-    marginBottom: theme.spacing.xl,
+    marginBottom: TP.spacing.x32,
   },
   clientName: {
-    fontSize: theme.fontSize.title,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.display,
-    marginBottom: theme.spacing.xs,
+    fontSize: TP.font.title,
+    fontWeight: TP.weight.bold,
+    color: TP.color.ink,
+    marginBottom: TP.spacing.x8,
   },
   clientRole: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: TP.font.footnote,
+    color: TP.color.textSecondary,
   },
   clientEmail: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.primary,
-    fontFamily: theme.typography.fontFamily.primary,
-    marginTop: theme.spacing.xs,
+    fontSize: TP.font.footnote,
+    color: TP.color.ink,
+    marginTop: TP.spacing.x8,
   },
   rateSection: {
     alignItems: 'center',
-    marginBottom: theme.spacing.xl,
-    paddingVertical: theme.spacing.lg,
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.borderRadius.card,
+    marginBottom: TP.spacing.x24,
+    paddingVertical: TP.spacing.x32,
+    paddingHorizontal: TP.spacing.x24,
+    backgroundColor: TP.color.cardBg,
+    borderRadius: TP.radius.card,
+    borderWidth: 1,
+    borderColor: TP.color.divider,
   },
   rateLabel: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
-    fontFamily: theme.typography.fontFamily.primary,
-    marginBottom: theme.spacing.sm,
+    fontSize: TP.font.footnote,
+    fontWeight: TP.weight.medium,
+    color: TP.color.textSecondary,
+    marginBottom: TP.spacing.x12,
   },
   rateValue: {
-    fontSize: theme.fontSize.title,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.success,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: 32,
+    fontWeight: TP.weight.bold,
+    color: TP.color.ink,
   },
   infoSection: {
-    marginTop: theme.spacing.lg,
+    marginTop: TP.spacing.x24,
   },
   infoText: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.secondary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: TP.font.body,
+    color: TP.color.textSecondary,
     lineHeight: 22,
     textAlign: 'center',
   },
   fieldGroup: {
-    marginBottom: theme.spacing.lg,
+    marginBottom: TP.spacing.x24,
   },
   fieldLabel: {
-    fontSize: theme.fontSize.footnote,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.primary,
-    marginBottom: theme.spacing.sm,
+    fontSize: TP.font.footnote,
+    fontWeight: TP.weight.medium,
+    color: TP.color.ink,
+    marginBottom: TP.spacing.x12,
   },
   textInput: {
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.medium,
-    padding: theme.spacing.md,
-    fontSize: theme.fontSize.body,
-    fontFamily: theme.typography.fontFamily.primary,
-    color: theme.colors.text.primary,
-    backgroundColor: theme.colors.background,
+    borderColor: TP.color.border,
+    borderRadius: TP.radius.input,
+    padding: TP.spacing.x16,
+    fontSize: TP.font.body,
+    color: TP.color.ink,
+    backgroundColor: TP.color.appBg,
   },
   rateInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.medium,
-    backgroundColor: theme.colors.background,
-    paddingHorizontal: theme.spacing.md,
+    borderColor: TP.color.border,
+    borderRadius: TP.radius.input,
+    backgroundColor: TP.color.appBg,
+    paddingHorizontal: TP.spacing.x16,
   },
   currencySymbol: {
-    fontSize: theme.fontSize.body,
-    fontFamily: theme.typography.fontFamily.primary,
-    color: theme.colors.text.primary,
-    marginRight: theme.spacing.xs,
+    fontSize: TP.font.body,
+    color: TP.color.ink,
+    marginRight: TP.spacing.x8,
   },
   rateInput: {
     flex: 1,
-    padding: theme.spacing.md,
-    fontSize: theme.fontSize.body,
-    fontFamily: theme.typography.fontFamily.primary,
-    color: theme.colors.text.primary,
+    padding: TP.spacing.x16,
+    fontSize: TP.font.body,
+    color: TP.color.ink,
   },
   rateUnit: {
-    fontSize: theme.fontSize.body,
-    fontFamily: theme.typography.fontFamily.primary,
-    color: theme.colors.text.secondary,
-    marginLeft: theme.spacing.xs,
+    fontSize: TP.font.body,
+    color: TP.color.textSecondary,
+    marginLeft: TP.spacing.x8,
   },
   actionButtonsRow: {
     flexDirection: 'row',
-    gap: theme.spacing.md,
-    marginTop: theme.spacing.xl,
+    gap: TP.spacing.x16,
+    marginTop: TP.spacing.x32,
   },
   actionButton: {
     flex: 1,
   },
   inviteSection: {
     backgroundColor: 'rgba(245, 158, 11, 0.06)',
-    borderRadius: theme.borderRadius.card,
-    padding: theme.spacing.lg,
-    marginBottom: theme.spacing.xl,
+    borderRadius: TP.radius.card,
+    padding: TP.spacing.x24,
+    marginBottom: TP.spacing.x32,
     borderWidth: 1,
     borderColor: 'rgba(245, 158, 11, 0.18)',
   },
   inviteSectionTitle: {
-    fontSize: theme.fontSize.headline,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.primary,
-    marginBottom: theme.spacing.sm,
+    fontSize: 17,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.ink,
+    marginBottom: TP.spacing.x12,
   },
   inviteDescription: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.secondary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: TP.font.body,
+    color: TP.color.textSecondary,
     lineHeight: 22,
-    marginBottom: theme.spacing.lg,
+    marginBottom: TP.spacing.x24,
   },
   inviteCodeContainer: {
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.borderRadius.medium,
-    padding: theme.spacing.lg,
+    backgroundColor: TP.color.cardBg,
+    borderRadius: TP.radius.input,
+    padding: TP.spacing.x24,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: theme.colors.primary,
+    borderColor: TP.color.ink,
     borderStyle: 'dashed',
-    marginBottom: theme.spacing.lg,
+    marginBottom: TP.spacing.x24,
   },
   inviteCodeText: {
-    fontSize: theme.fontSize.title,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.primary,
+    fontSize: TP.font.title,
+    fontWeight: TP.weight.bold,
+    color: TP.color.ink,
     letterSpacing: 2,
     fontFamily: 'Courier New',
   },
   inviteActions: {
     flexDirection: 'row',
-    gap: theme.spacing.md,
+    gap: TP.spacing.x16,
   },
   inviteActionButton: {
     flex: 1,
   },
   dangerZone: {
-    marginTop: theme.spacing.xl,
+    marginTop: TP.spacing.x32,
   },
   deleteButton: {
     minHeight: 44, // Apple touch target minimum
   },
   offlineWarning: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: TP.font.footnote,
+    color: TP.color.textSecondary,
     textAlign: 'center',
-    marginTop: theme.spacing.sm,
+    marginTop: TP.spacing.x12,
   },
 });

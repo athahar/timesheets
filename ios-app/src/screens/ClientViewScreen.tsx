@@ -12,8 +12,8 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { ActivityItem, Client, PaymentMethod, Session } from '../types';
-import { Button } from '../components/Button';
-import { theme } from '../styles/theme';
+import { TPButton } from '../components/v2/TPButton';
+import { TP } from '../styles/themeV2';
 import { simpleT } from '../i18n/simple';
 import { formatCurrency } from '../utils/formatters';
 import {
@@ -340,12 +340,11 @@ export const ClientViewScreen: React.FC = () => {
 
             {/* Mark as Paid Button */}
             <View style={styles.modalButtonContainer}>
-              <Button
+              <TPButton
                 title="Mark as Paid"
                 onPress={handleMarkPaid}
-                variant="success"
+                variant="primary"
                 size="lg"
-                style={styles.modalButton}
               />
             </View>
           </View>
@@ -358,7 +357,7 @@ export const ClientViewScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: TP.color.appBg,
   },
   loadingContainer: {
     flex: 1,
@@ -366,198 +365,183 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.secondary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: TP.font.body,
+    color: TP.color.textSecondary,
   },
   header: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.lg,
-    paddingBottom: theme.spacing.xl,
+    paddingHorizontal: TP.spacing.x24,
+    paddingTop: TP.spacing.x24,
+    paddingBottom: TP.spacing.x32,
   },
   title: {
-    fontSize: theme.fontSize.display,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.display,
-    marginBottom: theme.spacing.sm,
+    fontSize: TP.font.display,
+    fontWeight: TP.weight.bold,
+    color: TP.color.ink,
+    marginBottom: TP.spacing.x12,
   },
   subtitle: {
-    fontSize: theme.fontSize.callout,
-    color: theme.colors.text.secondary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: 15,
+    color: TP.color.textSecondary,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.xxl,
+    paddingHorizontal: TP.spacing.x24,
+    paddingBottom: TP.spacing.x32 + TP.spacing.x16,
   },
   timelineSection: {
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.borderRadius.card,
-    padding: theme.spacing.lg,
-    ...theme.shadows.card,
+    backgroundColor: TP.color.cardBg,
+    borderRadius: TP.radius.card,
+    padding: TP.spacing.x24,
+    borderWidth: 1,
+    borderColor: TP.color.border,
   },
   emptyState: {
-    padding: theme.spacing.xl,
+    padding: TP.spacing.x32,
     alignItems: 'center',
   },
   emptyStateText: {
-    fontSize: theme.fontSize.body,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.secondary,
-    marginBottom: theme.spacing.sm,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.medium,
+    color: TP.color.textSecondary,
+    marginBottom: TP.spacing.x12,
   },
   emptyStateSubtext: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
+    fontSize: TP.font.footnote,
+    color: TP.color.textSecondary,
     textAlign: 'center',
-    fontFamily: theme.typography.fontFamily.primary,
   },
   timelineItem: {
-    marginBottom: theme.spacing.md,
+    marginBottom: TP.spacing.x16,
   },
   timelineLine: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: TP.spacing.x12,
   },
   timelineIcon: {
     fontSize: 20,
-    marginRight: theme.spacing.md,
+    marginRight: TP.spacing.x16,
     width: 24,
     textAlign: 'center',
   },
   timelineContent: {
     flex: 1,
-    marginRight: theme.spacing.md,
+    marginRight: TP.spacing.x16,
   },
   timelineMainText: {
-    fontSize: theme.fontSize.body,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.medium,
+    color: TP.color.ink,
     marginBottom: 2,
   },
   timelineSubText: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: TP.font.footnote,
+    color: TP.color.textSecondary,
     marginBottom: 2,
   },
   timelineClientText: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: TP.font.footnote,
+    color: TP.color.textSecondary,
     fontStyle: 'italic',
   },
   timelineRight: {
     alignItems: 'flex-end',
-    gap: theme.spacing.xs,
+    gap: TP.spacing.x8,
   },
   timelineAmount: {
-    fontSize: theme.fontSize.body,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.ink,
   },
   // Modal styles
   modalContainer: {
     flex: 1,
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.lg,
+    paddingHorizontal: TP.spacing.x24,
+    paddingTop: TP.spacing.x24,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing.xxl,
+    marginBottom: TP.spacing.x32 + TP.spacing.x16,
   },
   modalTitle: {
-    fontSize: theme.fontSize.title,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: TP.font.title,
+    fontWeight: TP.weight.bold,
+    color: TP.color.ink,
   },
   cancelButton: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: TP.spacing.x16,
+    paddingVertical: TP.spacing.x12,
   },
   cancelButtonText: {
-    fontSize: theme.fontSize.headline,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.primary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: 17,
+    fontWeight: TP.weight.medium,
+    color: TP.color.ink,
   },
   formContainer: {
-    gap: theme.spacing.lg,
+    gap: TP.spacing.x24,
   },
   formField: {
-    gap: theme.spacing.sm,
+    gap: TP.spacing.x12,
   },
   formLabel: {
-    fontSize: theme.fontSize.callout,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: 15,
+    fontWeight: TP.weight.medium,
+    color: TP.color.ink,
   },
   inputContainer: {
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.borderRadius.button,
+    backgroundColor: TP.color.cardBg,
+    borderRadius: TP.radius.input,
     borderWidth: 1,
-    borderColor: '#e5e5e7',
+    borderColor: TP.color.border,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   dollarSign: {
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.secondary,
-    paddingLeft: theme.spacing.md,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: TP.font.body,
+    color: TP.color.textSecondary,
+    paddingLeft: TP.spacing.x16,
   },
   textInput: {
     flex: 1,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.md,
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.primary,
+    paddingHorizontal: TP.spacing.x12,
+    paddingVertical: TP.spacing.x16,
+    fontSize: TP.font.body,
+    color: TP.color.ink,
   },
   formHelperText: {
-    fontSize: theme.fontSize.footnote,
-    color: theme.colors.text.secondary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: TP.font.footnote,
+    color: TP.color.textSecondary,
   },
   methodsContainer: {
-    gap: theme.spacing.sm,
+    gap: TP.spacing.x12,
   },
   methodButton: {
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.borderRadius.button,
+    backgroundColor: TP.color.cardBg,
+    borderRadius: TP.radius.button,
     borderWidth: 2,
-    borderColor: '#e5e5e7',
-    padding: theme.spacing.md,
+    borderColor: TP.color.border,
+    padding: TP.spacing.x16,
   },
   methodButtonSelected: {
-    borderColor: theme.colors.primary,
-    backgroundColor: `${theme.colors.primary}08`,
+    borderColor: TP.color.ink,
+    backgroundColor: '#11182708',
   },
   methodButtonText: {
-    fontSize: theme.fontSize.callout,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: 15,
+    fontWeight: TP.weight.medium,
+    color: TP.color.ink,
   },
   methodButtonTextSelected: {
-    color: theme.colors.primary,
+    color: TP.color.ink,
   },
   modalButtonContainer: {
-    marginTop: theme.spacing.xxl,
+    marginTop: TP.spacing.x32 + TP.spacing.x16,
   },
   modalButton: {
     width: '100%',

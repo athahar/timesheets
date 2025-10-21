@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Client, Session } from '../types';
-import { Button } from '../components/Button';
+import { TPButton } from '../components/v2/TPButton';
 import {
   getClientById,
   getActiveSession,
@@ -179,12 +179,11 @@ export const SessionTrackingScreen: React.FC<SessionTrackingScreenProps> = ({
                   minute: '2-digit'
                 })}
               </Text>
-              <Button
+              <TPButton
                 title="I'm Done"
                 onPress={handleEndSession}
                 variant="danger"
                 size="lg"
-                className="w-full"
               />
             </View>
           ) : (
@@ -192,12 +191,11 @@ export const SessionTrackingScreen: React.FC<SessionTrackingScreenProps> = ({
               <Text className="text-title font-bold text-text-primary mb-8">
                 Ready to start?
               </Text>
-              <Button
+              <TPButton
                 title="I'm Here"
                 onPress={handleStartSession}
-                variant="success"
+                variant="primary"
                 size="lg"
-                className="w-full"
               />
             </View>
           )}
@@ -224,12 +222,11 @@ export const SessionTrackingScreen: React.FC<SessionTrackingScreenProps> = ({
 
         {/* Request Payment Button */}
         {unpaidBalance > 0 && (
-          <Button
+          <TPButton
             title={`Request $${unpaidBalance.toFixed(0)}`}
             onPress={handleRequestPayment}
             variant="primary"
             size="lg"
-            className="w-full"
           />
         )}
 

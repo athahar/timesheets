@@ -18,6 +18,13 @@ export interface TPClientRowProps {
   };
   onPress: () => void;
   showDivider?: boolean;
+  actionButton?: {
+    label: string;
+    onPress: () => void;
+    variant: 'start' | 'stop';
+    loading?: boolean;
+  };
+  showStatusPill?: boolean;
 }
 
 /**
@@ -37,6 +44,8 @@ export const TPClientRow: React.FC<TPClientRowProps> = ({
   client,
   onPress,
   showDivider = false,
+  actionButton,
+  showStatusPill = true,
 }) => {
   const { t } = useTranslation();
 
@@ -56,7 +65,28 @@ export const TPClientRow: React.FC<TPClientRowProps> = ({
           </Text>
         </View>
 
-        <TPStatusPill status={client.status} />
+        {actionButton ? (
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation();
+              actionButton.onPress();
+            }}
+            style={[
+              styles.actionButton,
+              actionButton.variant === 'stop' ? styles.actionButtonStop : styles.actionButtonStart
+            ]}
+            disabled={actionButton.loading}
+          >
+            <Text style={[
+              styles.actionButtonText,
+              actionButton.variant === 'stop' ? styles.actionButtonTextStop : styles.actionButtonTextStart
+            ]}>
+              {actionButton.loading ? '...' : actionButton.label}
+            </Text>
+          </TouchableOpacity>
+        ) : showStatusPill ? (
+          <TPStatusPill status={client.status} />
+        ) : null}
       </TouchableOpacity>
 
       {showDivider && <View style={styles.divider} />}
@@ -91,5 +121,29 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: TP.color.divider,
     marginLeft: 68, // Avatar (40) + left padding (16) + margin (12)
+  },
+  actionButton: {
+    paddingVertical: TP.spacing.x8,
+    paddingHorizontal: TP.spacing.x16,
+    borderRadius: TP.radius.button,
+    minWidth: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionButtonStart: {
+    backgroundColor: TP.color.ink,
+  },
+  actionButtonStop: {
+    backgroundColor: TP.color.btn.dangerBg,
+  },
+  actionButtonText: {
+    fontSize: TP.font.footnote + 1,
+    fontWeight: TP.weight.semibold,
+  },
+  actionButtonTextStart: {
+    color: TP.color.cardBg,
+  },
+  actionButtonTextStop: {
+    color: TP.color.cardBg,
   },
 });
