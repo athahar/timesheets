@@ -26,7 +26,7 @@ export {
 } from './posthog';
 
 // Event constants and types
-export { E, UserRole, RegistrationMethod, ShareMethod, ActivationAction } from './events';
+export { E, E_T1, UserRole, RegistrationMethod, ShareMethod, ActivationAction } from './events';
 export type {
   ScreenViewClientList,
   ScreenViewSessionTracking,
@@ -49,6 +49,12 @@ export type {
   BusinessInviteCodeCreated,
   BusinessInviteCodeShared,
   BusinessInviteCodeClaimed,
+  // Tier-1 types
+  ScreenViewLanding,
+  ActionSignupCtaClicked,
+  ActionLoginCtaClicked,
+  ActionInviteClaimCtaClicked,
+  ActionLanguageChanged,
 } from './events';
 
 // Global properties context
