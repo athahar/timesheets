@@ -15,6 +15,8 @@ export const BLOCKER_SESSION_STATUSES = ['active', 'unpaid', 'requested'] as con
 export const BLOCKER_REQUEST_STATUSES = ['pending', 'sent', 'requested'] as const;
 
 export class DirectSupabaseService {
+  // In-flight promise cache to prevent concurrent duplicate calls
+  private inFlight = new Map<string, Promise<any>>();
 
   // Helper to get current authenticated provider ID
   private async getCurrentProviderId(): Promise<string> {
@@ -65,10 +67,27 @@ export class DirectSupabaseService {
     }
   }
 
-  // Client operations
+  // Client operations (with in-flight promise coalescing)
   async getClients(): Promise<Client[]> {
     const providerId = await this.getCurrentProviderId();
+    const key = `clients:${providerId}`;
 
+    // Return in-flight promise if one exists
+    if (this.inFlight.has(key)) {
+      if (__DEV__) console.log('🔄 getClients: returning in-flight promise');
+      return this.inFlight.get(key)!;
+    }
+
+    // Create new request
+    const promise = this._fetchClients(providerId)
+      .finally(() => this.inFlight.delete(key));
+
+    this.inFlight.set(key, promise);
+    return promise;
+  }
+
+  // Actual database fetch (called by getClients)
+  private async _fetchClients(providerId: string): Promise<Client[]> {
     if (__DEV__) {
       console.log('👥 getClients() called with providerId:', providerId);
     }

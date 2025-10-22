@@ -70,6 +70,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const [initialLoad, setInitialLoad] = useState(true);
   const lastFetchedRef = useRef<number>(0);
   const loadingRef = useRef<boolean>(false); // Debounce guard for loadClients
+  const didInitRef = useRef<boolean>(false); // Prevent React 18 StrictMode double-effect
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
@@ -125,7 +126,6 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
       if (inactive.length > 0) newSections.push({ titleKey: 'myClients', data: inactive });
 
       setSections(newSections);
-      lastFetchedRef.current = Date.now();
     } catch (error) {
       if (__DEV__) console.error('Error loading clients:', error);
       Alert.alert(simpleT('common.error'), simpleT('clientList.errorLoadClients'));
@@ -135,6 +135,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
         setInitialLoad(false);
       }
       setRefreshing(false);
+      lastFetchedRef.current = Date.now(); // Always update timestamp
       loadingRef.current = false; // Reset debounce guard
     }
   }, []);
@@ -145,6 +146,10 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
       forceUpdate(prev => prev + 1);
 
       if (initialLoad) {
+        // React 18 StrictMode guard: prevent double-effect in dev
+        if (didInitRef.current) return;
+        didInitRef.current = true;
+
         // First load - show spinner
         loadClients(false);
       } else {
