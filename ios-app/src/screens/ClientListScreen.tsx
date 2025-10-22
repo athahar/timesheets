@@ -71,6 +71,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const lastFetchedRef = useRef<number>(0);
   const loadingRef = useRef<boolean>(false); // Debounce guard for loadClients
   const didInitRef = useRef<boolean>(false); // Prevent React 18 StrictMode double-effect
+  const lastInitTimeRef = useRef<number>(0); // Time-based guard for StrictMode remount
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
@@ -146,9 +147,17 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
       forceUpdate(prev => prev + 1);
 
       if (initialLoad) {
-        // React 18 StrictMode guard: prevent double-effect in dev
-        if (didInitRef.current) return;
+        // React 18 StrictMode guards: prevent double-effect + remount duplicate
+        const now = Date.now();
+        const MIN_INIT_INTERVAL = 1000; // 1 second between init calls
+
+        if (didInitRef.current && now - lastInitTimeRef.current < MIN_INIT_INTERVAL) {
+          if (__DEV__) console.log('🚫 ClientListScreen: Blocking duplicate init (StrictMode remount)');
+          return;
+        }
+
         didInitRef.current = true;
+        lastInitTimeRef.current = now;
 
         // First load - show spinner
         loadClients(false);
