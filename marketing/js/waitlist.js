@@ -5,6 +5,8 @@
  * POSTs to Netlify Function
  * Shows bilingual success/error messages
  * Handles loading states
+ *
+ * @version 1.0.1
  */
 
 (function () {
