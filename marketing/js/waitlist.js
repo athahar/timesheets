@@ -21,7 +21,7 @@
   msg.setAttribute('role', 'status');
   msg.setAttribute('aria-live', 'polite');
   msg.className = 'form-message';
-  form.appendChild(msg);
+  form.parentNode.insertBefore(msg, form.nextSibling);
 
   /**
    * Get current language (aligns with i18n.js)
