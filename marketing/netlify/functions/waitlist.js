@@ -3,6 +3,8 @@
  *
  * Handles waitlist signups with Supabase storage
  * Captures: email, name, language, UTM params, IP, user-agent
+ *
+ * @version 1.0.0
  */
 
 import { createClient } from '@supabase/supabase-js';
