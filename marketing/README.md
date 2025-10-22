@@ -51,10 +51,32 @@ The waitlist form uses **Supabase + Netlify Functions**:
 
 ### 1. Supabase Database Setup
 
-**Create the waitlist table:**
-1. Go to your Supabase project SQL Editor
-2. Run the SQL file: `supabase/create-marketing-waitlist.sql`
-3. Verify table creation with: `SELECT * FROM marketing_waitlist LIMIT 1;`
+**Apply the migration:**
+
+The `marketing_waitlist` table is managed via Supabase migrations in the main project.
+
+```bash
+cd /Users/athahar/work/claude-apps/timesheets
+
+# Option 1: Local testing (requires Docker Desktop)
+supabase start
+supabase db reset  # Applies all migrations including marketing_waitlist
+
+# Option 2: Push to staging
+supabase link --project-ref qpoqeqasefatyrjeronp
+supabase db push
+
+# Option 3: Push to production (after testing!)
+supabase link --project-ref <PROD_PROJECT_REF>
+supabase db push
+```
+
+**Migration file:** `supabase/migrations/20251022010632_add_marketing_waitlist.sql`
+
+**Verify table exists:**
+```sql
+SELECT * FROM marketing_waitlist LIMIT 1;
+```
 
 **Get your credentials:**
 - **SUPABASE_URL**: Project Settings → API → Project URL
@@ -188,9 +210,9 @@ python3 -m http.server 8000  # Then visit http://localhost:8000
 Before going live:
 
 - [x] Replace screenshot placeholders with real app screenshots
-- [x] Set up Supabase waitlist table
+- [x] Set up Supabase waitlist table (via migration)
 - [x] Configure Netlify Functions
-- [ ] Run SQL: `supabase/create-marketing-waitlist.sql` in Supabase
+- [ ] Apply migration: `supabase db push` (staging & prod)
 - [ ] Add Netlify environment variables (SUPABASE_URL + SERVICE_ROLE_KEY)
 - [ ] Create and add `og-image.png` (1200×630)
 - [ ] Test language toggle (EN ↔ ES)
