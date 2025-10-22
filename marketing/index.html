@@ -49,11 +49,7 @@
                     <span class="feature-badge" data-i18n="hero.feature2">💵 Request payments</span>
                     <span class="feature-badge" data-i18n="hero.feature3">🤝 Stay transparent</span>
                 </div>
-                <form class="waitlist-form" name="waitlist" method="POST" data-netlify="true" netlify-honeypot="bot-field">
-                    <input type="hidden" name="form-name" value="waitlist">
-                    <p style="display: none;">
-                        <label>Don't fill this out if you're human: <input name="bot-field" /></label>
-                    </p>
+                <form class="waitlist-form" name="waitlist">
                     <div class="form-group">
                         <input
                             type="email"
@@ -257,5 +253,6 @@
     </footer>
 
     <script src="/js/i18n.js"></script>
+    <script src="/js/waitlist.js" defer></script>
 </body>
 </html>

@@ -40,11 +40,36 @@ The site supports English and Spanish with:
 
 ## 📋 Waitlist Form
 
-The waitlist form uses **Netlify Forms** (zero backend code):
-- Automatic spam protection
-- Submissions appear in Netlify dashboard
-- Can add webhooks for email notifications
-- Fields: Email, Name (optional via hidden field)
+The waitlist form uses **Supabase + Netlify Functions**:
+- Direct database storage for CRM/analytics
+- Captures: email, language, UTM params, IP, user-agent
+- Bilingual success/error messages
+- Serverless function at `/.netlify/functions/waitlist`
+- Form submissions stored in `marketing_waitlist` table
+
+## 🔧 Setup Requirements
+
+### 1. Supabase Database Setup
+
+**Create the waitlist table:**
+1. Go to your Supabase project SQL Editor
+2. Run the SQL file: `supabase/create-marketing-waitlist.sql`
+3. Verify table creation with: `SELECT * FROM marketing_waitlist LIMIT 1;`
+
+**Get your credentials:**
+- **SUPABASE_URL**: Project Settings → API → Project URL
+- **SUPABASE_SERVICE_ROLE_KEY**: Project Settings → API → service_role key (secret!)
+
+⚠️ **Never commit the service_role key to git** - it's only used in Netlify Functions (server-side).
+
+### 2. Install Dependencies (for local testing)
+
+```bash
+cd marketing
+npm install
+```
+
+This installs `@supabase/supabase-js` for the Netlify Function.
 
 ## 🚀 Deployment to Netlify
 
@@ -65,7 +90,16 @@ The waitlist form uses **Netlify Forms** (zero backend code):
    - Netlify will auto-detect settings from `netlify.toml`
    - Click "Deploy site"
 
-3. **Custom Domain** (optional):
+3. **Add Environment Variables** (CRITICAL!):
+   - In Netlify dashboard → Site settings → Environment variables
+   - Add two variables:
+     ```
+     SUPABASE_URL=https://YOUR-PROJECT.supabase.co
+     SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJI...
+     ```
+   - Without these, the waitlist form will not work!
+
+4. **Custom Domain** (optional):
    - In Netlify dashboard → Site settings → Domain management
    - Add custom domain (e.g., trackpay.app)
    - Follow DNS setup instructions
@@ -154,22 +188,27 @@ python3 -m http.server 8000  # Then visit http://localhost:8000
 Before going live:
 
 - [x] Replace screenshot placeholders with real app screenshots
+- [x] Set up Supabase waitlist table
+- [x] Configure Netlify Functions
+- [ ] Run SQL: `supabase/create-marketing-waitlist.sql` in Supabase
+- [ ] Add Netlify environment variables (SUPABASE_URL + SERVICE_ROLE_KEY)
 - [ ] Create and add `og-image.png` (1200×630)
 - [ ] Test language toggle (EN ↔ ES)
-- [ ] Test waitlist form submission
+- [ ] Test waitlist form submission (check Supabase table)
 - [ ] Verify all links work (Privacy, About, Contact)
 - [ ] Check mobile responsiveness
 - [ ] Test on Safari, Chrome, Firefox
 - [ ] Set up custom domain (trackpay.app)
 - [ ] Add analytics (optional)
-- [ ] Set up form notifications
 
 ## 🆘 Troubleshooting
 
-**Form not submitting:**
-- Ensure `data-netlify="true"` is on the `<form>` tag
-- Check Netlify dashboard → Forms for submissions
-- Verify honeypot field is present
+**Waitlist form not working:**
+- Check browser console for errors
+- Verify Netlify environment variables are set (SUPABASE_URL + SERVICE_ROLE_KEY)
+- Verify Supabase table exists: `SELECT * FROM marketing_waitlist;`
+- Check Netlify Functions logs for errors
+- Test the function directly: `curl -X POST https://yoursite.netlify.app/.netlify/functions/waitlist -H "Content-Type: application/json" -d '{"email":"test@example.com"}'`
 
 **Language toggle not working:**
 - Check browser console for JavaScript errors

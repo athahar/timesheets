@@ -4,11 +4,13 @@
   # Publish directory (root since we have static HTML files)
   publish = "."
 
-  # No build command needed for static site
-  command = "echo 'Static site - no build required'"
+  # Install dependencies for Netlify Functions
+  command = "npm install"
 
-# Form handling - Netlify Forms for waitlist
-# Forms are automatically detected with data-netlify="true" attribute
+# Netlify Functions Configuration
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
 
 # Redirect rules
 [[redirects]]
