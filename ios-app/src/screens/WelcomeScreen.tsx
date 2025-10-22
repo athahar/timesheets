@@ -14,6 +14,8 @@ import { Button } from '../components/Button';
 import { StickyCTA } from '../components/StickyCTA';
 // TEMP: Use simple i18n while debugging
 import { simpleT, getCurrentLanguageSimple, changeLanguageSimple, isSpanishSimple } from '../i18n/simple';
+// Analytics (Tier-1)
+import { capture, E_T1 } from '../services/analytics';
 
 interface WelcomeScreenProps {
   navigation: any;
@@ -30,11 +32,60 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
 
   // Handle language change with state update for reactivity
   const handleLanguageChange = async (language: string) => {
+    const fromLang = currentLang;
     await changeLanguageSimple(language);
     setCurrentLang(language); // Force re-render
+
+    // Analytics: Track language change (Tier-1)
+    try {
+      capture(E_T1.ACTION_LANGUAGE_CHANGED, {
+        from_lang: fromLang as 'en-US' | 'es-US',
+        to_lang: language as 'en-US' | 'es-US',
+        source: 'landing',
+      });
+    } catch (analyticsError) {
+      if (__DEV__) {
+        console.error('Analytics tracking failed:', analyticsError);
+      }
+    }
+  };
+
+  // Navigation handlers with Tier-1 analytics
+  const handleSignIn = () => {
+    try {
+      capture(E_T1.ACTION_LOGIN_CTA_CLICKED, { placement: 'footer' });
+    } catch (analyticsError) {
+      if (__DEV__) {
+        console.error('Analytics tracking failed:', analyticsError);
+      }
+    }
+    navigation.navigate('Login');
+  };
+
+  const handleCreateAccount = () => {
+    try {
+      capture(E_T1.ACTION_SIGNUP_CTA_CLICKED, { placement: 'footer' });
+    } catch (analyticsError) {
+      if (__DEV__) {
+        console.error('Analytics tracking failed:', analyticsError);
+      }
+    }
+    navigation.navigate('Register');
+  };
+
+  const handleInviteLink = () => {
+    try {
+      capture(E_T1.ACTION_INVITE_CLAIM_CTA_CLICKED, { placement: 'hero' });
+    } catch (analyticsError) {
+      if (__DEV__) {
+        console.error('Analytics tracking failed:', analyticsError);
+      }
+    }
+    navigation.navigate('InviteClaim');
   };
 
   useEffect(() => {
+    // Animation
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -47,6 +98,17 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
         useNativeDriver: true,
       }),
     ]).start();
+
+    // Analytics: Track landing page view (Tier-1)
+    try {
+      capture(E_T1.SCREEN_VIEW_LANDING, {
+        previous_screen: null, // Entry point
+      });
+    } catch (analyticsError) {
+      if (__DEV__) {
+        console.error('Analytics tracking failed:', analyticsError);
+      }
+    }
   }, [fadeAnim, slideAnim]);
 
   const uspFeatures = [
@@ -153,7 +215,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
           <View style={styles.linkSection}>
             <Button
               title={t('welcome.invite')}
-              onPress={() => navigation.navigate('InviteClaim')}
+              onPress={handleInviteLink}
               variant="link"
               size="md"
               style={styles.linkCta}
@@ -166,11 +228,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
       <StickyCTA
         primaryButton={{
           title: t('welcome.signin'),
-          onPress: () => navigation.navigate('Login'),
+          onPress: handleSignIn,
         }}
         secondaryButton={{
           title: t('welcome.create'),
-          onPress: () => navigation.navigate('Register'),
+          onPress: handleCreateAccount,
         }}
         backgroundColor={theme.color.appBg}
       />

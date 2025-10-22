@@ -20,6 +20,8 @@ import { directSupabase } from '../services/storageService';
 import { validateInviteCodeFormat, extractInviteCode } from '../utils/inviteCodeGenerator';
 import { useAuth } from '../contexts/AuthContext';
 import { simpleT, getCurrentLanguageSimple } from '../i18n/simple';
+// Analytics
+import { capture, alias, identify, group, E, nowIso, daysBetween } from '../services/analytics';
 
 interface InviteClaimScreenProps {
   route?: {
@@ -51,6 +53,24 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
       }
     }
   }, [route?.params?.inviteCode]);
+
+  // Analytics: Track screen view when invite code is present
+  useEffect(() => {
+    if (inviteCode && inviteCode.length >= 6) {
+      try {
+        const isDeepLink = !!route?.params?.inviteCode;
+        capture(E.SCREEN_VIEW_INVITE_CLAIM, {
+          invite_code: inviteCode,
+          deep_link: isDeepLink,
+          previous_screen: null,
+        });
+      } catch (analyticsError) {
+        if (__DEV__) {
+          console.error('Analytics tracking failed:', analyticsError);
+        }
+      }
+    }
+  }, [inviteCode, route?.params?.inviteCode]);
 
   const validateCode = async (code: string) => {
     if (!code.trim()) {
@@ -111,10 +131,15 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
       return;
     }
 
+    const normalizedCode = inviteCode.trim().toUpperCase();
+    const providerId = inviteDetails.invite.providerId;
+
     // If user is not logged in, proceed to registration with invite code
+    // Analytics for new users will be handled by AuthContext (alias → identify → business_user_registered)
     if (!user) {
       navigation.navigate('Register' as never, {
-        inviteCode: inviteCode.trim().toUpperCase(),
+        inviteCode: normalizedCode,
+        providerId: providerId,
         inviterName: inviteDetails.invite.clientName,
         inviterRole: inviteDetails.invite.inviterRole,
         clientName: inviteDetails.invite.inviteeName // The person being invited
@@ -124,8 +149,46 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
 
     // If user is already logged in, claim the invite directly
     setLoading(true);
+
+    // Analytics: Track invite claim attempt
+    capture(E.AUTH_INVITE_CLAIMED, {
+      invite_code: normalizedCode,
+      provider_id: providerId,
+      success: false, // Will update on success
+    });
+
     try {
-      const result = await directSupabase.claimInvite(inviteCode.trim().toUpperCase(), user.id);
+      const result = await directSupabase.claimInvite(normalizedCode, user.id);
+
+      // Analytics: Track successful claim
+      try {
+        // Set groups for two-sided analytics
+        group('provider', providerId);
+        group('client', user.id);
+
+        // Track business event
+        const inviteCreatedAt = inviteDetails.invite.created_at || inviteDetails.invite.createdAt;
+        const daysSinceCreated = inviteCreatedAt ? daysBetween(inviteCreatedAt, new Date()) : 0;
+
+        capture(E.BUSINESS_INVITE_CODE_CLAIMED, {
+          invite_code: normalizedCode,
+          provider_id: providerId,
+          client_id: user.id,
+          days_since_invite_created: daysSinceCreated,
+          claimed_at: nowIso(),
+        });
+
+        // Track successful auth event
+        capture(E.AUTH_INVITE_CLAIMED, {
+          invite_code: normalizedCode,
+          provider_id: providerId,
+          success: true,
+        });
+      } catch (analyticsError) {
+        if (__DEV__) {
+          console.error('Analytics tracking failed:', analyticsError);
+        }
+      }
 
       const successMessage = inviteDetails.invite.inviterRole === 'client'
         ? t('inviteClaim.success.acceptedWork').replace('{{clientName}}', inviteDetails.invite.clientName)
@@ -155,6 +218,15 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
       );
     } catch (error) {
       console.error('Error claiming invite:', error);
+
+      // Analytics: Track failure
+      capture(E.AUTH_INVITE_CLAIMED, {
+        invite_code: normalizedCode,
+        provider_id: providerId,
+        success: false,
+        error_code: 'claim_failed',
+      });
+
       Alert.alert(t('inviteClaim.errors.error'), t('inviteClaim.errors.claimFailed'));
     } finally {
       setLoading(false);

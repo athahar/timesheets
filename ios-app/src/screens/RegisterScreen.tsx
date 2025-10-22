@@ -15,12 +15,15 @@ import { TPInput } from '../components/v2/TPInput';
 import { AuthScreenTemplate } from '../components/AuthScreenTemplate';
 import { directSupabase } from '../services/storageService';
 import { simpleT } from '../i18n/simple';
+// Analytics
+import { capture, E } from '../services/analytics';
 
 interface RegisterScreenProps {
   navigation: any;
   route?: {
     params?: {
       inviteCode?: string;
+      providerId?: string;
       inviterName?: string;
       inviterRole?: 'provider' | 'client';
       clientName?: string;
@@ -155,12 +158,36 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
     if (!validateForm()) return;
 
     setIsLoading(true);
+
+    // Analytics: Track registration submission
+    capture(E.AUTH_REGISTER_SUBMITTED, {
+      user_role: role!,
+      success: false, // Will update on success
+    });
+
     try {
-      const { data, error } = await signUp(email, password, displayName, role!, isInviteFlow);
+      // Build invite context if this is an invite flow
+      const inviteContext = isInviteFlow && inviteParams?.inviteCode && inviteParams?.providerId
+        ? { inviteCode: inviteParams.inviteCode, providerId: inviteParams.providerId }
+        : undefined;
+
+      const { data, error } = await signUp(email, password, displayName, role!, isInviteFlow, inviteContext);
 
       if (error) {
+        // Analytics: Track failure
+        capture(E.AUTH_REGISTER_SUBMITTED, {
+          user_role: role!,
+          success: false,
+          error_code: 'registration_failed',
+        });
+
         Alert.alert(t('register.errors.failed'), error);
       } else {
+        // Analytics: Track success (business_user_registered is handled by AuthContext)
+        capture(E.AUTH_REGISTER_SUBMITTED, {
+          user_role: role!,
+          success: true,
+        });
         setRegistrationSuccess(true);
 
         // If this is an invite flow, automatically claim the invite

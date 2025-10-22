@@ -38,6 +38,9 @@ import { ConfirmationModal } from '../components/ConfirmationModal';
 import { Toast } from '../components/Toast';
 import { useToast } from '../hooks/useToast';
 import { simpleT, translatePaymentMethod } from '../i18n/simple';
+import { useAuth } from '../contexts/AuthContext';
+// Analytics
+import { capture, group, E, nowIso } from '../services/analytics';
 
 // Helper function to format names in proper sentence case
 const formatName = (name: string): string => {
@@ -63,6 +66,7 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
   navigation,
 }) => {
   const { clientId } = route.params;
+  const { user } = useAuth();
   const [client, setClient] = useState<Client | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
@@ -325,6 +329,7 @@ const handleCrewAdjust = async (delta: number) => {
 
   const handleStartSession = async () => {
     if (isSessionLoading) return; // Prevent double-tap
+
     try {
       setIsSessionLoading(true);
       const newSession = await startSession(clientId, crewSize);
@@ -333,12 +338,35 @@ const handleCrewAdjust = async (delta: number) => {
       setActiveSession(newSession);
       setCrewSize(newSession.crewSize);
 
+      // Analytics: Track session started
+      try {
+        if (user?.id) {
+          group('provider', user.id);
+          group('client', clientId);
+        }
+
+        capture(E.ACTION_SESSION_STARTED, {
+          client_id: clientId,
+          client_name: client?.name || '',
+          crew_size: crewSize,
+          hourly_rate: client?.hourlyRate || 0,
+          start_time: nowIso(),
+        });
+      } catch (analyticsError) {
+        if (__DEV__) {
+          console.error('Analytics tracking failed:', analyticsError);
+        }
+      }
+
       // Silent refetch to update timeline (no full-page spinner)
       await loadData(true);
 
       // Show success toast
       showSuccess(t('common.sessionStarted'));
     } catch (error) {
+      if (__DEV__) {
+        console.error('Error starting session:', error);
+      }
       Alert.alert(t('clientHistory.errorTitle'), t('clientHistory.sessionStartError'));
     } finally {
       setIsSessionLoading(false);
@@ -352,9 +380,54 @@ const handleCrewAdjust = async (delta: number) => {
 
       // Calculate duration before ending session
       const durationSeconds = Math.floor((Date.now() - activeSession.startTime.getTime()) / 1000);
+      const durationMinutes = Math.round(durationSeconds / 60);
       const durationHours = durationSeconds / 3600;
+      const finalCrewSize = activeSession?.crewSize || crewSize;
+      const perPersonHours = durationHours;
+      const totalPersonHours = perPersonHours * finalCrewSize;
+      const totalAmount = totalPersonHours * (client?.hourlyRate || 0);
 
       await endSession(activeSession.id);
+
+      // Analytics: Track session stopped and completed
+      try {
+        if (user?.id) {
+          group('provider', user.id);
+          group('client', clientId);
+        }
+
+        const sessionStartTime = activeSession.startTime.toISOString();
+        const sessionEndTime = nowIso();
+
+        // Track action event (canonical Tier-0)
+        capture(E.ACTION_SESSION_STOPPED, {
+          session_id: activeSession.id,
+          client_id: clientId,
+          total_duration_minutes: durationMinutes,
+          crew_size: finalCrewSize,
+          person_hours: totalPersonHours,
+          hourly_rate: client?.hourlyRate || 0,
+          total_amount: totalAmount,
+        });
+
+        // Track business event (canonical Tier-0)
+        capture(E.BUSINESS_SESSION_COMPLETED, {
+          session_id: activeSession.id,
+          provider_id: user?.id || '',
+          client_id: clientId,
+          duration_minutes: durationMinutes,
+          crew_size: finalCrewSize,
+          person_hours: totalPersonHours,
+          hourly_rate: client?.hourlyRate || 0,
+          total_amount: totalAmount,
+          start_time: sessionStartTime,
+          end_time: sessionEndTime,
+        });
+      } catch (analyticsError) {
+        if (__DEV__) {
+          console.error('Analytics tracking failed:', analyticsError);
+        }
+      }
 
       // Optimistic update - clear active session
       setActiveSession(null);
@@ -387,6 +460,27 @@ const handleCrewAdjust = async (delta: number) => {
     if (unpaidSessions.length === 0) {
       showError(t('clientHistory.noUnpaidSessions'));
       return;
+    }
+
+    // Analytics: Track payment request action
+    try {
+      const totalPersonHours = unpaidSessions.reduce((sum, s) => {
+        const duration = s.duration || 0;
+        const crew = s.crewSize || 1;
+        return sum + (duration * crew);
+      }, 0);
+
+      capture(E.ACTION_PAYMENT_REQUESTED, {
+        client_id: clientId,
+        client_name: client?.name || '',
+        session_count: unpaidSessions.length,
+        total_person_hours: totalPersonHours,
+        total_amount: unpaidBalance,
+      });
+    } catch (analyticsError) {
+      if (__DEV__) {
+        console.error('Analytics tracking failed:', analyticsError);
+      }
     }
 
     setShowConfirmModal(true);
@@ -438,6 +532,35 @@ const handleCrewAdjust = async (delta: number) => {
       if (__DEV__) {
         if (__DEV__) {
           if (__DEV__) console.log('✅ Payment request created successfully');
+        }
+      }
+
+      // Analytics: Track business event for successful payment request
+      try {
+        const totalPersonHours = unpaidSessions.reduce((sum, s) => {
+          const duration = s.duration || 0;
+          const crew = s.crewSize || 1;
+          return sum + (duration * crew);
+        }, 0);
+
+        if (user?.id) {
+          group('provider', user.id);
+          group('client', clientId);
+        }
+
+        capture(E.BUSINESS_PAYMENT_REQUESTED, {
+          provider_id: user?.id || '',
+          client_id: clientId,
+          client_name: client?.name || '',
+          unpaid_session_ids: unpaidSessions.map(s => s.id),
+          session_count: unpaidSessions.length,
+          total_person_hours: totalPersonHours,
+          total_amount: unpaidAmount,
+          requested_at: nowIso(),
+        });
+      } catch (analyticsError) {
+        if (__DEV__) {
+          console.error('Analytics tracking failed:', analyticsError);
         }
       }
 

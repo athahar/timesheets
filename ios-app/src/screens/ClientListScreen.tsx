@@ -44,6 +44,8 @@ import {
 import { theme } from '../styles/theme';
 import { TP } from '../styles/themeV2';
 import { simpleT } from '../i18n/simple';
+// Analytics
+import { capture, group, E, nowIso } from '../services/analytics';
 
 interface ClientListScreenProps {
   navigation: any;
@@ -78,7 +80,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const [sessionTimers, setSessionTimers] = useState<Record<string, number>>({}); // clientId -> elapsed hours
   const sectionListRef = useRef<SectionList>(null);
 
-  const { userProfile, signOut } = useAuth();
+  const { user, userProfile, signOut } = useAuth();
   const insets = useSafeAreaInsets();
   const { toast, showSuccess, showError, hideToast } = useToast();
 
@@ -242,6 +244,26 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
 
       await startSession(client.id, 1); // Start with 1-person crew
 
+      // Analytics: Track session started
+      try {
+        if (user?.id) {
+          group('provider', user.id);
+          group('client', client.id);
+        }
+
+        capture(E.ACTION_SESSION_STARTED, {
+          client_id: client.id,
+          client_name: client.name || '',
+          crew_size: 1,
+          hourly_rate: client.hourlyRate || 0,
+          start_time: nowIso(),
+        });
+      } catch (analyticsError) {
+        if (__DEV__) {
+          console.error('Analytics tracking failed:', analyticsError);
+        }
+      }
+
       // Silent refetch - no full-page spinner
       await loadClients(true);
 
@@ -280,11 +302,56 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
         return;
       }
 
-      // Calculate duration
+      // Calculate duration and metrics
       const durationSeconds = Math.floor((Date.now() - activeSession.startTime.getTime()) / 1000);
+      const durationMinutes = Math.round(durationSeconds / 60);
       const durationHours = durationSeconds / 3600;
+      const finalCrewSize = activeSession.crewSize || 1;
+      const perPersonHours = durationHours;
+      const totalPersonHours = perPersonHours * finalCrewSize;
+      const totalAmount = totalPersonHours * (client.hourlyRate || 0);
 
       await endSession(activeSession.id);
+
+      // Analytics: Track session stopped and completed
+      try {
+        if (user?.id) {
+          group('provider', user.id);
+          group('client', client.id);
+        }
+
+        const sessionStartTime = activeSession.startTime.toISOString();
+        const sessionEndTime = nowIso();
+
+        // Track action event (canonical Tier-0)
+        capture(E.ACTION_SESSION_STOPPED, {
+          session_id: activeSession.id,
+          client_id: client.id,
+          total_duration_minutes: durationMinutes,
+          crew_size: finalCrewSize,
+          person_hours: totalPersonHours,
+          hourly_rate: client.hourlyRate || 0,
+          total_amount: totalAmount,
+        });
+
+        // Track business event (canonical Tier-0)
+        capture(E.BUSINESS_SESSION_COMPLETED, {
+          session_id: activeSession.id,
+          provider_id: user?.id || '',
+          client_id: client.id,
+          duration_minutes: durationMinutes,
+          crew_size: finalCrewSize,
+          person_hours: totalPersonHours,
+          hourly_rate: client.hourlyRate || 0,
+          total_amount: totalAmount,
+          start_time: sessionStartTime,
+          end_time: sessionEndTime,
+        });
+      } catch (analyticsError) {
+        if (__DEV__) {
+          console.error('Analytics tracking failed:', analyticsError);
+        }
+      }
 
       // Silent refetch - no full-page spinner
       await loadClients(true);

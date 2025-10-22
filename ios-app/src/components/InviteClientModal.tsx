@@ -16,6 +16,9 @@ import { theme } from '../styles/theme';
 import { Button } from './Button';
 import { directSupabase } from '../services/storageService';
 import { generateInviteLink } from '../utils/inviteCodeGenerator';
+import { useAuth } from '../contexts/AuthContext';
+// Analytics
+import { capture, group, E, nowIso } from '../services/analytics';
 
 interface InviteClientModalProps {
   visible: boolean;
@@ -28,11 +31,13 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
   onClose,
   onClientAdded,
 }) => {
+  const { user } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [hourlyRate, setHourlyRate] = useState('');
   const [loading, setLoading] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [clientId, setClientId] = useState<string | null>(null);
   const [step, setStep] = useState<'form' | 'success'>('form');
 
   const validateForm = () => {
@@ -87,7 +92,28 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
 
       if (newClient.inviteCode) {
         setInviteCode(newClient.inviteCode);
+        setClientId(newClient.id);
         setStep('success');
+
+        // Analytics: Track invite code creation
+        try {
+          if (user?.id) {
+            group('provider', user.id);
+            group('client', newClient.id);
+          }
+
+          capture(E.BUSINESS_INVITE_CODE_CREATED, {
+            provider_id: user?.id || '',
+            client_id: newClient.id,
+            client_name: trimmedName,
+            invite_code: 'REDACTED', // Don't send actual code for security
+            created_at: nowIso(),
+          });
+        } catch (analyticsError) {
+          if (__DEV__) {
+            console.error('Analytics tracking failed:', analyticsError);
+          }
+        }
       } else {
         throw new Error('Invite code not generated');
       }
@@ -104,6 +130,22 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
     if (inviteCode) {
       Clipboard.setString(inviteCode);
       Alert.alert('Copied!', 'Invite code copied to clipboard');
+
+      // Analytics: Track code copy
+      try {
+        capture(E.BUSINESS_INVITE_CODE_SHARED, {
+          provider_id: user?.id || '',
+          client_id: clientId || '',
+          client_name: name,
+          share_method: 'copy_code',
+          invite_code: 'REDACTED',
+          shared_at: nowIso(),
+        });
+      } catch (analyticsError) {
+        if (__DEV__) {
+          console.error('Analytics tracking failed:', analyticsError);
+        }
+      }
     }
   };
 
@@ -112,6 +154,22 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
       const deepLink = generateInviteLink(inviteCode, true);
       Clipboard.setString(deepLink);
       Alert.alert('Copied!', 'Invite link copied to clipboard');
+
+      // Analytics: Track link copy
+      try {
+        capture(E.BUSINESS_INVITE_CODE_SHARED, {
+          provider_id: user?.id || '',
+          client_id: clientId || '',
+          client_name: name,
+          share_method: 'copy_link',
+          invite_code: 'REDACTED',
+          shared_at: nowIso(),
+        });
+      } catch (analyticsError) {
+        if (__DEV__) {
+          console.error('Analytics tracking failed:', analyticsError);
+        }
+      }
     }
   };
 
@@ -126,6 +184,22 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
           message: `You've been invited to work with me on TrackPay!\n\nUse invite code: ${inviteCode}\n\nOr click this link: ${webLink}\n\nDownload TrackPay to get started!`,
           url: webLink, // iOS will use this
         });
+
+        // Analytics: Track share sheet usage
+        try {
+          capture(E.BUSINESS_INVITE_CODE_SHARED, {
+            provider_id: user?.id || '',
+            client_id: clientId || '',
+            client_name: name,
+            share_method: 'share_sheet',
+            invite_code: 'REDACTED',
+            shared_at: nowIso(),
+          });
+        } catch (analyticsError) {
+          if (__DEV__) {
+            console.error('Analytics tracking failed:', analyticsError);
+          }
+        }
       } catch (error) {
         console.error('Error sharing:', error);
       }

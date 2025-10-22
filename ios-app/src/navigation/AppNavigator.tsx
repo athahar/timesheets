@@ -1,10 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Linking } from 'react-native';
 
 // Auth Context
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
+
+// Analytics
+import { trackNavigation } from '../services/analytics';
 
 // Auth Screens
 import { WelcomeScreen } from '../screens/WelcomeScreen';
@@ -197,6 +200,9 @@ const Navigation = () => {
 
 // Root Navigator Component
 export const RootNavigator = () => {
+  const navigationRef = useRef<any>();
+  const routeNameRef = useRef<string>();
+
   const linking = {
     prefixes: ['trackpay://', 'https://trackpay.app'],
     config: {
@@ -208,7 +214,31 @@ export const RootNavigator = () => {
 
   return (
     <AuthProvider>
-      <NavigationContainer linking={linking}>
+      <NavigationContainer
+        ref={navigationRef}
+        linking={linking}
+        onReady={() => {
+          // Store initial route name
+          routeNameRef.current = navigationRef.current?.getCurrentRoute()?.name;
+        }}
+        onStateChange={() => {
+          const previousRouteName = routeNameRef.current;
+          const currentRoute = navigationRef.current?.getCurrentRoute();
+          const currentRouteName = currentRoute?.name;
+
+          // Track navigation if route changed
+          if (previousRouteName !== currentRouteName && currentRouteName) {
+            trackNavigation(
+              previousRouteName || null,
+              currentRouteName,
+              currentRoute?.params
+            );
+          }
+
+          // Save current route name for next change
+          routeNameRef.current = currentRouteName;
+        }}
+      >
         <Navigation />
       </NavigationContainer>
     </AuthProvider>

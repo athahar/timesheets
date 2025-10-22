@@ -3,6 +3,17 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
 import { generateUUID } from '../utils/uuid';
 import { linkExistingUserToAuth, checkForExistingUserData } from '../utils/userMigration';
+// Analytics
+import {
+  identify,
+  alias,
+  reset as resetAnalytics,
+  clearGlobalPropertiesCache,
+  useAnalytics,
+  nowIso,
+  E,
+  capture,
+} from '../services/analytics';
 
 export interface UserProfile {
   id: string;
@@ -52,6 +63,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { setUserId, setUserRole } = useAnalytics();
 
   const isAuthenticated = !!user && !!session;
 
@@ -231,6 +243,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             ]);
 
             setUserProfile(profile);
+
+            // Analytics: Update global context and identify user after profile loaded
+            if (profile && session?.user) {
+              try {
+                // Update analytics global properties
+                setUserId(session.user.id);
+                setUserRole(profile.role || 'guest');
+
+                // Identify user in PostHog
+                await identify(session.user.id, {
+                  user_role: profile.role || 'guest',
+                  language: 'en-US', // TODO: Get from user preferences
+                  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                });
+
+                if (__DEV__) {
+                  console.log('[analytics] User identified after profile load:', session.user.id, profile.role);
+                }
+              } catch (analyticsError) {
+                if (__DEV__) {
+                  console.error('[analytics] Failed to identify user:', analyticsError);
+                }
+              }
+            }
           } catch (error) {
             setUserProfile(null);
           }
@@ -288,6 +324,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (__DEV__) {
           console.log('✅ SignIn successful for user:', data.user.id);
         }
+
+        // Analytics: Identify user on login
+        // Note: We'll get user_role from the profile loaded by auth state listener
+        // For now, identify with basic info
+        try {
+          await identify(data.user.id, {
+            language: 'en-US', // Will be updated by context
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          });
+        } catch (error) {
+          if (__DEV__) {
+            console.error('Analytics identify failed:', error);
+          }
+        }
       }
 
       return {};
@@ -308,7 +358,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     password: string,
     displayName: string,
     role: 'provider' | 'client',
-    skipProfileCreation?: boolean
+    skipProfileCreation?: boolean,
+    inviteContext?: { inviteCode: string; providerId: string }
   ): Promise<{ error?: string; data?: { user: User } }> => {
     try {
       setIsLoading(true);
@@ -349,6 +400,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         }
 
+        // Analytics: Track user registration
+        // CRITICAL: Call alias FIRST, then identify
+        try {
+          await alias(data.user.id); // Step 1: Stitch anon → authed
+          await identify(data.user.id, { // Step 2: Set person props
+            user_role: role,
+            language: 'en-US',
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          });
+
+          // Step 3: Capture business event
+          const registrationMethod = inviteContext ? 'invite_code' : 'email_password';
+          capture(E.BUSINESS_USER_REGISTERED, {
+            user_id: data.user.id,
+            user_role: role,
+            registration_method: registrationMethod,
+            timestamp: nowIso(),
+            // Include invite context if present
+            ...(inviteContext && {
+              invite_code: inviteContext.inviteCode,
+              provider_id: inviteContext.providerId,
+            }),
+          });
+        } catch (error) {
+          if (__DEV__) {
+            console.error('Analytics registration tracking failed:', error);
+          }
+        }
+
         return { data: { user: data.user } };
       }
 
@@ -363,6 +443,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signOut = async (): Promise<void> => {
     try {
       setIsLoading(true);
+
+      // Analytics: Reset on logout
+      try {
+        setUserId(undefined);
+        setUserRole('guest');
+        await resetAnalytics(); // Clear PostHog state
+        clearGlobalPropertiesCache(); // Clear global context
+      } catch (error) {
+        if (__DEV__) {
+          console.error('Analytics reset failed:', error);
+        }
+      }
+
       await supabase.auth.signOut();
       // State will be cleared by the auth state change listener
     } catch (error) {

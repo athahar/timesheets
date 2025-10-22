@@ -24,6 +24,9 @@ import {
   getSessionsByClient,
   updateSessionCrewSize,
 } from '../services/storageService';
+import { useAuth } from '../contexts/AuthContext';
+// Analytics
+import { capture, group, E, nowIso, calculatePersonHours } from '../services/analytics';
 
 // Helper function to format names in proper sentence case
 const formatName = (name: string): string => {
@@ -50,6 +53,7 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
 }) => {
   const t = simpleT;
   const { clientId } = route.params;
+  const { user } = useAuth();
   const [client, setClient] = useState<Client | null>(null);
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [unpaidHours, setUnpaidHours] = useState(0);
@@ -198,6 +202,26 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
       setActiveSession(newSession);
       setCrewSize(newSession.crewSize || crewSize);
       setSessionTime(0);
+
+      // Analytics: Track session started
+      try {
+        if (user?.id) {
+          group('provider', user.id);
+          group('client', clientId);
+        }
+
+        capture(E.ACTION_SESSION_STARTED, {
+          client_id: clientId,
+          client_name: client?.name || '',
+          crew_size: crewSize,
+          hourly_rate: client?.hourlyRate || 0,
+          start_time: nowIso(),
+        });
+      } catch (analyticsError) {
+        if (__DEV__) {
+          console.error('Analytics tracking failed:', analyticsError);
+        }
+      }
     } catch (error) {
       console.error('Error starting session:', error);
       Alert.alert(t('sessionTracking.errorTitle'), t('sessionTracking.startError'));
@@ -208,10 +232,51 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
     if (!activeSession) return;
 
     try {
+      // Calculate metrics before ending session
+      const durationMinutes = Math.round(sessionTime / 60);
+      const finalCrewSize = activeSession?.crewSize || crewSize;
+      const perPersonHoursCalc = sessionTime / 3600;
+      const totalPersonHoursCalc = calculatePersonHours(perPersonHoursCalc, finalCrewSize);
+      const totalAmount = totalPersonHoursCalc * (client?.hourlyRate || 0);
+
       await endSession(activeSession.id);
       setActiveSession(null);
       setSessionTime(0);
       loadData(); // Refresh summary data
+
+      // Analytics: Track session stopped and completed
+      try {
+        if (user?.id) {
+          group('provider', user.id);
+          group('client', clientId);
+        }
+
+        // Track action event
+        capture(E.ACTION_SESSION_STOPPED, {
+          session_id: activeSession.id,
+          client_id: clientId,
+          client_name: client?.name || '',
+          duration_minutes: durationMinutes,
+        });
+
+        // Track business event
+        capture(E.BUSINESS_SESSION_COMPLETED, {
+          session_id: activeSession.id,
+          provider_id: user?.id || '',
+          client_id: clientId,
+          client_name: client?.name || '',
+          crew_size: finalCrewSize,
+          duration_minutes: durationMinutes,
+          person_hours: totalPersonHoursCalc,
+          hourly_rate: client?.hourlyRate || 0,
+          total_amount: totalAmount,
+          completed_at: nowIso(),
+        });
+      } catch (analyticsError) {
+        if (__DEV__) {
+          console.error('Analytics tracking failed:', analyticsError);
+        }
+      }
     } catch (error) {
       console.error('Error ending session:', error);
       Alert.alert(t('sessionTracking.errorTitle'), t('sessionTracking.endError'));

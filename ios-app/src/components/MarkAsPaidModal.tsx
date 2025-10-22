@@ -16,6 +16,9 @@ import { theme } from '../styles/theme';
 import { markPaid } from '../services/storageService';
 import { simpleT } from '../i18n/simple';
 import { formatCurrency, formatHours } from '../utils/formatters';
+import { useAuth } from '../contexts/AuthContext';
+// Analytics
+import { capture, group, E, nowIso } from '../services/analytics';
 
 interface MarkAsPaidModalProps {
   visible: boolean;
@@ -34,6 +37,7 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
   providerName,
   sessions,
 }) => {
+  const { user } = useAuth();
   const [paymentDate, setPaymentDate] = useState(() => {
     const today = new Date();
     return today.toISOString().split('T')[0]; // YYYY-MM-DD format
@@ -108,6 +112,7 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
 
       const sessionIds = payableSessions.map(session => session.id);
       const clientId = payableSessions[0]?.clientId;
+      const providerId = payableSessions[0]?.providerId;
 
       if (!clientId) {
         Alert.alert(
@@ -131,6 +136,21 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
 
       }
 
+      // Analytics: Track payment submission
+      try {
+        capture(E.ACTION_PAYMENT_SENT_SUBMITTED, {
+          provider_id: providerId || '',
+          provider_name: providerName,
+          amount_paid: amount,
+          payment_method: paymentMethod,
+          success: false,
+        });
+      } catch (analyticsError) {
+        if (__DEV__) {
+          console.error('Analytics tracking failed:', analyticsError);
+        }
+      }
+
       if (__DEV__) {
 
         if (__DEV__) {
@@ -142,6 +162,40 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
       if (__DEV__) {
         if (__DEV__) {
           if (__DEV__) console.log('✅ MarkAsPaidModal: Payment successful, closing modal');
+        }
+      }
+
+      // Analytics: Track successful payment confirmation
+      try {
+        if (user?.id && providerId) {
+          group('provider', providerId);
+          group('client', user.id);
+        }
+
+        // Track business event
+        capture(E.BUSINESS_PAYMENT_CONFIRMED, {
+          provider_id: providerId || '',
+          provider_name: providerName,
+          client_id: user?.id || '',
+          session_ids: sessionIds,
+          session_count: payableSessions.length,
+          total_person_hours: totalPersonHours,
+          amount_paid: amount,
+          payment_method: paymentMethod,
+          confirmed_at: nowIso(),
+        });
+
+        // Track successful action event
+        capture(E.ACTION_PAYMENT_SENT_SUBMITTED, {
+          provider_id: providerId || '',
+          provider_name: providerName,
+          amount_paid: amount,
+          payment_method: paymentMethod,
+          success: true,
+        });
+      } catch (analyticsError) {
+        if (__DEV__) {
+          console.error('Analytics tracking failed:', analyticsError);
         }
       }
 

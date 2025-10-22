@@ -89,25 +89,58 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
   };
 
   // Handle sign out with confirmation
-  const handleSignOut = () => {
-    Alert.alert(
-      t('settings.signOut'),
-      t('settings.signOutConfirm'),
-      [
-        { text: t('settings.cancel'), style: 'cancel' },
-        {
-          text: t('settings.signOut'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await signOut();
-            } catch (error) {
-              if (__DEV__) console.error('Error signing out:', error);
-            }
+  const handleSignOut = async () => {
+    if (__DEV__) {
+      console.log('🚪 handleSignOut called');
+    }
+
+    // Web compatibility: Use browser confirm() on web, Alert.alert() on native
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(`${t('settings.signOut')}\n\n${t('settings.signOutConfirm')}`);
+      if (confirmed) {
+        if (__DEV__) {
+          console.log('🚪 Sign out confirmed (web), calling signOut()...');
+        }
+        try {
+          await signOut();
+          if (__DEV__) {
+            console.log('✅ signOut() completed');
+          }
+        } catch (error) {
+          if (__DEV__) {
+            console.error('❌ Error signing out:', error);
+          }
+        }
+      }
+    } else {
+      // Native platforms (iOS/Android)
+      Alert.alert(
+        t('settings.signOut'),
+        t('settings.signOutConfirm'),
+        [
+          { text: t('settings.cancel'), style: 'cancel' },
+          {
+            text: t('settings.signOut'),
+            style: 'destructive',
+            onPress: async () => {
+              if (__DEV__) {
+                console.log('🚪 Sign out confirmed (native), calling signOut()...');
+              }
+              try {
+                await signOut();
+                if (__DEV__) {
+                  console.log('✅ signOut() completed');
+                }
+              } catch (error) {
+                if (__DEV__) {
+                  console.error('❌ Error signing out:', error);
+                }
+              }
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
   return (

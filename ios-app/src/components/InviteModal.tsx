@@ -12,6 +12,9 @@ import {
 import { theme } from '../styles/theme';
 import { Button } from './Button';
 import { generateInviteLink } from '../utils/inviteCodeGenerator';
+import { useAuth } from '../contexts/AuthContext';
+// Analytics
+import { capture, E, nowIso } from '../services/analytics';
 
 interface InviteModalProps {
   visible: boolean;
@@ -26,15 +29,49 @@ export const InviteModal: React.FC<InviteModalProps> = ({
   clientName,
   inviteCode,
 }) => {
+  const { user } = useAuth();
+
   const handleCopyCode = () => {
     Clipboard.setString(inviteCode);
     Alert.alert('Copied!', 'Invite code copied to clipboard');
+
+    // Analytics: Track code copy
+    try {
+      capture(E.BUSINESS_INVITE_CODE_SHARED, {
+        provider_id: user?.id || '',
+        client_id: '', // Not available in this modal
+        client_name: clientName,
+        share_method: 'copy_code',
+        invite_code: 'REDACTED',
+        shared_at: nowIso(),
+      });
+    } catch (analyticsError) {
+      if (__DEV__) {
+        console.error('Analytics tracking failed:', analyticsError);
+      }
+    }
   };
 
   const handleCopyLink = () => {
     const link = generateInviteLink(inviteCode, false);
     Clipboard.setString(link);
     Alert.alert('Copied!', 'Invite link copied to clipboard');
+
+    // Analytics: Track link copy
+    try {
+      capture(E.BUSINESS_INVITE_CODE_SHARED, {
+        provider_id: user?.id || '',
+        client_id: '', // Not available in this modal
+        client_name: clientName,
+        share_method: 'copy_link',
+        invite_code: 'REDACTED',
+        shared_at: nowIso(),
+      });
+    } catch (analyticsError) {
+      if (__DEV__) {
+        console.error('Analytics tracking failed:', analyticsError);
+      }
+    }
   };
 
   const handleShare = async () => {
@@ -47,6 +84,22 @@ export const InviteModal: React.FC<InviteModalProps> = ({
         message: `You've been invited to work with me on TrackPay!\n\nUse invite code: ${inviteCode}\n\nOr click this link: ${webLink}\n\nDownload TrackPay to get started!`,
         url: webLink,
       });
+
+      // Analytics: Track share sheet usage
+      try {
+        capture(E.BUSINESS_INVITE_CODE_SHARED, {
+          provider_id: user?.id || '',
+          client_id: '', // Not available in this modal
+          client_name: clientName,
+          share_method: 'share_sheet',
+          invite_code: 'REDACTED',
+          shared_at: nowIso(),
+        });
+      } catch (analyticsError) {
+        if (__DEV__) {
+          console.error('Analytics tracking failed:', analyticsError);
+        }
+      }
     } catch (error) {
       console.error('Error sharing:', error);
     }
