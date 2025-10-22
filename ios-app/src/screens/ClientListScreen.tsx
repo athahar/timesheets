@@ -47,6 +47,11 @@ import { simpleT } from '../i18n/simple';
 // Analytics
 import { capture, group, E, nowIso } from '../services/analytics';
 
+// Module-level guard to prevent React StrictMode duplicate instances
+// (persists across all component instances, not just one ref)
+let lastClientListInitTime = 0;
+const CLIENT_LIST_MIN_INIT_INTERVAL = 2000; // 2 seconds
+
 interface ClientListScreenProps {
   navigation: any;
 }
@@ -147,15 +152,15 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
       forceUpdate(prev => prev + 1);
 
       if (initialLoad) {
-        // React 18 StrictMode guards: prevent double-effect + remount duplicate
+        // MODULE-LEVEL guard: Stops StrictMode creating multiple component instances
         const now = Date.now();
-        const MIN_INIT_INTERVAL = 1000; // 1 second between init calls
 
-        if (didInitRef.current && now - lastInitTimeRef.current < MIN_INIT_INTERVAL) {
-          if (__DEV__) console.log('🚫 ClientListScreen: Blocking duplicate init (StrictMode remount)');
+        if (now - lastClientListInitTime < CLIENT_LIST_MIN_INIT_INTERVAL) {
+          if (__DEV__) console.log('🚫 ClientListScreen: Blocking duplicate init (module-level guard, likely StrictMode)');
           return;
         }
 
+        lastClientListInitTime = now; // Update module-level timestamp
         didInitRef.current = true;
         lastInitTimeRef.current = now;
 
