@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- SEO Meta Tags -->
+    <title data-i18n="meta.title">TrackPay - Time Tracked. Payments Sorted.</title>
+    <meta name="description" data-i18n="meta.description" content="TrackPay helps independent pros and small teams log work hours and get paid faster — all from one simple, bilingual app.">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://trackpay.app/">
+    <meta property="og:title" data-i18n="meta.title" content="TrackPay - Time Tracked. Payments Sorted.">
+    <meta property="og:description" data-i18n="meta.description" content="TrackPay helps independent pros and small teams log work hours and get paid faster — all from one simple, bilingual app.">
+    <meta property="og:image" content="/images/og-image.png">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://trackpay.app/">
+    <meta property="twitter:title" data-i18n="meta.title" content="TrackPay - Time Tracked. Payments Sorted.">
+    <meta property="twitter:description" data-i18n="meta.description" content="TrackPay helps independent pros and small teams log work hours and get paid faster — all from one simple, bilingual app.">
+    <meta property="twitter:image" content="/images/og-image.png">
+
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <!-- Language Toggle Header -->
+    <header class="language-header">
+        <div class="container">
+            <button id="lang-toggle" class="lang-toggle" aria-label="Switch language">
+                <span class="lang-option active" data-lang="en">EN</span>
+                <span class="lang-divider">/</span>
+                <span class="lang-option" data-lang="es">ES</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- 1. HERO SECTION -->
+    <section class="hero">
+        <div class="container hero-grid">
+            <div class="hero-content">
+                <h1 class="hero-title" data-i18n="hero.title">Time Tracked. Payments Sorted.</h1>
+                <p class="hero-subtitle" data-i18n="hero.subtitle">
+                    TrackPay helps independent pros and small teams log work hours and get paid faster — all from one simple, bilingual app.
+                </p>
+                <div class="hero-features">
+                    <span class="feature-badge" data-i18n="hero.feature1">⏱️ Track sessions</span>
+                    <span class="feature-badge" data-i18n="hero.feature2">💵 Request payments</span>
+                    <span class="feature-badge" data-i18n="hero.feature3">🤝 Stay transparent</span>
+                </div>
+                <form class="waitlist-form" name="waitlist" method="POST" data-netlify="true" netlify-honeypot="bot-field">
+                    <input type="hidden" name="form-name" value="waitlist">
+                    <p style="display: none;">
+                        <label>Don't fill this out if you're human: <input name="bot-field" /></label>
+                    </p>
+                    <div class="form-group">
+                        <input
+                            type="email"
+                            name="email"
+                            class="email-input"
+                            placeholder="Your email"
+                            data-i18n-placeholder="hero.emailPlaceholder"
+                            required
+                        >
+                        <button type="submit" class="btn-primary" data-i18n="hero.cta">
+                            Join the Waitlist
+                        </button>
+                    </div>
+                    <p class="form-note" data-i18n="hero.ctaNote">Be first to try TrackPay on iPhone.</p>
+                </form>
+            </div>
+            <div class="hero-image">
+                <div class="iphone-mockup">
+                    <img src="/images/screenshots/start-stop-work-easily.PNG" alt="TrackPay - Start and stop work sessions easily" class="hero-screenshot">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 2. PROBLEM SECTION -->
+    <section class="problem-section">
+        <div class="container">
+            <h2 class="section-title" data-i18n="problem.title">Why getting paid on time still feels harder than it should</h2>
+            <div class="pain-points-grid">
+                <div class="pain-point">
+                    <div class="pain-icon">🕒</div>
+                    <h3 data-i18n="problem.pain1.title">Lost hours</h3>
+                    <p data-i18n="problem.pain1.description">Manual logs or texts lead to forgotten billable time.</p>
+                </div>
+                <div class="pain-point">
+                    <div class="pain-icon">📥</div>
+                    <h3 data-i18n="problem.pain2.title">Awkward follow-ups</h3>
+                    <p data-i18n="problem.pain2.description">"Hey, just checking…" shouldn't be your default message.</p>
+                </div>
+                <div class="pain-point">
+                    <div class="pain-icon">💸</div>
+                    <h3 data-i18n="problem.pain3.title">Payment delays</h3>
+                    <p data-i18n="problem.pain3.description">Clients forget, or don't have visibility into what's due.</p>
+                </div>
+                <div class="pain-point">
+                    <div class="pain-icon">🌍</div>
+                    <h3 data-i18n="problem.pain4.title">No shared record</h3>
+                    <p data-i18n="problem.pain4.description">Providers and clients rarely see the same truth.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3. SOLUTION SECTION -->
+    <section class="solution-section">
+        <div class="container">
+            <h2 class="section-title-light" data-i18n="solution.title">The simple way to track work and payments</h2>
+            <div class="steps-grid">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3 data-i18n="solution.step1.title">Start a session.</h3>
+                    <p data-i18n="solution.step1.description">Tap Start when you begin work — TrackPay logs hours automatically.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3 data-i18n="solution.step2.title">Stop and request payment.</h3>
+                    <p data-i18n="solution.step2.description">When you're done, tap Stop → Request Payment in one step.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3 data-i18n="solution.step3.title">Clients get notified instantly.</h3>
+                    <p data-i18n="solution.step3.description">They see hours, rate, and total — and can mark it paid right away.</p>
+                </div>
+            </div>
+            <p class="solution-tagline" data-i18n="solution.tagline">
+                💬 No spreadsheets. No awkward texts. Just clarity for both sides.
+            </p>
+        </div>
+    </section>
+
+    <!-- 4. FEATURES SECTION -->
+    <section class="features-section">
+        <div class="container">
+            <h2 class="section-title" data-i18n="features.title">Built for both sides of the job</h2>
+            <div class="features-grid">
+                <div class="feature-column">
+                    <h3 class="feature-column-title" data-i18n="features.providers.title">👷‍♂️ For Service Providers</h3>
+                    <ul class="feature-list">
+                        <li data-i18n="features.providers.feature1">Track sessions in real time</li>
+                        <li data-i18n="features.providers.feature2">Request payments with one tap</li>
+                        <li data-i18n="features.providers.feature3">See all clients, hours, and totals at a glance</li>
+                        <li data-i18n="features.providers.feature4">Works in English and Spanish</li>
+                    </ul>
+                </div>
+                <div class="feature-column">
+                    <h3 class="feature-column-title" data-i18n="features.clients.title">💼 For Clients</h3>
+                    <ul class="feature-list">
+                        <li data-i18n="features.clients.feature1">Get clear visibility on hours and amounts</li>
+                        <li data-i18n="features.clients.feature2">Mark payments as completed</li>
+                        <li data-i18n="features.clients.feature3">No logins or spreadsheets</li>
+                        <li data-i18n="features.clients.feature4">Instant updates when work is done</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 5. PRODUCT PREVIEW SECTION -->
+    <section class="preview-section">
+        <div class="container">
+            <h2 class="section-title" data-i18n="preview.title">Designed for clarity. Built for trust.</h2>
+            <div class="screenshots-grid">
+                <div class="screenshot-item">
+                    <img src="/images/screenshots/start-stop-work-easily.PNG" alt="Start and stop work sessions easily" class="app-screenshot">
+                </div>
+                <div class="screenshot-item">
+                    <img src="/images/screenshots/set-client-rate.PNG" alt="Set client hourly rate" class="app-screenshot">
+                </div>
+                <div class="screenshot-item">
+                    <img src="/images/screenshots/invite-your-client.PNG" alt="Invite your client with a code" class="app-screenshot">
+                </div>
+                <div class="screenshot-item">
+                    <img src="/images/screenshots/view-your-client-work-activity-timeline.PNG" alt="View client work activity timeline" class="app-screenshot">
+                </div>
+                <div class="screenshot-item">
+                    <img src="/images/screenshots/request-payment.PNG" alt="Request payment from client" class="app-screenshot">
+                </div>
+                <div class="screenshot-item">
+                    <img src="/images/screenshots/spanish-language.PNG" alt="Spanish language support" class="app-screenshot">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 6. TRUST SECTION -->
+    <section class="trust-section">
+        <div class="container">
+            <h2 class="section-title" data-i18n="trust.title">Why independent pros love TrackPay</h2>
+            <div class="testimonials-grid">
+                <div class="testimonial">
+                    <p class="testimonial-quote" data-i18n="trust.testimonial1.quote">
+                        "Finally a clean, bilingual way to manage client hours."
+                    </p>
+                    <p class="testimonial-author" data-i18n="trust.testimonial1.author">
+                        — Paola, Freelance Designer
+                    </p>
+                </div>
+                <div class="testimonial">
+                    <p class="testimonial-quote" data-i18n="trust.testimonial2.quote">
+                        "It's like having a shared ledger that both sides actually use."
+                    </p>
+                    <p class="testimonial-author" data-i18n="trust.testimonial2.author">
+                        — Alex, Consultant
+                    </p>
+                </div>
+                <div class="testimonial">
+                    <p class="testimonial-quote" data-i18n="trust.testimonial3.quote">
+                        "No confusion, no chasing payments. Simple and respectful."
+                    </p>
+                    <p class="testimonial-author" data-i18n="trust.testimonial3.author">
+                        — Luis, Contractor
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 7. CTA SECTION -->
+    <section class="cta-section">
+        <div class="container">
+            <h2 class="cta-title" data-i18n="cta.title">Join the waitlist. Be part of the TrackPay launch.</h2>
+            <p class="cta-subtitle" data-i18n="cta.subtitle">
+                Early users get exclusive beta access and feedback rewards.
+            </p>
+            <a href="#hero" class="btn-cta" data-i18n="cta.button">Join Waitlist →</a>
+        </div>
+    </section>
+
+    <!-- 8. FOOTER -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <p class="footer-copyright">© TrackPay 2025</p>
+                <nav class="footer-links">
+                    <a href="/privacy.html" data-i18n="footer.privacy">Privacy Policy</a>
+                    <span class="footer-divider">•</span>
+                    <a href="/about.html" data-i18n="footer.about">About Us</a>
+                    <span class="footer-divider">•</span>
+                    <a href="mailto:hello@trackpay.app" data-i18n="footer.contact">Contact Us</a>
+                </nav>
+                <p class="footer-email">
+                    <a href="mailto:hello@trackpay.app">hello@trackpay.app</a>
+                </p>
+            </div>
+            <button class="lang-toggle-footer" id="lang-toggle-footer" aria-label="Switch language">
+                <span class="lang-option active" data-lang="en">EN</span>
+                <span class="lang-divider">/</span>
+                <span class="lang-option" data-lang="es">ES</span>
+            </button>
+        </div>
+    </footer>
+
+    <script src="/js/i18n.js"></script>
+</body>
+</html>
