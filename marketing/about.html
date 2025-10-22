@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="about.title">About Us - TrackPay</title>
+    <meta name="description" content="Learn about TrackPay's mission to simplify time tracking and payments for independent professionals.">
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .about-content {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: var(--spacing-3xl) var(--spacing-md);
+        }
+        .about-content h1 {
+            margin-bottom: var(--spacing-lg);
+        }
+        .about-content h2 {
+            margin-top: var(--spacing-xl);
+            margin-bottom: var(--spacing-md);
+            font-size: 1.5rem;
+        }
+        .about-content p {
+            margin-bottom: var(--spacing-md);
+            color: var(--gray-700);
+            line-height: 1.8;
+            font-size: 1.0625rem;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: var(--spacing-lg);
+            color: var(--gray-600);
+            font-size: 0.875rem;
+        }
+        .back-link:hover {
+            color: var(--black);
+        }
+        .contact-box {
+            background: var(--gray-50);
+            padding: var(--spacing-lg);
+            border-radius: var(--radius-lg);
+            margin-top: var(--spacing-xl);
+            text-align: center;
+        }
+        .contact-box h3 {
+            margin-bottom: var(--spacing-sm);
+        }
+        .contact-box a {
+            color: var(--black);
+            font-weight: 600;
+            font-size: 1.125rem;
+        }
+        .mission-statement {
+            background: var(--black);
+            color: var(--white);
+            padding: var(--spacing-xl);
+            border-radius: var(--radius-lg);
+            margin: var(--spacing-xl) 0;
+            text-align: center;
+        }
+        .mission-statement p {
+            color: var(--white);
+            font-size: 1.25rem;
+            margin: 0;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <!-- Language Toggle Header -->
+    <header class="language-header">
+        <div class="container">
+            <button id="lang-toggle" class="lang-toggle" aria-label="Switch language">
+                <span class="lang-option active" data-lang="en">EN</span>
+                <span class="lang-divider">/</span>
+                <span class="lang-option" data-lang="es">ES</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="about-content">
+        <a href="/" class="back-link" data-i18n="about.back">← Back to Home</a>
+
+        <h1 data-i18n="about.heading">About TrackPay</h1>
+
+        <div class="mission-statement">
+            <p data-i18n="about.mission">
+                "Time tracked. Payments sorted. Relationships respected."
+            </p>
+        </div>
+
+        <section>
+            <h2 data-i18n="about.story.title">Our Story</h2>
+            <p data-i18n="about.story.p1">
+                TrackPay was born from a simple observation: independent professionals and small teams spend too much time managing what should be the simplest part of their work — tracking hours and getting paid.
+            </p>
+            <p data-i18n="about.story.p2">
+                We saw talented people sending awkward text messages, maintaining messy spreadsheets, and dealing with payment delays not because clients didn't want to pay, but because there was no shared, transparent record of work done.
+            </p>
+            <p data-i18n="about.story.p3">
+                So we built TrackPay — a bilingual app designed to give both service providers and clients a single source of truth. No confusion. No chasing. Just clarity and respect.
+            </p>
+        </section>
+
+        <section>
+            <h2 data-i18n="about.why.title">Why TrackPay?</h2>
+            <p data-i18n="about.why.p1">
+                <strong>Built for both sides.</strong> Unlike most time tracking apps that only think about the service provider, TrackPay gives clients visibility and control too. When both parties see the same information, trust grows naturally.
+            </p>
+            <p data-i18n="about.why.p2">
+                <strong>Bilingual from day one.</strong> We serve communities that speak English and Spanish, and we believe your tools should speak your language — fluently.
+            </p>
+            <p data-i18n="about.why.p3">
+                <strong>Simple by design.</strong> We stripped away everything that doesn't serve the core mission: track time, request payment, stay transparent. The result is an app that feels natural from the first tap.
+            </p>
+        </section>
+
+        <section>
+            <h2 data-i18n="about.values.title">Our Values</h2>
+            <p data-i18n="about.values.p1">
+                <strong>Transparency:</strong> Both providers and clients deserve to see the same truth at the same time.
+            </p>
+            <p data-i18n="about.values.p2">
+                <strong>Respect:</strong> Getting paid shouldn't require awkward conversations or uncomfortable follow-ups.
+            </p>
+            <p data-i18n="about.values.p3">
+                <strong>Simplicity:</strong> The best tools are the ones you don't have to think about.
+            </p>
+            <p data-i18n="about.values.p4">
+                <strong>Accessibility:</strong> Professional tools should be available to everyone, in their language, at a fair price.
+            </p>
+        </section>
+
+        <section>
+            <h2 data-i18n="about.team.title">Who We Are</h2>
+            <p data-i18n="about.team.p1">
+                We're a small team of builders who care deeply about creating tools that respect your time and your relationships. We've been independent contractors, freelancers, and small business owners ourselves — we know what it's like to need better systems.
+            </p>
+        </section>
+
+        <div class="contact-box">
+            <h3 data-i18n="about.contact.title">Get in Touch</h3>
+            <p data-i18n="about.contact.p1">
+                We'd love to hear from you. Whether you have questions, feedback, or just want to say hello:
+            </p>
+            <p>
+                <a href="mailto:hello@trackpay.app">hello@trackpay.app</a>
+            </p>
+        </div>
+
+        <a href="/" class="back-link" data-i18n="about.backBottom">← Back to Home</a>
+    </div>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <p class="footer-copyright">© TrackPay 2025</p>
+                <nav class="footer-links">
+                    <a href="/privacy.html" data-i18n="footer.privacy">Privacy Policy</a>
+                    <span class="footer-divider">•</span>
+                    <a href="/about.html" data-i18n="footer.about">About Us</a>
+                    <span class="footer-divider">•</span>
+                    <a href="mailto:hello@trackpay.app" data-i18n="footer.contact">Contact Us</a>
+                </nav>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/js/i18n.js"></script>
+    <script src="/js/about-i18n.js"></script>
+</body>
+</html>
