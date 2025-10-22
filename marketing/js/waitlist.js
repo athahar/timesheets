@@ -35,8 +35,8 @@
    */
   const copy = {
     en: {
-      successTitle: 'You're on the list!',
-      successBody: 'We'll email you the moment TrackPay is ready.',
+      successTitle: 'You\'re on the list!',
+      successBody: 'We\'ll email you the moment TrackPay is ready.',
       invalidEmail: 'Please enter a valid email address.',
       genericError: 'Something went wrong. Please try again.',
       submitting: 'Joining…',
