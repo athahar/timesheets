@@ -126,8 +126,9 @@
         throw new Error(serverMsg);
       }
 
-      // Success! Clear form and show success message
+      // Success! Hide form and show success message
       form.reset();
+      form.style.display = 'none';
       msg.className = 'form-message success';
       msg.innerHTML = `
         <strong>${copy[lang].successTitle}</strong><br>
