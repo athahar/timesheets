@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -21,8 +21,16 @@ export const HistoryScreen: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const loadingRef = useRef<boolean>(false); // Debounce guard for loadData
 
   const loadData = async () => {
+    // Debounce guard: prevent concurrent calls
+    if (loadingRef.current) {
+      if (__DEV__) console.log('🚫 loadData: already loading, skipping duplicate call');
+      return;
+    }
+
+    loadingRef.current = true;
     try {
       const [sessionsData, clientsData] = await Promise.all([
         getSessions(),
@@ -41,6 +49,7 @@ export const HistoryScreen: React.FC = () => {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      loadingRef.current = false; // Reset debounce guard
     }
   };
 

@@ -69,6 +69,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const [loading, setLoading] = useState(true);
   const [initialLoad, setInitialLoad] = useState(true);
   const lastFetchedRef = useRef<number>(0);
+  const loadingRef = useRef<boolean>(false); // Debounce guard for loadClients
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
@@ -85,6 +86,13 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const { toast, showSuccess, showError, hideToast } = useToast();
 
   const loadClients = useCallback(async (silent = false) => {
+    // Debounce guard: prevent concurrent calls
+    if (loadingRef.current) {
+      if (__DEV__) console.log('🚫 loadClients: already loading, skipping duplicate call');
+      return;
+    }
+
+    loadingRef.current = true;
     try {
       if (!silent) setLoading(true);
 
@@ -127,6 +135,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
         setInitialLoad(false);
       }
       setRefreshing(false);
+      loadingRef.current = false; // Reset debounce guard
     }
   }, []);
 
