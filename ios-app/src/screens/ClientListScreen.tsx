@@ -148,8 +148,11 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
         // First load - show spinner
         loadClients(false);
       } else {
-        // Always reload silently on focus to catch session changes
-        loadClients(true);
+        // Stale-time pattern: only refetch if >30s old
+        const STALE_MS = 30_000;
+        if (Date.now() - lastFetchedRef.current > STALE_MS) {
+          loadClients(true); // Silent refetch
+        }
       }
     }, [initialLoad, loadClients])
   );
