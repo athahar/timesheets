@@ -67,6 +67,23 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
     { value: 'other', label: simpleT('markAsPaidModal.paymentMethods.other') },
   ];
 
+  /**
+   * Calculate days between oldest session end time and now (payment confirmed time).
+   * This is the North Star metric for payment velocity.
+   */
+  const daysSinceOldestCompleted = (sessions: Session[]): number => {
+    if (!sessions.length) return 0;
+
+    const confirmedAt = new Date();
+    const oldestEndTime = sessions.reduce((oldest, s) => {
+      const sessionEnd = s.endTime ? new Date(s.endTime) : new Date();
+      return sessionEnd < oldest ? sessionEnd : oldest;
+    }, new Date());
+
+    const diffMs = confirmedAt.getTime() - oldestEndTime.getTime();
+    return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+  };
+
   const handleMarkAsPaid = async () => {
     try {
       setLoading(true);
@@ -136,14 +153,14 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
 
       }
 
-      // Analytics: Track payment submission
+      // Analytics: Track payment submission attempt (canonical Tier-0)
       try {
         capture(E.ACTION_PAYMENT_SENT_SUBMITTED, {
+          session_ids: sessionIds,
           provider_id: providerId || '',
-          provider_name: providerName,
-          amount_paid: amount,
+          total_amount: amount,
+          success: false, // Will set to true on success
           payment_method: paymentMethod,
-          success: false,
         });
       } catch (analyticsError) {
         if (__DEV__) {
@@ -165,33 +182,39 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
         }
       }
 
-      // Analytics: Track successful payment confirmation
+      // Analytics: Track successful payment confirmation (canonical Tier-0)
       try {
+        // Set groups before capturing events
         if (user?.id && providerId) {
           group('provider', providerId);
           group('client', user.id);
         }
 
-        // Track business event
+        // Calculate days since oldest session completed (North Star metric)
+        const daysSince = daysSinceOldestCompleted(payableSessions);
+
+        // Track business event (canonical fields)
         capture(E.BUSINESS_PAYMENT_CONFIRMED, {
+          payment_ids: sessionIds, // Canonical field name
           provider_id: providerId || '',
-          provider_name: providerName,
           client_id: user?.id || '',
-          session_ids: sessionIds,
+          total_amount: amount, // Canonical field name
+          confirmed_at: nowIso(),
+          days_since_session_completed: daysSince, // North Star metric
+
+          // Optional extras (tolerated by Zod drift):
           session_count: payableSessions.length,
           total_person_hours: totalPersonHours,
-          amount_paid: amount,
           payment_method: paymentMethod,
-          confirmed_at: nowIso(),
         });
 
-        // Track successful action event
+        // Track successful action event (canonical fields)
         capture(E.ACTION_PAYMENT_SENT_SUBMITTED, {
+          session_ids: sessionIds,
           provider_id: providerId || '',
-          provider_name: providerName,
-          amount_paid: amount,
+          total_amount: amount, // Canonical field name
+          success: true, // Success flag
           payment_method: paymentMethod,
-          success: true,
         });
       } catch (analyticsError) {
         if (__DEV__) {

@@ -88,9 +88,7 @@ export function trackNavigation(
     if (params?.clientId) {
       payload.client_id = params.clientId;
     }
-    if (params?.clientName) {
-      payload.client_name = params.clientName;
-    }
+    // Removed client_name (PII) - use PostHog Groups for readable labels
   }
 
   if (currentRouteName === 'ServiceProviderSummary' && params?.providerId) {

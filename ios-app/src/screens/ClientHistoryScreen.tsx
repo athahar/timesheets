@@ -462,21 +462,24 @@ const handleCrewAdjust = async (delta: number) => {
       return;
     }
 
-    // Analytics: Track payment request action
+    // Analytics: Track payment request action (per-session, canonical)
     try {
-      const totalPersonHours = unpaidSessions.reduce((sum, s) => {
-        const duration = s.duration || 0;
-        const crew = s.crewSize || 1;
-        return sum + (duration * crew);
-      }, 0);
-
-      capture(E.ACTION_PAYMENT_REQUESTED, {
-        client_id: clientId,
-        client_name: client?.name || '',
-        session_count: unpaidSessions.length,
-        total_person_hours: totalPersonHours,
-        total_amount: unpaidBalance,
-      });
+      // Emit one ACTION event per session (canonical Tier-0)
+      for (const s of unpaidSessions) {
+        try {
+          capture(E.ACTION_PAYMENT_REQUESTED, {
+            session_id: s.id,
+            client_id: clientId,
+            amount: s.amount || 0,
+            success: true, // Set to false on failure
+          });
+        } catch (sessionError) {
+          // Don't let one session failure block others
+          if (__DEV__) {
+            console.error('Analytics tracking failed for session:', s.id, sessionError);
+          }
+        }
+      }
     } catch (analyticsError) {
       if (__DEV__) {
         console.error('Analytics tracking failed:', analyticsError);
@@ -535,29 +538,44 @@ const handleCrewAdjust = async (delta: number) => {
         }
       }
 
-      // Analytics: Track business event for successful payment request
+      // Analytics: Track business event for successful payment request (per-session, canonical)
       try {
+        // Set groups before capturing events
+        if (user?.id) {
+          group('provider', user.id);
+          group('client', clientId);
+        }
+
+        // Calculate total for optional extras
         const totalPersonHours = unpaidSessions.reduce((sum, s) => {
           const duration = s.duration || 0;
           const crew = s.crewSize || 1;
           return sum + (duration * crew);
         }, 0);
 
-        if (user?.id) {
-          group('provider', user.id);
-          group('client', clientId);
-        }
+        // Emit one BUSINESS event per session (canonical Tier-0)
+        for (const s of unpaidSessions) {
+          try {
+            capture(E.BUSINESS_PAYMENT_REQUESTED, {
+              payment_request_id: `req_${s.id}`, // Deterministic ID until server-generated
+              session_id: s.id,
+              provider_id: user?.id || '',
+              client_id: clientId,
+              amount: s.amount || 0,
+              requested_at: nowIso(),
 
-        capture(E.BUSINESS_PAYMENT_REQUESTED, {
-          provider_id: user?.id || '',
-          client_id: clientId,
-          client_name: client?.name || '',
-          unpaid_session_ids: unpaidSessions.map(s => s.id),
-          session_count: unpaidSessions.length,
-          total_person_hours: totalPersonHours,
-          total_amount: unpaidAmount,
-          requested_at: nowIso(),
-        });
+              // Optional extras (tolerated by Zod drift):
+              session_count: unpaidSessions.length,
+              total_person_hours: totalPersonHours,
+              total_amount: unpaidAmount,
+            });
+          } catch (sessionError) {
+            // Don't let one session failure block others
+            if (__DEV__) {
+              console.error('Analytics tracking failed for session:', s.id, sessionError);
+            }
+          }
+        }
       } catch (analyticsError) {
         if (__DEV__) {
           console.error('Analytics tracking failed:', analyticsError);
