@@ -58,6 +58,7 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
   const [loading, setLoading] = useState(true);
   const [initialLoad, setInitialLoad] = useState(true);
   const lastFetchedRef = useRef<number>(0);
+  const loadingRef = useRef<boolean>(false); // Debounce guard for loadData
   const [editing, setEditing] = useState(false);
   const [editedName, setEditedName] = useState('');
   const [editedEmail, setEditedEmail] = useState('');
@@ -75,6 +76,13 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
   }, []);
 
   const loadData = useCallback(async (silent = false) => {
+    // Debounce guard: prevent concurrent calls
+    if (loadingRef.current) {
+      if (__DEV__) console.log('🚫 loadData: already loading, skipping duplicate call');
+      return;
+    }
+
+    loadingRef.current = true;
     try {
       if (!silent) setLoading(true);
 
@@ -113,6 +121,7 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
         setLoading(false);
         setInitialLoad(false);
       }
+      loadingRef.current = false; // Reset debounce guard
     }
   }, [clientId, navigation]);
 

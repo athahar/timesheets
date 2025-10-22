@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -51,8 +51,16 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
   const [currentUser, setCurrentUser] = useState<string>('');
   const [screenWidth, setScreenWidth] = useState(Dimensions.get('window').width);
   const [hasActiveSession, setHasActiveSession] = useState(false);
+  const loadingRef = useRef<boolean>(false); // Debounce guard for loadData
 
   const loadData = async () => {
+    // Debounce guard: prevent concurrent calls
+    if (loadingRef.current) {
+      if (__DEV__) console.log('🚫 loadData: already loading, skipping duplicate call');
+      return;
+    }
+
+    loadingRef.current = true;
     try {
       if (__DEV__) {
         if (__DEV__) console.log('🔍 ServiceProviderSummaryScreen: Loading data for providerId:', providerId);
@@ -181,6 +189,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
       console.error('Error loading provider summary:', error);
     } finally {
       setLoading(false);
+      loadingRef.current = false; // Reset debounce guard
     }
   };
 

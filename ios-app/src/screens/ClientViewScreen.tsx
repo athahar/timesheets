@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -32,6 +32,7 @@ export const ClientViewScreen: React.FC = () => {
   const [selectedActivity, setSelectedActivity] = useState<ActivityItem | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const loadingRef = useRef<boolean>(false); // Debounce guard for loadData
 
   const paymentMethods: { value: PaymentMethod; label: string }[] = [
     { value: 'cash', label: simpleT('markAsPaidModal.paymentMethods.cash') },
@@ -42,6 +43,13 @@ export const ClientViewScreen: React.FC = () => {
   ];
 
   const loadData = async () => {
+    // Debounce guard: prevent concurrent calls
+    if (loadingRef.current) {
+      if (__DEV__) console.log('🚫 loadData: already loading, skipping duplicate call');
+      return;
+    }
+
+    loadingRef.current = true;
     try {
       const [activitiesData, clientsData] = await Promise.all([
         getActivities(),
@@ -77,6 +85,7 @@ export const ClientViewScreen: React.FC = () => {
       Alert.alert('Error', 'Failed to load activity feed');
     } finally {
       setLoading(false);
+      loadingRef.current = false; // Reset debounce guard
     }
   };
 

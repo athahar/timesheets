@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -40,8 +40,16 @@ export const SessionTrackingScreen: React.FC<SessionTrackingScreenProps> = ({
   const [unpaidBalance, setUnpaidBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [sessionTime, setSessionTime] = useState(0);
+  const loadingRef = useRef<boolean>(false); // Debounce guard for loadData
 
   const loadData = async () => {
+    // Debounce guard: prevent concurrent calls
+    if (loadingRef.current) {
+      if (__DEV__) console.log('🚫 loadData: already loading, skipping duplicate call');
+      return;
+    }
+
+    loadingRef.current = true;
     try {
       const clientData = await getClientById(clientId);
       if (!clientData) {
@@ -68,6 +76,7 @@ export const SessionTrackingScreen: React.FC<SessionTrackingScreenProps> = ({
       Alert.alert('Error', 'Failed to load data');
     } finally {
       setLoading(false);
+      loadingRef.current = false; // Reset debounce guard
     }
   };
 
