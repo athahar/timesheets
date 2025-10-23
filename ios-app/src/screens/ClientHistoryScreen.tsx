@@ -9,6 +9,8 @@ import {
   Pressable,
   StyleSheet,
   ActivityIndicator,
+  Share,
+  Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
@@ -41,6 +43,12 @@ import { simpleT, translatePaymentMethod } from '../i18n/simple';
 import { useAuth } from '../contexts/AuthContext';
 // Analytics
 import { capture, group, E, nowIso } from '../services/analytics';
+// Invite Growth Loop
+import { getOrCreateInviteCode } from '../features/invite/getOrCreateInviteCode';
+import { buildPaymentShare, buildHoursShare } from '../features/invite/inviteShare';
+import { InvitePromptModal } from '../features/invite/InvitePromptModal';
+
+const APP_NAME = process.env.EXPO_PUBLIC_APP_DISPLAY_NAME || 'TrackPay';
 
 // Helper function to format names in proper sentence case
 const formatName = (name: string): string => {
@@ -94,6 +102,18 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
   const [isSessionLoading, setIsSessionLoading] = useState(false);
   const { toast, showSuccess, showError, hideToast } = useToast();
   const t = simpleT;
+
+  // Invite Growth Loop modal state
+  const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [inviteSharing, setInviteSharing] = useState(false);
+  const [inviteContext, setInviteContext] = useState<'stop_session' | 'request_payment' | null>(null);
+  const [invitePayload, setInvitePayload] = useState<{
+    firstName: string;
+    amount?: string;
+    duration: string;
+    code: string;
+    link: string;
+  } | null>(null);
 
   const loadData = useCallback(async (silent = false) => {
     // Debounce guard: prevent concurrent calls
@@ -446,6 +466,45 @@ const handleCrewAdjust = async (delta: number) => {
 
       // Show success toast with duration
       showSuccess(`${t('common.sessionEnded')} - ${formatHours(durationHours)}`);
+
+      // Growth Loop: Show invite modal if client is unclaimed and feature flag is enabled
+      if (process.env.EXPO_PUBLIC_FEATURE_INVITE_STOP === 'true') {
+        if (client?.claimedStatus === 'unclaimed') {
+          try {
+            // Format duration as HH:MM for invite message
+            const hours = Math.floor(durationHours);
+            const minutes = Math.round((durationHours - hours) * 60);
+            const durationFormatted = `${hours}:${minutes.toString().padStart(2, '0')}`;
+
+            // Get or create invite code
+            const { code, link } = await getOrCreateInviteCode(client.id);
+
+            // Prepare modal payload
+            setInvitePayload({
+              firstName: client.name.split(' ')[0],
+              duration: durationFormatted,
+              code,
+              link
+            });
+            setInviteContext('stop_session');
+            setInviteModalVisible(true);
+
+            // Analytics: Track modal shown
+            try {
+              capture(E.INVITE_MODAL_SHOWN, {
+                context: 'stop_session',
+                client_id: client.id,
+                client_claimed_status: client.claimedStatus,
+              });
+            } catch (analyticsError) {
+              if (__DEV__) console.error('Analytics tracking failed:', analyticsError);
+            }
+          } catch (error) {
+            // Non-blocking: if invite fails, session still stopped successfully
+            if (__DEV__) console.warn('Invite prep failed after session stop:', error);
+          }
+        }
+      }
     } catch (error) {
       Alert.alert(t('clientHistory.errorTitle'), t('clientHistory.sessionEndError'));
     } finally {
@@ -453,7 +512,7 @@ const handleCrewAdjust = async (delta: number) => {
     }
   };
 
-  const handleRequestPayment = () => {
+  const handleRequestPayment = async () => {
     // Pre-check: Ensure no pending request exists (idempotency guard)
     if (pendingRequest || moneyState?.lastPendingRequest) {
       if (__DEV__) {
@@ -469,6 +528,50 @@ const handleCrewAdjust = async (delta: number) => {
     if (unpaidSessions.length === 0) {
       showError(t('clientHistory.noUnpaidSessions'));
       return;
+    }
+
+    // Growth Loop: Show invite modal if client is unclaimed and feature flag is enabled
+    if (process.env.EXPO_PUBLIC_FEATURE_INVITE_PAYMENT === 'true') {
+      if (client?.claimedStatus === 'unclaimed') {
+        try {
+          // Use unpaid hours from state (already calculated correctly in getClientSummary)
+          const hours = Math.floor(unpaidHours);
+          const minutes = Math.round((unpaidHours - hours) * 60);
+          const durationFormatted = `${hours}:${minutes.toString().padStart(2, '0')}`;
+
+          // Get or create invite code
+          const { code, link } = await getOrCreateInviteCode(client.id);
+
+          // Prepare modal payload
+          setInvitePayload({
+            firstName: client.name.split(' ')[0],
+            amount: formatCurrency(totalUnpaidBalance),
+            duration: durationFormatted,
+            code,
+            link
+          });
+          setInviteContext('request_payment');
+          setInviteModalVisible(true);
+
+          // Analytics: Track modal shown
+          try {
+            capture(E.INVITE_MODAL_SHOWN, {
+              context: 'request_payment',
+              client_id: client.id,
+              client_claimed_status: client.claimedStatus,
+            });
+          } catch (analyticsError) {
+            if (__DEV__) console.error('Analytics tracking failed:', analyticsError);
+          }
+
+          return; // Exit early - modal will handle payment creation
+        } catch (error) {
+          // Non-blocking: continue with normal payment request
+          if (__DEV__) {
+            console.warn('Invite prep failed before payment request:', error);
+          }
+        }
+      }
     }
 
     // Analytics: Track payment request action (per-session, canonical)
@@ -496,6 +599,66 @@ const handleCrewAdjust = async (delta: number) => {
     }
 
     setShowConfirmModal(true);
+  };
+
+  const handleShareInvite = async () => {
+    if (!invitePayload || !inviteContext) return;
+
+    try {
+      setInviteSharing(true);
+
+      // Analytics: Track user chose to share
+      capture(E.INVITE_MODAL_ACTION, {
+        action: 'share',
+        context: inviteContext,
+      });
+
+      // For payment request flow: create payment first
+      if (inviteContext === 'request_payment') {
+        await handleConfirmRequest();
+      }
+
+      // Build appropriate message based on context
+      const message = inviteContext === 'stop_session'
+        ? buildHoursShare(invitePayload)
+        : buildPaymentShare(invitePayload as { firstName: string; amount: string; duration: string; code: string; link: string });
+
+      await Share.share({ message });
+
+      // Analytics: Track share sheet opened
+      capture(E.INVITE_SHARE_INITIATED, {
+        channel: 'native_share',
+        context: inviteContext,
+      });
+
+      setInviteModalVisible(false);
+    } catch (error) {
+      // User cancelled share or error occurred
+      if (__DEV__) {
+        console.warn('Share invite error:', error);
+      }
+      setInviteModalVisible(false);
+    } finally {
+      setInviteSharing(false);
+    }
+  };
+
+  const handleCloseInviteModal = async () => {
+    if (!inviteContext) return;
+
+    // Analytics: Track user chose to skip sharing
+    capture(E.INVITE_MODAL_ACTION, {
+      action: 'skip',
+      context: inviteContext,
+    });
+
+    setInviteModalVisible(false);
+
+    // For payment request flow: create payment without sharing
+    if (inviteContext === 'request_payment') {
+      await handleConfirmRequest();
+    }
+    // For stop session flow: just close (session already stopped)
   };
 
   const handleConfirmRequest = async () => {
@@ -892,6 +1055,24 @@ const handleCrewAdjust = async (delta: number) => {
         loadingText={t('confirmation.requesting')}
       />
 
+      {/* Invite Prompt Modal */}
+      <InvitePromptModal
+        visible={inviteModalVisible}
+        sharing={inviteSharing}
+        onShare={handleShareInvite}
+        onClose={handleCloseInviteModal}
+        title={
+          inviteContext === 'stop_session'
+            ? t('inviteModal.sessionStoppedTitle')
+            : t('inviteModal.requestPaymentTitle')
+        }
+        message={
+          inviteContext === 'stop_session'
+            ? t('inviteModal.shareHoursMessage', { firstName: invitePayload?.firstName ?? t('clientHistory.clientNotFound') })
+            : t('inviteModal.sharePaymentMessage', { firstName: invitePayload?.firstName ?? t('clientHistory.clientNotFound'), appName: APP_NAME })
+        }
+      />
+
       {/* Toast Notification */}
       <Toast
         visible={toast.visible}
@@ -899,6 +1080,7 @@ const handleCrewAdjust = async (delta: number) => {
         type={toast.type}
         onHide={hideToast}
       />
+
     </SafeAreaView>
   );
 };

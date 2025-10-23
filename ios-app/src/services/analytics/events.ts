@@ -50,6 +50,14 @@ export const E = {
   BUSINESS_INVITE_CODE_CREATED: 'business_invite_code_created',
   BUSINESS_INVITE_CODE_SHARED: 'business_invite_code_shared',
   BUSINESS_INVITE_CODE_CLAIMED: 'business_invite_code_claimed',
+
+  // Growth Loop - Invite Modals (6 new events)
+  INVITE_MODAL_SHOWN: 'invite_modal_shown',
+  INVITE_MODAL_ACTION: 'invite_modal_action',
+  INVITE_SHARE_INITIATED: 'invite_share_initiated',
+  INVITE_REDEEMED: 'invite_redeemed',
+  INVITE_REDEMPTION_FAILED: 'invite_redemption_failed',
+  RELATIONSHIP_CREATED_FROM_INVITE: 'relationship_created_from_invite',
 } as const;
 
 // ============================================

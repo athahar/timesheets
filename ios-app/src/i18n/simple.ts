@@ -3,6 +3,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const LANGUAGE_STORAGE_KEY = 'user_language';
 
+// Get app display name from env or use default
+const APP_DISPLAY_NAME = process.env.EXPO_PUBLIC_APP_DISPLAY_NAME || 'TrackPay';
+
 // Simple translations
 const translations = {
   'en-US': {
@@ -64,10 +67,10 @@ const translations = {
     'register.success.accountCreated': 'Account Created',
     'register.success.joinedWorkspace': 'Your account has been created and you\'ve successfully joined {{inviterName}}\'s workspace!',
     'register.success.useInviteAgain': 'Your account has been created successfully! Please use your invite code again to join the workspace.',
-    'register.success.canStartUsing': 'Your account has been created successfully! You can now start using TrackPay.',
+    'register.success.canStartUsing': `Your account has been created successfully! You can now start using ${APP_DISPLAY_NAME}.`,
 
     'login.title': 'Welcome Back',
-    'login.subtitle': 'Sign in to your TrackPay account',
+    'login.subtitle': `Sign in to your ${APP_DISPLAY_NAME} account`,
     'login.back': 'Back',
     'login.email': 'Email',
     'login.password': 'Password',
@@ -465,8 +468,16 @@ const translations = {
     'clientCard.noUnpaidHours': 'No unpaid hours',
     'clientCard.paidUp': 'Paid up',
 
+    // Invite Growth Loop
+    'inviteModal.sessionStoppedTitle': 'Session stopped',
+    'inviteModal.requestPaymentTitle': 'Request payment',
+    'inviteModal.shareHoursMessage': 'Share your hours and invite {{firstName}} to connect.',
+    'inviteModal.sharePaymentMessage': '{{firstName}} isn\'t on {{appName}} yet. Share your payment request and invite them to connect.',
+    'inviteModal.shareInvite': 'Share Invite',
+    'inviteModal.close': 'Close',
+
     // Common terms
-    'common.appName': 'TrackPay',
+    'common.appName': APP_DISPLAY_NAME,
     'common.due': 'Due',
     'common.hrs': 'hrs',
     'common.person': 'person',
@@ -568,10 +579,10 @@ const translations = {
     'register.success.accountCreated': 'Cuenta Creada',
     'register.success.joinedWorkspace': '¡Tu cuenta ha sido creada y te has unido exitosamente al espacio de trabajo de {{inviterName}}!',
     'register.success.useInviteAgain': '¡Tu cuenta ha sido creada exitosamente! Por favor usa tu código de invitación de nuevo para unirte al espacio de trabajo.',
-    'register.success.canStartUsing': '¡Tu cuenta ha sido creada exitosamente! Ahora puedes comenzar a usar TrackPay.',
+    'register.success.canStartUsing': `¡Tu cuenta ha sido creada exitosamente! Ahora puedes comenzar a usar ${APP_DISPLAY_NAME}.`,
 
     'login.title': 'Bienvenido de Vuelta',
-    'login.subtitle': 'Inicia sesión en tu cuenta TrackPay',
+    'login.subtitle': `Inicia sesión en tu cuenta ${APP_DISPLAY_NAME}`,
     'login.back': 'Atrás',
     'login.email': 'Correo Electrónico',
     'login.password': 'Contraseña',
@@ -969,8 +980,16 @@ const translations = {
     'clientCard.noUnpaidHours': 'Sin horas pendientes',
     'clientCard.paidUp': 'Al día',
 
+    // Invite Growth Loop (Spanish)
+    'inviteModal.sessionStoppedTitle': 'Sesión detenida',
+    'inviteModal.requestPaymentTitle': 'Solicitar pago',
+    'inviteModal.shareHoursMessage': 'Comparte tus horas e invita a {{firstName}} a conectarse.',
+    'inviteModal.sharePaymentMessage': '{{firstName}} aún no está en {{appName}}. Comparte tu solicitud de pago e invítalo a conectarse.',
+    'inviteModal.shareInvite': 'Compartir Invitación',
+    'inviteModal.close': 'Cerrar',
+
     // Common terms (Spanish)
-    'common.appName': 'TrackPay',
+    'common.appName': APP_DISPLAY_NAME,
     'common.due': 'Pendiente',
     'common.hrs': 'hrs',
     'common.person': 'persona',

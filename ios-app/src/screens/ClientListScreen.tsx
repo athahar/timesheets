@@ -16,6 +16,7 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
   InputAccessoryView,
+  Share,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -46,6 +47,12 @@ import { TP } from '../styles/themeV2';
 import { simpleT } from '../i18n/simple';
 // Analytics
 import { capture, group, E, nowIso } from '../services/analytics';
+// Invite Growth Loop
+import { getOrCreateInviteCode } from '../features/invite/getOrCreateInviteCode';
+import { buildHoursShare } from '../features/invite/inviteShare';
+import { InvitePromptModal } from '../features/invite/InvitePromptModal';
+
+const APP_NAME = process.env.EXPO_PUBLIC_APP_DISPLAY_NAME || 'TrackPay';
 
 interface ClientListScreenProps {
   navigation: any;
@@ -76,6 +83,16 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const [, forceUpdate] = useState(0); // Force re-render for language changes
   const [sessionTimers, setSessionTimers] = useState<Record<string, number>>({}); // clientId -> elapsed hours
   const sectionListRef = useRef<SectionList>(null);
+
+  // Invite Growth Loop modal state
+  const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [inviteSharing, setInviteSharing] = useState(false);
+  const [invitePayload, setInvitePayload] = useState<{
+    firstName: string;
+    duration: string;
+    code: string;
+    link: string;
+  } | null>(null);
 
   const { user, userProfile, signOut } = useAuth();
   const insets = useSafeAreaInsets();
@@ -354,6 +371,46 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
 
       // Show success toast with duration
       showSuccess(`${simpleT('common.sessionEnded')} - ${formatHours(durationHours)}`);
+
+      // Growth Loop: Show invite modal if client is unclaimed and feature flag is enabled
+      if (process.env.EXPO_PUBLIC_FEATURE_INVITE_STOP === 'true') {
+        if (client.claimedStatus === 'unclaimed') {
+          try {
+            // Format duration as HH:MM for invite message
+            const hours = Math.floor(durationHours);
+            const minutes = Math.round((durationHours - hours) * 60);
+            const durationFormatted = `${hours}:${minutes.toString().padStart(2, '0')}`;
+
+            // Get or create invite code
+            const { code, link } = await getOrCreateInviteCode(client.id);
+
+            // Prepare modal payload
+            setInvitePayload({
+              firstName: client.name.split(' ')[0],
+              duration: durationFormatted,
+              code,
+              link
+            });
+            setInviteModalVisible(true);
+
+            // Analytics: Track modal shown
+            try {
+              capture(E.INVITE_MODAL_SHOWN, {
+                context: 'stop_session',
+                client_id: client.id,
+                client_claimed_status: client.claimedStatus,
+              });
+            } catch (analyticsError) {
+              if (__DEV__) console.error('Analytics tracking failed:', analyticsError);
+            }
+          } catch (error) {
+            // Non-blocking: session already ended
+            if (__DEV__) {
+              console.warn('Invite prep failed after session stop:', error);
+            }
+          }
+        }
+      }
     } catch (error) {
       if (__DEV__) console.error('Error stopping session:', error);
       showError(simpleT('clientList.errorStopSession'));
@@ -361,6 +418,61 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
       setActioningClientId(null);
     }
   }, [actioningClientId, refreshClients, showSuccess, showError]);
+
+  const handleShareInvite = useCallback(async () => {
+    if (!invitePayload) return;
+
+    try {
+      setInviteSharing(true);
+
+      // Analytics: Track user chose to share
+      try {
+        capture(E.INVITE_MODAL_ACTION, {
+          action: 'share',
+          context: 'stop_session',
+        });
+      } catch (analyticsError) {
+        if (__DEV__) console.error('Analytics tracking failed:', analyticsError);
+      }
+
+      const message = buildHoursShare(invitePayload);
+      await Share.share({ message });
+
+      // Analytics: Track share sheet opened
+      try {
+        capture(E.INVITE_SHARE_INITIATED, {
+          channel: 'native_share',
+          context: 'stop_session',
+        });
+      } catch (analyticsError) {
+        if (__DEV__) console.error('Analytics tracking failed:', analyticsError);
+      }
+
+      setInviteModalVisible(false);
+    } catch (error) {
+      // User cancelled share or error occurred
+      if (__DEV__) {
+        console.warn('Share invite error:', error);
+      }
+      setInviteModalVisible(false);
+    } finally {
+      setInviteSharing(false);
+    }
+  }, [invitePayload]);
+
+  const handleCloseInviteModal = useCallback(() => {
+    // Analytics: Track user chose to skip
+    try {
+      capture(E.INVITE_MODAL_ACTION, {
+        action: 'skip',
+        context: 'stop_session',
+      });
+    } catch (analyticsError) {
+      if (__DEV__) console.error('Analytics tracking failed:', analyticsError);
+    }
+
+    setInviteModalVisible(false);
+  }, []);
 
   const renderLeftActions = useCallback((item: ClientWithSummary) => {
     const isLoading = actioningClientId === item.id;
@@ -680,6 +792,16 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
         onClose={() => setShowHowItWorks(false)}
       />
 
+      {/* Invite Prompt Modal */}
+      <InvitePromptModal
+        visible={inviteModalVisible}
+        sharing={inviteSharing}
+        onShare={handleShareInvite}
+        onClose={handleCloseInviteModal}
+        title={simpleT('inviteModal.sessionStoppedTitle')}
+        message={simpleT('inviteModal.shareHoursMessage', { firstName: invitePayload?.firstName ?? simpleT('clientList.errorTitle') })}
+      />
+
       {/* Toast Notifications */}
       <Toast
         visible={toast.visible}
@@ -687,6 +809,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
         type={toast.type}
         onHide={hideToast}
       />
+
     </SafeAreaView>
   );
 };
