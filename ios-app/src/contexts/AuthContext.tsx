@@ -23,6 +23,7 @@ export interface UserProfile {
   display_name?: string;
   role: 'provider' | 'client';
   hourly_rate?: number;
+  has_seen_welcome?: boolean; // Track if client has seen welcome modal after invite claim
   created_at: string;
   updated_at: string;
 }

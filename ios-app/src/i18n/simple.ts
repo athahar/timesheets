@@ -211,6 +211,15 @@ const translations = {
     'providerList.emptyTitle': 'No service providers yet',
     'providerList.emptySubtitle': 'You\'ll see providers you work with here',
 
+    // ClientWelcomeModal (post-invite claim success)
+    'clientWelcome.title': 'Welcome to TrackPay',
+    'clientWelcome.subtitle': 'You\'ve joined {{providerName}}\'s workspace.',
+    'clientWelcome.cta': 'Continue',
+
+    // Client home empty state
+    'clientList.emptyTitle': 'No providers yet',
+    'clientList.emptySubtitle': 'Ask your service provider for your invite code.',
+
     // ClientHistoryScreen
     'clientHistory.loading': 'Loading...',
     'clientHistory.clientNotFound': 'Client not found',
@@ -373,6 +382,8 @@ const translations = {
     'toast.success': 'Success',
     'toast.error': 'Error',
     'toast.warning': 'Warning',
+    'toast.paymentRecorded': 'Payment recorded',
+    'toast.errorRetry': 'Pull to refresh to retry',
     'toast.info': 'Info',
 
     // ConfirmationModal
@@ -490,6 +501,7 @@ const translations = {
     'common.stop': 'Stop',
     'common.sessionStarted': 'Session started',
     'common.sessionEnded': 'Session ended',
+    'common.today': 'Today',
     'common.edit': 'Edit',
     'common.cancel': 'Cancel',
     'common.save': 'Save',
@@ -723,6 +735,15 @@ const translations = {
     'providerList.emptyTitle': 'Aún no hay proveedores de servicios',
     'providerList.emptySubtitle': 'Verás aquí a los proveedores con los que trabajas',
 
+    // ClientWelcomeModal (Spanish)
+    'clientWelcome.title': 'Bienvenido a TrackPay',
+    'clientWelcome.subtitle': 'Te has unido al espacio de trabajo de {{providerName}}.',
+    'clientWelcome.cta': 'Continuar',
+
+    // Client home empty state (Spanish)
+    'clientList.emptyTitle': 'Aún no hay proveedores',
+    'clientList.emptySubtitle': 'Pídele a tu proveedor de servicios tu código de invitación.',
+
     // ClientHistoryScreen (Spanish)
     'clientHistory.loading': 'Cargando...',
     'clientHistory.clientNotFound': 'Cliente no encontrado',
@@ -885,6 +906,8 @@ const translations = {
     'toast.success': 'Éxito',
     'toast.error': 'Error',
     'toast.warning': 'Advertencia',
+    'toast.paymentRecorded': 'Pago registrado',
+    'toast.errorRetry': 'Desliza para actualizar y reintentar',
     'toast.info': 'Información',
 
     // ConfirmationModal (Spanish)
@@ -1002,6 +1025,7 @@ const translations = {
     'common.stop': 'Detener',
     'common.sessionStarted': 'Sesión iniciada',
     'common.sessionEnded': 'Sesión terminada',
+    'common.today': 'Hoy',
     'common.edit': 'Editar',
     'common.cancel': 'Cancelar',
     'common.save': 'Guardar',

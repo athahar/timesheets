@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,13 @@ import {
   RefreshControl,
   TouchableOpacity,
   StyleSheet,
-  Alert,
+  Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { TP } from '../styles/themeV2';
+import { TPHeader } from '../components/v2/TPHeader';
+import ProviderCardSkeleton from '../components/ProviderCardSkeleton';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import {
@@ -20,7 +22,10 @@ import {
   getClientSummary,
 } from '../services/storageService';
 import { simpleT } from '../i18n/simple';
-import { formatCurrency } from '../utils/formatters';
+import { moneyFormat } from '../utils/money';
+import { useLocale } from '../hooks/useLocale';
+import { trackEvent } from '../services/analytics';
+import { dedupeEventOnce } from '../services/analytics/dedupe';
 
 interface ServiceProviderListScreenProps {
   navigation: any;
@@ -37,49 +42,41 @@ interface ServiceProvider {
   hasUnpaidSessions: boolean;
   hasRequestedSessions: boolean;
   paymentStatus: 'unpaid' | 'requested' | 'paid';
+  currency?: string;
 }
 
 export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps> = ({ navigation }) => {
   if (__DEV__) {
-    if (__DEV__) {
-      if (__DEV__) console.log('🚀 ServiceProviderListScreen: Component mounting...');
-    }
+    console.log('🚀 ServiceProviderListScreen: Component mounting...');
   }
-  const { userProfile, signOut } = useAuth();
+  const { userProfile } = useAuth();
   const t = simpleT;
-  if (__DEV__) {
-    if (__DEV__) {
-      if (__DEV__) console.log('👤 ServiceProviderListScreen: userProfile:', userProfile?.name, userProfile?.role);
-    }
-  }
+  const { locale } = useLocale();
 
   const [serviceProviders, setServiceProviders] = useState<ServiceProvider[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [currentUser, setCurrentUser] = useState<string>('');
+
+  // Track screen view on mount
+  useEffect(() => {
+    if (dedupeEventOnce('client.home.viewed')) {
+      trackEvent('client.home.viewed', {
+        providerCount: serviceProviders.length,
+      });
+    }
+  }, []);
 
   const loadServiceProviders = async () => {
     if (__DEV__) {
-      if (__DEV__) {
-        if (__DEV__) console.log('🔄 ServiceProviderList: Starting to load providers...');
-      }
-    }
-    if (__DEV__) {
-      if (__DEV__) {
-        if (__DEV__) console.log('🔄 ServiceProviderList: userProfile:', userProfile);
-      }
+      console.log('🔄 ServiceProviderList: Starting to load providers...');
     }
     try {
       let providersData: ServiceProvider[] = [];
-      let user = '';
 
       if (userProfile) {
         // Authenticated user - load providers based on relationships
-        user = userProfile.name;
         if (__DEV__) {
-          if (__DEV__) {
-            if (__DEV__) console.log('📊 Auth user - loading relationship-based providers for:', user);
-          }
+          console.log('📊 Auth user - loading relationship-based providers for:', userProfile.name);
         }
 
         try {
@@ -93,7 +90,7 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
             console.error('❌ Error loading relationships:', relError);
             providersData = [];
           } else if (relationships && relationships.length > 0) {
-            if (__DEV__) { if (__DEV__) console.log('📊 Found', relationships.length, 'relationships'); }
+            if (__DEV__) console.log('📊 Found', relationships.length, 'relationships');
 
             // Get provider details for each relationship
             const providerIds = relationships.map(rel => rel.provider_id);
@@ -109,9 +106,7 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
             } else {
               // Convert Supabase format to ServiceProvider format and load real session data
               if (__DEV__) {
-                if (__DEV__) {
-                  if (__DEV__) console.log('💰 ServiceProviderList: Loading provider summaries for', relatedProviders.length, 'providers...');
-                }
+                console.log('💰 ServiceProviderList: Loading provider summaries for', relatedProviders.length, 'providers...');
               }
 
               const providersWithSummary = await Promise.allSettled(
@@ -136,12 +131,11 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
                       hasUnpaidSessions: summary.hasUnpaidSessions,
                       hasRequestedSessions: summary.hasRequestedSessions,
                       paymentStatus: summary.paymentStatus,
+                      currency: provider.currency || 'USD',
                     };
                   } catch (error) {
                     if (__DEV__) {
-                      if (__DEV__) {
-                        if (__DEV__) console.warn('⚠️ Failed to load summary for provider:', provider.name, error.message);
-                      }
+                      console.warn('⚠️ Failed to load summary for provider:', provider.name, error.message);
                     }
                     // Return provider with default summary
                     return {
@@ -155,6 +149,7 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
                       hasUnpaidSessions: false,
                       hasRequestedSessions: false,
                       paymentStatus: 'paid' as const,
+                      currency: provider.currency || 'USD',
                     };
                   }
                 })
@@ -168,16 +163,12 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
                 .map(result => result.value);
 
               if (__DEV__) {
-
-                if (__DEV__) { if (__DEV__) console.log('✅ Loaded', providersData.length, 'related providers with session data'); }
-
+                console.log('✅ Loaded', providersData.length, 'related providers with session data');
               }
             }
           } else {
             if (__DEV__) {
-              if (__DEV__) {
-                if (__DEV__) console.log('📊 No relationships found - empty provider list');
-              }
+              console.log('📊 No relationships found - empty provider list');
             }
             providersData = [];
           }
@@ -187,33 +178,18 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
         }
       } else {
         // Fallback for non-auth users (development mode)
-        const [user, providers] = await Promise.all([
-          getCurrentUser(),
-          getServiceProvidersForClient('')
-        ]);
+        const providers = await getServiceProvidersForClient('');
         providersData = providers;
         if (__DEV__) {
-          if (__DEV__) {
-            if (__DEV__) console.log('📊 Non-auth user - loading from localStorage:', providersData.length, 'providers');
-          }
+          console.log('📊 Non-auth user - loading from localStorage:', providersData.length, 'providers');
         }
       }
 
       setServiceProviders(providersData);
-      const userName = userProfile?.name || user || 'Client';
-      setCurrentUser(userName);
 
       if (__DEV__) {
-
-        if (__DEV__) {
-          if (__DEV__) console.log('📊 ServiceProviderListScreen: Loaded', providersData.length, 'providers');
-        }
-
-      }
-      if (__DEV__) {
-        if (__DEV__) {
-          if (__DEV__) console.log('✅ ServiceProviderList: Loading complete!');
-        }
+        console.log('📊 ServiceProviderListScreen: Loaded', providersData.length, 'providers');
+        console.log('✅ ServiceProviderList: Loading complete!');
       }
     } catch (error) {
       console.error('Error loading service providers:', error);
@@ -226,25 +202,17 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
   useFocusEffect(
     useCallback(() => {
       if (__DEV__) {
-        if (__DEV__) {
-          if (__DEV__) console.log('🎯 ServiceProviderListScreen: useFocusEffect triggered');
-        }
-      }
-      if (__DEV__) {
-        if (__DEV__) {
-          if (__DEV__) console.log('🔧 ServiceProviderListScreen: userProfile available:', !!userProfile);
-        }
+        console.log('🎯 ServiceProviderListScreen: useFocusEffect triggered');
+        console.log('🔧 ServiceProviderListScreen: userProfile available:', !!userProfile);
       }
 
       // Only load providers if we have a userProfile
       if (userProfile) {
-        if (__DEV__) { if (__DEV__) console.log('🔧 ServiceProviderListScreen: About to call loadServiceProviders...'); }
+        if (__DEV__) console.log('🔧 ServiceProviderListScreen: About to call loadServiceProviders...');
         loadServiceProviders();
       } else {
         if (__DEV__) {
-          if (__DEV__) {
-            if (__DEV__) console.log('⏳ ServiceProviderListScreen: Waiting for userProfile...');
-          }
+          console.log('⏳ ServiceProviderListScreen: Waiting for userProfile...');
         }
         setLoading(false); // Stop loading state if no profile yet
       }
@@ -258,112 +226,114 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
 
   const handleProviderPress = (provider: ServiceProvider) => {
     if (__DEV__) {
-      if (__DEV__) {
-        if (__DEV__) console.log('🎯 ServiceProviderListScreen: Provider pressed:', provider.name);
-      }
+      console.log('🎯 ServiceProviderListScreen: Provider pressed:', provider.name);
     }
-    navigation.navigate('ServiceProviderSummary', { providerId: provider.id, providerName: provider.name });
-  };
 
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Login' }],
+    // Track provider card tap
+    if (dedupeEventOnce(`client.provider.card_tapped.${provider.id}`, 1000)) {
+      trackEvent('client.provider.card_tapped', {
+        providerId: provider.id,
+        providerName: provider.name,
+        totalBalance: provider.totalUnpaidBalance,
       });
-    } catch (error) {
-      console.error('Logout error:', error);
-      Alert.alert(t('providerList.errorTitle'), t('providerList.logoutError'));
     }
+
+    navigation.navigate('ServiceProviderSummary', {
+      providerId: provider.id,
+      providerName: provider.name,
+    });
   };
 
   const formatHours = (hours: number) => {
     const wholeHours = Math.floor(hours);
     const minutes = Math.round((hours - wholeHours) * 60);
     if (wholeHours === 0) {
-      return `${minutes}min person-hours`;
+      return `${minutes}min`;
     }
     const minutePart = minutes > 0 ? ` ${minutes}min` : '';
-    return `${wholeHours}hr${minutePart} person-hours`;
+    return `${wholeHours}hr${minutePart}`;
   };
 
-  const renderProviderCard = ({ item }: { item: ServiceProvider }) => (
-    <TouchableOpacity
-      onPress={() => handleProviderPress(item)}
-      style={styles.providerCard}
-      activeOpacity={0.8}
-    >
-      <View style={styles.providerHeader}>
-        {/* Left Side: Provider Info */}
-        <View style={styles.providerInfo}>
-          <Text style={styles.providerName}>{item.name}</Text>
-          <Text style={styles.providerSubtitle}>{t('providerList.serviceProvider')}</Text>
+  const renderProviderCard = ({ item }: { item: ServiceProvider }) => {
+    const currency = item.currency || 'USD';
+
+    return (
+      <TouchableOpacity
+        onPress={() => handleProviderPress(item)}
+        style={styles.providerCard}
+        activeOpacity={0.7}
+      >
+        <View style={styles.providerHeader}>
+          {/* Left Side: Provider Info */}
+          <View style={styles.providerInfo}>
+            <Text style={styles.providerName}>{item.name}</Text>
+            <Text style={styles.providerSubtitle}>{t('providerList.serviceProvider')}</Text>
+          </View>
+
+          {/* Right Side: Balance Info */}
+          <View style={styles.balanceSection}>
+            {item.totalUnpaidBalance > 0 ? (
+              <>
+                {/* Payment request notification badge */}
+                {item.hasRequestedSessions && (
+                  <View style={styles.requestBadge}>
+                    <Text style={styles.requestBadgeText}>{t('providerList.paymentRequested')}</Text>
+                  </View>
+                )}
+
+                {/* Context-aware balance text */}
+                {item.paymentStatus === 'requested' ? (
+                  <Text style={styles.balanceRequested}>
+                    {moneyFormat(item.totalUnpaidBalance, currency, locale)}
+                  </Text>
+                ) : (
+                  <Text style={styles.balanceDue}>
+                    {moneyFormat(item.totalUnpaidBalance, currency, locale)}
+                  </Text>
+                )}
+
+                {/* Status-specific hours display */}
+                {item.hasUnpaidSessions && item.hasRequestedSessions ? (
+                  <Text style={styles.unpaidHoursInline}>
+                    [{formatHours(item.unpaidHours + item.requestedHours)}]
+                  </Text>
+                ) : item.hasUnpaidSessions ? (
+                  <Text style={styles.unpaidHoursInline}>
+                    [{formatHours(item.unpaidHours)}]
+                  </Text>
+                ) : item.hasRequestedSessions ? (
+                  <Text style={styles.requestedHoursInline}>
+                    [{formatHours(item.requestedHours)}]
+                  </Text>
+                ) : null}
+              </>
+            ) : (
+              <Text style={styles.paidUp}>{t('providerList.allPaidUp')}</Text>
+            )}
+          </View>
         </View>
+      </TouchableOpacity>
+    );
+  };
 
-        {/* Right Side: Balance Info */}
-        <View style={styles.balanceSection}>
-          {item.totalUnpaidBalance > 0 ? (
-            <>
-              {/* Payment request notification badge */}
-              {item.hasRequestedSessions && (
-                <View style={styles.requestBadge}>
-                  <Text style={styles.requestBadgeText}>{t('providerList.paymentRequested')}</Text>
-                </View>
-              )}
-
-              {/* Context-aware balance text */}
-              {item.paymentStatus === 'requested' ? (
-                <Text style={styles.balanceRequested}>
-                  {t('providerList.paymentRequestedAmount', { amount: formatCurrency(item.totalUnpaidBalance) })}
-                </Text>
-              ) : item.hasRequestedSessions && item.hasUnpaidSessions ? (
-                <Text style={styles.balanceDue}>
-                  {t('providerList.youOweWithRequested', {
-                    total: formatCurrency(item.totalUnpaidBalance),
-                    requested: formatCurrency(item.requestedBalance)
-                  })}
-                </Text>
-              ) : (
-                <Text style={styles.balanceDue}>
-                  {t('providerList.youOwe', { amount: formatCurrency(item.totalUnpaidBalance) })}
-                </Text>
-              )}
-
-              {/* Status-specific hours display */}
-              {item.hasUnpaidSessions && item.hasRequestedSessions ? (
-                <Text style={styles.unpaidHoursInline}>
-                  [{t('providerList.unpaidAndRequested', {
-                    unpaid: formatHours(item.unpaidHours),
-                    requested: formatHours(item.requestedHours)
-                  })}]
-                </Text>
-              ) : item.hasUnpaidSessions ? (
-                <Text style={styles.unpaidHoursInline}>
-                  [{t('providerList.unpaidHours', { hours: formatHours(item.unpaidHours) })}]
-                </Text>
-              ) : item.hasRequestedSessions ? (
-                <Text style={styles.requestedHoursInline}>
-                  [{t('providerList.requestedHours', { hours: formatHours(item.requestedHours) })}]
-                </Text>
-              ) : null}
-            </>
-          ) : (
-            <Text style={styles.paidUp}>{t('providerList.allPaidUp')}</Text>
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
+  const renderSkeletons = () => (
+    <>
+      <ProviderCardSkeleton />
+      <ProviderCardSkeleton />
+      <ProviderCardSkeleton />
+    </>
   );
 
+  // Calculate total unpaid
   const totalUnpaid = serviceProviders.reduce((sum, provider) => sum + provider.totalUnpaidBalance, 0);
+  const currency = serviceProviders.length > 0 ? serviceProviders[0].currency || 'USD' : 'USD';
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* User Header */}
-      <View style={styles.userHeader}>
-        <Text style={styles.userName}>{currentUser}</Text>
-        <View style={styles.headerActions}>
+      {/* Header */}
+      <TPHeader
+        title="TrackPay"
+        right={
           <TouchableOpacity
             onPress={() => navigation.navigate('Settings')}
             style={styles.settingsButton}
@@ -372,49 +342,43 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
           >
             <Feather name="settings" size={20} color={TP.color.ink} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-            <Text style={styles.logoutText}>{t('providerList.logout')}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+        }
+      />
 
       {/* Scrollable Content */}
-      <FlatList
-        data={serviceProviders}
-        renderItem={renderProviderCard}
-        keyExtractor={(item) => item.id}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-        contentContainerStyle={styles.listContainer}
-        style={styles.scrollContainer}
-        ListHeaderComponent={
-          <View>
-            {/* Main Header */}
-            <View style={styles.header}>
-              <Text style={styles.title}>{t('providerList.title')}</Text>
-
-              {totalUnpaid > 0 && (
-                <View style={styles.outstandingCard}>
-                  <Text style={styles.outstandingLabel}>{t('providerList.totalYouOwe')}</Text>
-                  <Text style={styles.outstandingAmount}>
-                    {formatCurrency(totalUnpaid)}
-                  </Text>
-                </View>
-              )}
+      {loading ? (
+        <View style={styles.listContainer}>{renderSkeletons()}</View>
+      ) : (
+        <FlatList
+          data={serviceProviders}
+          renderItem={renderProviderCard}
+          keyExtractor={(item) => item.id}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          }
+          contentContainerStyle={styles.listContainer}
+          style={styles.scrollContainer}
+          ListHeaderComponent={
+            totalUnpaid > 0 ? (
+              <View style={styles.outstandingCard}>
+                <Text style={styles.outstandingLabel}>{t('providerList.totalYouOwe')}</Text>
+                <Text style={styles.outstandingAmount}>
+                  {moneyFormat(totalUnpaid, currency, locale)}
+                </Text>
+              </View>
+            ) : null
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyTitle}>{t('clientList.emptyTitle')}</Text>
+              <Text style={styles.emptySubtitle}>
+                {t('clientList.emptySubtitle')}
+              </Text>
             </View>
-          </View>
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>{t('providerList.emptyTitle')}</Text>
-            <Text style={styles.emptySubtitle}>
-              {t('providerList.emptySubtitle')}
-            </Text>
-          </View>
-        }
-        showsVerticalScrollIndicator={false}
-      />
+          }
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -424,89 +388,53 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: TP.color.appBg,
   },
-  userHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: TP.spacing.x16,
-    paddingTop: TP.spacing.x12,
-    paddingBottom: TP.spacing.x12,
-    backgroundColor: TP.color.cardBg,
-    borderBottomWidth: 1,
-    borderBottomColor: TP.color.border,
-  },
-  userName: {
-    fontSize: 20,
-    fontWeight: TP.weight.semibold,
-    color: TP.color.ink,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: TP.spacing.x16,
-  },
   settingsButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: TP.color.cardBg,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: TP.color.border,
-  },
-  logoutButton: {
-    paddingVertical: TP.spacing.x8,
-    paddingHorizontal: TP.spacing.x12,
-  },
-  logoutText: {
-    fontSize: TP.font.body,
-    color: TP.color.ink,
-  },
-  header: {
-    paddingTop: TP.spacing.x16,
-    paddingBottom: TP.spacing.x12,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: TP.weight.semibold,
-    color: TP.color.ink,
-    marginBottom: TP.spacing.x16,
-  },
-  outstandingCard: {
-    backgroundColor: TP.color.cardBg,
-    borderWidth: 1,
-    borderColor: TP.color.border,
-    borderRadius: TP.radius.card,
-    padding: TP.spacing.x16,
-    marginBottom: TP.spacing.x16,
-  },
-  outstandingLabel: {
-    fontSize: TP.font.footnote,
-    color: TP.color.textSecondary,
-    marginBottom: TP.spacing.x4,
-  },
-  outstandingAmount: {
-    fontSize: 24,
-    fontWeight: TP.weight.bold,
-    color: '#EF4444',
-    fontVariant: ['tabular-nums'],
   },
   scrollContainer: {
     flex: 1,
   },
   listContainer: {
     paddingHorizontal: TP.spacing.x16,
+    paddingTop: TP.spacing.x16,
     paddingBottom: TP.spacing.x32,
     flexGrow: 1,
   },
-  providerCard: {
+  outstandingCard: {
     backgroundColor: TP.color.cardBg,
-    borderWidth: 1,
-    borderColor: TP.color.border,
     borderRadius: TP.radius.card,
     padding: TP.spacing.x16,
     marginBottom: TP.spacing.x16,
+    ...Platform.select({
+      ios: TP.shadow.card.ios,
+      android: TP.shadow.card.android,
+    }),
+  },
+  outstandingLabel: {
+    fontSize: TP.font.footnote,
+    fontWeight: TP.weight.medium,
+    color: TP.color.textSecondary,
+    marginBottom: TP.spacing.x4,
+  },
+  outstandingAmount: {
+    fontSize: 28,
+    fontWeight: TP.weight.bold,
+    color: '#EF4444',
+    fontVariant: ['tabular-nums'],
+  },
+  providerCard: {
+    backgroundColor: TP.color.cardBg,
+    borderRadius: TP.radius.card,
+    padding: TP.spacing.x16,
+    marginBottom: TP.spacing.x12,
+    ...Platform.select({
+      ios: TP.shadow.card.ios,
+      android: TP.shadow.card.android,
+    }),
   },
   providerHeader: {
     flexDirection: 'row',
@@ -524,6 +452,7 @@ const styles = StyleSheet.create({
   },
   providerSubtitle: {
     fontSize: TP.font.footnote,
+    fontWeight: TP.weight.regular,
     color: TP.color.textSecondary,
   },
   balanceSection: {
@@ -539,10 +468,12 @@ const styles = StyleSheet.create({
   },
   unpaidHoursInline: {
     fontSize: TP.font.footnote,
+    fontWeight: TP.weight.regular,
     color: TP.color.textSecondary,
   },
   requestedHoursInline: {
     fontSize: TP.font.footnote,
+    fontWeight: TP.weight.regular,
     color: TP.color.textSecondary,
   },
   paidUp: {
@@ -556,27 +487,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 80,
     backgroundColor: TP.color.cardBg,
-    borderWidth: 1,
-    borderColor: TP.color.border,
     borderRadius: TP.radius.card,
-    margin: TP.spacing.x16,
+    ...Platform.select({
+      ios: TP.shadow.card.ios,
+      android: TP.shadow.card.android,
+    }),
   },
   emptyTitle: {
     fontSize: TP.font.body,
-    fontWeight: TP.weight.medium,
-    color: TP.color.textSecondary,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.ink,
     marginBottom: TP.spacing.x8,
   },
   emptySubtitle: {
-    fontSize: 14,
+    fontSize: TP.font.footnote,
+    fontWeight: TP.weight.regular,
     color: TP.color.textSecondary,
     textAlign: 'center',
+    paddingHorizontal: TP.spacing.x24,
   },
   requestBadge: {
-    backgroundColor: '#FEF3C7',
-    borderWidth: 1,
-    borderColor: '#F59E0B',
-    borderRadius: TP.spacing.x16,
+    backgroundColor: TP.color.pill.dueBg,
+    borderRadius: TP.radius.pill,
     paddingHorizontal: TP.spacing.x8,
     paddingVertical: TP.spacing.x4,
     marginBottom: TP.spacing.x4,
@@ -585,12 +517,12 @@ const styles = StyleSheet.create({
   requestBadgeText: {
     fontSize: 12,
     fontWeight: TP.weight.medium,
-    color: '#D97706',
+    color: TP.color.pill.dueText,
   },
   balanceRequested: {
     fontSize: TP.font.body,
     fontWeight: TP.weight.semibold,
-    color: '#F59E0B',
+    color: TP.color.pill.dueText,
     fontVariant: ['tabular-nums'],
     marginBottom: TP.spacing.x4,
   },
