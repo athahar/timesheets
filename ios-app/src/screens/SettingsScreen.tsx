@@ -158,7 +158,14 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
           <Text style={styles.headerTitle}>{t('settings.title')}</Text>
         </View>
 
-        <View style={styles.headerButton} />
+        <TouchableOpacity
+          onPress={handleSignOut}
+          style={styles.headerButton}
+          accessibilityRole="button"
+          accessibilityLabel={t('settings.signOut')}
+        >
+          <Text style={styles.headerButtonText}>{t('settings.signOut')}</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -233,16 +240,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
               </TouchableOpacity>
             </View>
           </View>
-
-          {/* Logout Button */}
-          <TouchableOpacity
-            style={styles.logoutButton}
-            onPress={handleSignOut}
-            accessibilityRole="button"
-            accessibilityLabel={t('settings.signOut')}
-          >
-            <Text style={styles.logoutButtonText}>{t('settings.signOut')}</Text>
-          </TouchableOpacity>
 
         </View>
       </ScrollView>
@@ -394,19 +391,4 @@ const styles = StyleSheet.create({
     textAlignVertical: 'center',
     paddingVertical: TP.spacing.x12,
   },
-
-  // Logout Button (destructive action at bottom)
-  logoutButton: {
-    marginTop: TP.spacing.x32,
-    paddingVertical: TP.spacing.x16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
-  },
-  logoutButtonText: {
-    fontSize: TP.font.body,
-    fontWeight: TP.weight.semibold,
-    color: TP.color.btn.dangerBg,
-  },
-  // bottomAction and keyboard accessory styles removed - now using StickyActionBar component
 });

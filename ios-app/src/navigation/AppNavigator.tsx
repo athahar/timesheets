@@ -63,7 +63,7 @@ const LoadingScreen = () => (
 );
 
 // Smart Account Selection - Auto-navigates based on user role
-const SmartAccountSelection = ({ navigation, userProfile }: { navigation: any; userProfile: any }) => {
+const SmartAccountSelection = ({ navigation, userProfile, isLoading }: { navigation: any; userProfile: any; isLoading: boolean }) => {
   const [navigated, setNavigated] = useState(false);
 
   useEffect(() => {
@@ -91,12 +91,13 @@ const SmartAccountSelection = ({ navigation, userProfile }: { navigation: any; u
     }
   }, [userProfile, navigation, navigated]);
 
-  // If we have a userProfile, show loading while navigating
-  if (userProfile) {
+  // If loading or have userProfile, show loading screen
+  if (isLoading || userProfile) {
     return <LoadingScreen />;
   }
 
-  // If no userProfile, show normal AccountSelection
+  // Only show AccountSelection if not loading and no userProfile
+  // This prevents the "Welcome!" screen from flashing during initial load
   return <AccountSelectionScreen navigation={navigation} />;
 };
 
@@ -173,7 +174,7 @@ const AppNavigator = () => {
         }}
       >
         <AppStack.Screen name="AccountSelection">
-          {(props) => <SmartAccountSelection {...props} userProfile={userProfile} />}
+          {(props) => <SmartAccountSelection {...props} userProfile={userProfile} isLoading={isLoading} />}
         </AppStack.Screen>
         <AppStack.Screen
           name="ClientList"
