@@ -12,7 +12,6 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { TP } from '../styles/themeV2';
-import { TPHeader } from '../components/v2/TPHeader';
 import ProviderCardSkeleton from '../components/ProviderCardSkeleton';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
@@ -229,12 +228,11 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
       console.log('🎯 ServiceProviderListScreen: Provider pressed:', provider.name);
     }
 
-    // Track provider card tap
-    if (dedupeEventOnce(`client.provider.card_tapped.${provider.id}`, 1000)) {
-      trackEvent('client.provider.card_tapped', {
-        providerId: provider.id,
-        providerName: provider.name,
-        totalBalance: provider.totalUnpaidBalance,
+    // Track provider card tap with dedupe (prevent double-tap duplicates)
+    if (dedupeEventOnce(E.CLIENT_PROVIDER_CARD_TAPPED)) {
+      capture(E.CLIENT_PROVIDER_CARD_TAPPED, {
+        provider_id: provider.id,
+        provider_name: provider.name,
       });
     }
 
@@ -330,20 +328,19 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <TPHeader
-        title="TrackPay"
-        right={
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Settings')}
-            style={styles.settingsButton}
-            accessibilityRole="button"
-            accessibilityLabel="Settings"
-          >
-            <Feather name="settings" size={20} color={TP.color.ink} />
-          </TouchableOpacity>
-        }
-      />
+      {/* Top Navigation Bar with centered TrackPay - matches provider exactly */}
+      <View style={styles.topNav}>
+        <View style={styles.navSpacer} />
+        <Text style={styles.navTitle}>{simpleT('common.appName')}</Text>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Settings')}
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+          style={styles.navIconButton}
+        >
+          <Feather name="settings" size={20} color={TP.color.ink} />
+        </TouchableOpacity>
+      </View>
 
       {/* Scrollable Content */}
       {loading ? (
@@ -388,10 +385,29 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: TP.color.appBg,
   },
-  settingsButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  // Header styles matching ClientListScreen exactly
+  topNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: TP.spacing.x16,
+    paddingVertical: TP.spacing.x12,
+    backgroundColor: TP.color.appBg,
+    borderBottomWidth: 1,
+    borderBottomColor: TP.color.divider,
+  },
+  navSpacer: {
+    width: 44, // Same width as icon button for symmetry
+  },
+  navTitle: {
+    fontSize: TP.font.title3,
+    fontWeight: TP.weight.bold,
+    color: TP.color.ink,
+  },
+  navIconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },

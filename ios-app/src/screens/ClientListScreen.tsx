@@ -83,6 +83,8 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const [actioningClientId, setActioningClientId] = useState<string | null>(null);
   const [, forceUpdate] = useState(0); // Force re-render for language changes
   const [sessionTimers, setSessionTimers] = useState<Record<string, number>>({}); // clientId -> elapsed hours
+  const [buildingSections, setBuildingSections] = useState(false);
+  const [timersLoaded, setTimersLoaded] = useState(false);
   const sectionListRef = useRef<SectionList>(null);
 
   // Invite Growth Loop modal state
@@ -106,13 +108,17 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
 
   // Build sections from clients data (runs when clients change)
   useEffect(() => {
+    let cancelled = false;
+
     const buildSections = async () => {
-      if (!clientsData || clientsData.length === 0) {
-        setSections([]);
-        return;
-      }
+      setBuildingSections(true);
 
       try {
+        if (!clientsData || clientsData.length === 0) {
+          if (!cancelled) setSections([]);
+          return;
+        }
+
         const clientIds = clientsData.map(c => c.id);
 
         // Only 2 batch queries for ANY number of clients!
@@ -140,13 +146,20 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
         if (active.length > 0) newSections.push({ titleKey: 'workInProgress', data: active });
         if (inactive.length > 0) newSections.push({ titleKey: 'myClients', data: inactive });
 
-        setSections(newSections);
+        if (!cancelled) setSections(newSections);
       } catch (error) {
         if (__DEV__) console.error('Error building client sections:', error);
+      } finally {
+        // CRITICAL: Always reset state even on error
+        if (!cancelled) setBuildingSections(false);
       }
     };
 
     buildSections();
+
+    return () => {
+      cancelled = true;
+    };
   }, [clientsData]);
 
   // On focus: force re-render for language changes
@@ -159,6 +172,8 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
 
   // Timer for active sessions (updates every minute)
   useEffect(() => {
+    let cancelled = false;
+
     const updateTimers = async () => {
       if (!clientsData) return;
 
@@ -173,7 +188,10 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
         }
       }
 
-      setSessionTimers(timers);
+      if (!cancelled) {
+        setSessionTimers(timers);
+        setTimersLoaded(true);
+      }
     };
 
     // Update immediately
@@ -182,7 +200,10 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     // Then update every minute (60000ms)
     const interval = setInterval(updateTimers, 60000);
 
-    return () => clearInterval(interval);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [clientsData, sections]); // Re-run when clients or sections change
 
   // Keyboard listeners
@@ -516,9 +537,11 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     const isLoading = actioningClientId === item.id;
     const elapsedHours = sessionTimers[item.id] || 0;
 
-    // Format button label with timer for Stop button
+    // Gate timer display on timersLoaded to prevent "0min" flash
     const buttonLabel = isActive
-      ? `${simpleT('common.stop')} - ${formatHours(elapsedHours)}`
+      ? (timersLoaded
+          ? `${simpleT('common.stop')} - ${formatHours(elapsedHours)}`
+          : simpleT('common.stop'))
       : `▶ ${simpleT('common.start')}`;
 
     return (
@@ -531,15 +554,15 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
             actionButton={{
               label: buttonLabel,
               variant: isActive ? 'stop' : 'start',
+              loading: isLoading || (!timersLoaded && isActive), // Show loading until timers ready
               onPress: () => isActive ? handleStopSession(item) : handleStartSession(item),
-              loading: isLoading,
             }}
             showStatusPill={false}
           />
         </View>
       </View>
     );
-  }, [actioningClientId, handleStartSession, handleStopSession, handleClientPress, sessionTimers]);
+  }, [actioningClientId, handleStartSession, handleStopSession, handleClientPress, sessionTimers, timersLoaded]);
 
   const renderSectionHeader = useCallback(({ section }: { section: ClientSection }) => {
     const isMyClientsSection = section.titleKey === 'myClients';
@@ -562,7 +585,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const allClients = useMemo(() => sections.flatMap(s => s.data), [sections]);
   const totalUnpaid = useMemo(() => allClients.reduce((sum, client) => sum + client.unpaidBalance, 0), [allClients]);
   const totalHoursAcrossClients = useMemo(() => allClients.reduce((sum, client) => sum + client.totalHours, 0), [allClients]);
-  const isZeroState = !loading && allClients.length === 0;
+  const isZeroState = !loading && !buildingSections && allClients.length === 0;
   const showOutstanding = !isZeroState && (allClients.length > 0 || totalUnpaid > 0);
 
   const renderHeader = () => (
@@ -678,7 +701,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   }
 
   // Loading with cached data - show skeleton to prevent empty state flash
-  const showSkeletonLoading = loading && sections.length === 0;
+  const showSkeletonLoading = loading || buildingSections;
 
   return (
     <SafeAreaView style={styles.container}>

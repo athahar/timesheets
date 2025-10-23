@@ -17,6 +17,7 @@ import { directSupabase } from '../services/storageService';
 import { simpleT } from '../i18n/simple';
 // Analytics
 import { capture, E } from '../services/analytics';
+import ClientWelcomeModal from '../components/ClientWelcomeModal';
 
 interface RegisterScreenProps {
   navigation: any;
@@ -64,6 +65,8 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [welcomeProviderName, setWelcomeProviderName] = useState<string | undefined>(undefined);
 
   const { signUp, reloadUserProfile, isAuthenticated, user } = useAuth();
 
@@ -203,13 +206,20 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
             await new Promise((resolve) => setTimeout(resolve, 1000));
             await reloadUserProfile(data.user.id);
 
-            Alert.alert(
-              t('register.success.welcome'),
-              t('register.success.joinedWorkspace').replace(
-                '{{inviterName}}',
-                inviteParams.inviterName || ''
-              )
-            );
+            // Client invited by provider → show branded modal with confetti
+            if (role === 'client') {
+              setWelcomeProviderName(inviteParams.inviterName ?? simpleT('common.provider'));
+              setShowWelcomeModal(true);
+            } else {
+              // Provider invited by client (rare edge case) → keep Alert
+              Alert.alert(
+                t('register.success.welcome'),
+                t('register.success.joinedWorkspace').replace(
+                  '{{inviterName}}',
+                  inviteParams.inviterName || ''
+                )
+              );
+            }
           } catch (inviteError) {
             if (__DEV__) console.error('Error claiming invite after registration:', inviteError);
             Alert.alert(
@@ -409,6 +419,21 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
           <Text style={styles.footerLink}>{t('register.signIn')}</Text>
         </TouchableOpacity>
       </View>
+
+      {/* ClientWelcomeModal - MUST be inside AuthScreenTemplate for proper backdrop */}
+      <ClientWelcomeModal
+        visible={showWelcomeModal}
+        providerName={welcomeProviderName}
+        onContinue={async () => {
+          try {
+            await updateProfile({ hasSeenWelcome: true });
+          } catch (error) {
+            if (__DEV__) console.error('Failed to update profile:', error);
+          }
+          setShowWelcomeModal(false);
+          navigation.replace('ServiceProviderList');
+        }}
+      />
     </AuthScreenTemplate>
   );
 };
