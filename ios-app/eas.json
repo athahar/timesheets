@@ -31,8 +31,14 @@
         "EXPO_PUBLIC_SUPABASE_URL": "https://ddxggihlncanqdypzsnn.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkeGdnaWhsbmNhbnFkeXB6c25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5ODI4MjYsImV4cCI6MjA3NjU1ODgyNn0.-_Jq7Sj8oAy8YkUTGrTtxtD5KuZ8CicjDnrfX48N0UI",
         "EXPO_PUBLIC_APP_NAME": "TrackPay",
+        "EXPO_PUBLIC_APP_DISPLAY_NAME": "TrackPay",
         "EXPO_PUBLIC_ENV": "production",
-        "EXPO_PUBLIC_USE_PHONE_AUTH": "false"
+        "EXPO_PUBLIC_USE_PHONE_AUTH": "false",
+        "EXPO_PUBLIC_FEATURE_INVITE_STOP": "true",
+        "EXPO_PUBLIC_FEATURE_INVITE_PAYMENT": "true",
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_mEReVqYcAf6ozcTLUOUioLW0CNutGzDbwRNFOKVz7on",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://app.posthog.com",
+        "EXPO_PUBLIC_ANALYTICS_DRY_RUN": "false"
       }
     }
   },
