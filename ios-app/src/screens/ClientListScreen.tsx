@@ -32,6 +32,7 @@ import { TPTotalOutstandingCard } from '../components/v2/TPTotalOutstandingCard'
 import { TPClientRow } from '../components/v2/TPClientRow';
 import { Toast } from '../components/Toast';
 import { useToast } from '../hooks/useToast';
+import ClientCardSkeleton from '../components/ClientCardSkeleton';
 import { useClients } from '../hooks/useClients';
 import { StickyActionBar, FOOTER_HEIGHT } from '../components/StickyActionBar';
 import {
@@ -561,7 +562,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const allClients = useMemo(() => sections.flatMap(s => s.data), [sections]);
   const totalUnpaid = useMemo(() => allClients.reduce((sum, client) => sum + client.unpaidBalance, 0), [allClients]);
   const totalHoursAcrossClients = useMemo(() => allClients.reduce((sum, client) => sum + client.totalHours, 0), [allClients]);
-  const isZeroState = allClients.length === 0;
+  const isZeroState = !loading && allClients.length === 0;
   const showOutstanding = !isZeroState && (allClients.length > 0 || totalUnpaid > 0);
 
   const renderHeader = () => (
@@ -664,6 +665,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     </ScrollView>
   );
 
+  // First load ever - show centered spinner
   if (loading && !clientsData) {
     return (
       <SafeAreaView style={styles.container}>
@@ -675,12 +677,22 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     );
   }
 
+  // Loading with cached data - show skeleton to prevent empty state flash
+  const showSkeletonLoading = loading && sections.length === 0;
+
   return (
     <SafeAreaView style={styles.container}>
       {renderHeader()}
 
       {isZeroState ? (
         renderZeroState()
+      ) : showSkeletonLoading ? (
+        <View style={styles.skeletonContainer}>
+          <ClientCardSkeleton />
+          <ClientCardSkeleton />
+          <ClientCardSkeleton />
+          <ClientCardSkeleton />
+        </View>
       ) : (
         <SectionList
           ref={sectionListRef}
@@ -904,6 +916,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  skeletonContainer: {
+    flex: 1,
+    paddingTop: TP.spacing.x16,
   },
 
   // Zero State
