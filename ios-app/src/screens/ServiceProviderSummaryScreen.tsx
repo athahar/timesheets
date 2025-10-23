@@ -29,7 +29,7 @@ import { formatDate, formatCurrency as formatCurrencyLocal } from '../utils/loca
 import { simpleT, translatePaymentMethod } from '../i18n/simple';
 import { moneyFormat } from '../utils/money';
 import { useLocale } from '../hooks/useLocale';
-import { trackEvent } from '../services/analytics';
+import { capture, E } from '../services/analytics';
 import { dedupeEventOnce } from '../services/analytics/dedupe';
 
 interface ServiceProviderSummaryScreenProps {
@@ -62,10 +62,10 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
   // Track screen view on mount
   useEffect(() => {
     if (dedupeEventOnce('client.provider_detail.viewed')) {
-      trackEvent('client.provider_detail.viewed', {
-        providerId,
-        providerName,
-        unpaidBalance,
+      capture(E.SCREEN_VIEW_PROVIDER_SUMMARY, {
+        provider_id: providerId,
+        provider_name: providerName,
+        unpaid_balance: unpaidBalance,
       });
     }
   }, []);

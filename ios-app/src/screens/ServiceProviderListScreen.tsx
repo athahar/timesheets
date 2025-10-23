@@ -24,7 +24,7 @@ import {
 import { simpleT } from '../i18n/simple';
 import { moneyFormat } from '../utils/money';
 import { useLocale } from '../hooks/useLocale';
-import { trackEvent } from '../services/analytics';
+import { capture, E } from '../services/analytics';
 import { dedupeEventOnce } from '../services/analytics/dedupe';
 
 interface ServiceProviderListScreenProps {
@@ -60,8 +60,8 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
   // Track screen view on mount
   useEffect(() => {
     if (dedupeEventOnce('client.home.viewed')) {
-      trackEvent('client.home.viewed', {
-        providerCount: serviceProviders.length,
+      capture(E.SCREEN_VIEW_PROVIDER_LIST, {
+        provider_count: serviceProviders.length,
       });
     }
   }, []);
