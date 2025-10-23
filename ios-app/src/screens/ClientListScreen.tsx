@@ -65,6 +65,7 @@ interface ClientWithSummary extends Client {
   totalHours: number;
   hasActiveSession: boolean;
   paymentStatus: 'unpaid' | 'requested' | 'paid';
+  elapsedHours: number; // For active sessions, calculated from start_time
 }
 
 interface ClientSection {
@@ -82,9 +83,8 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [actioningClientId, setActioningClientId] = useState<string | null>(null);
   const [, forceUpdate] = useState(0); // Force re-render for language changes
-  const [sessionTimers, setSessionTimers] = useState<Record<string, number>>({}); // clientId -> elapsed hours
   const [buildingSections, setBuildingSections] = useState(false);
-  const [timersLoaded, setTimersLoaded] = useState(false);
+  const [timerTick, setTimerTick] = useState(0); // Increments every 60s to refresh elapsed times
   const sectionListRef = useRef<SectionList>(null);
 
   // Invite Growth Loop modal state
@@ -122,7 +122,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
         const clientIds = clientsData.map(c => c.id);
 
         // Only 2 batch queries for ANY number of clients!
-        const [summaries, activeSet] = await Promise.all([
+        const [summaries, activeSessionsMap] = await Promise.all([
           getClientSummariesForClients(clientIds),
           getActiveSessionsForClients(clientIds),
         ]);
@@ -131,10 +131,16 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
 
         const clientsWithSummary: ClientWithSummary[] = clientsData.map(c => {
           const summary = sumById.get(c.id) ?? { unpaidHours: 0, unpaidBalance: 0, totalHours: 0, paymentStatus: 'paid' as const };
+          const startTime = activeSessionsMap.get(c.id);
+          const elapsedHours = startTime
+            ? (Date.now() - startTime.getTime()) / 3600000
+            : 0;
+
           return {
             ...c,
             ...summary,
-            hasActiveSession: activeSet.has(c.id),
+            hasActiveSession: !!startTime,
+            elapsedHours,
           };
         });
 
@@ -160,7 +166,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     return () => {
       cancelled = true;
     };
-  }, [clientsData]);
+  }, [clientsData, timerTick]); // Re-run when timerTick changes to refresh elapsed times
 
   // On focus: force re-render for language changes
   // (useClients hook handles all fetch logic with stale-time caching)
@@ -170,41 +176,14 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     }, [])
   );
 
-  // Timer for active sessions (updates every minute)
+  // Timer tick: increment every 60s to trigger buildSections re-run and refresh elapsed times
   useEffect(() => {
-    let cancelled = false;
+    const interval = setInterval(() => {
+      setTimerTick(prev => prev + 1);
+    }, 60000); // Update every minute
 
-    const updateTimers = async () => {
-      if (!clientsData) return;
-
-      const timers: Record<string, number> = {};
-
-      for (const client of clientsData) {
-        const activeSession = await getActiveSession(client.id);
-        if (activeSession) {
-          const elapsedSeconds = (Date.now() - activeSession.startTime.getTime()) / 1000;
-          const elapsedHours = elapsedSeconds / 3600;
-          timers[client.id] = elapsedHours;
-        }
-      }
-
-      if (!cancelled) {
-        setSessionTimers(timers);
-        setTimersLoaded(true);
-      }
-    };
-
-    // Update immediately
-    updateTimers();
-
-    // Then update every minute (60000ms)
-    const interval = setInterval(updateTimers, 60000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [clientsData, sections]); // Re-run when clients or sections change
+    return () => clearInterval(interval);
+  }, []); // Run once on mount
 
   // Keyboard listeners
   useEffect(() => {
@@ -535,13 +514,11 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
 
     const isActive = item.hasActiveSession;
     const isLoading = actioningClientId === item.id;
-    const elapsedHours = sessionTimers[item.id] || 0;
+    const elapsedHours = item.elapsedHours;
 
-    // Gate timer display on timersLoaded to prevent "0min" flash
+    // Timer data is available immediately from buildSections - no loading delay!
     const buttonLabel = isActive
-      ? (timersLoaded
-          ? `${simpleT('common.stop')} - ${formatHours(elapsedHours)}`
-          : simpleT('common.stop'))
+      ? `${simpleT('common.stop')} - ${formatHours(elapsedHours)}`
       : `▶ ${simpleT('common.start')}`;
 
     return (
@@ -554,7 +531,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
             actionButton={{
               label: buttonLabel,
               variant: isActive ? 'stop' : 'start',
-              loading: isLoading || (!timersLoaded && isActive), // Show loading until timers ready
+              loading: isLoading,
               onPress: () => isActive ? handleStopSession(item) : handleStartSession(item),
             }}
             showStatusPill={false}
@@ -562,7 +539,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
         </View>
       </View>
     );
-  }, [actioningClientId, handleStartSession, handleStopSession, handleClientPress, sessionTimers, timersLoaded]);
+  }, [actioningClientId, handleStartSession, handleStopSession, handleClientPress]);
 
   const renderSectionHeader = useCallback(({ section }: { section: ClientSection }) => {
     const isMyClientsSection = section.titleKey === 'myClients';

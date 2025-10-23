@@ -133,25 +133,25 @@ export const getClientSummariesForClients = async (clientIds: string[]) => {
   }
 };
 
-export const getActiveSessionsForClients = async (clientIds: string[]): Promise<Set<string>> => {
-  if (clientIds.length === 0) return new Set();
+export const getActiveSessionsForClients = async (clientIds: string[]): Promise<Map<string, Date>> => {
+  if (clientIds.length === 0) return new Map();
 
   try {
-    // ONE query fetches all active sessions for all clients
+    // ONE query fetches all active sessions with start times for all clients
     const { data, error } = await supabase
       .from('trackpay_sessions')
-      .select('client_id')
+      .select('client_id, start_time')
       .in('client_id', clientIds)
       .eq('status', 'active');
 
     if (error) throw error;
 
-    // Validate and return Set of client IDs with active sessions
-    const rows = (data ?? []).filter(r => typeof r.client_id === 'string');
-    return new Set(rows.map(r => r.client_id));
+    // Validate and return Map of client IDs to start times
+    const rows = (data ?? []).filter(r => typeof r.client_id === 'string' && r.start_time);
+    return new Map(rows.map(r => [r.client_id, new Date(r.start_time)]));
   } catch (error) {
     console.error('Error fetching active sessions:', error);
-    return new Set();
+    return new Map();
   }
 };
 
