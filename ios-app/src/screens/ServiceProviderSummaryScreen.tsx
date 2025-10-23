@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,13 @@ import {
   StyleSheet,
   Dimensions,
   Pressable,
+  Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Session, ActivityItem } from '../types';
 import { StatusPill } from '../components/StatusPill';
 import { MarkAsPaidModal } from '../components/MarkAsPaidModal';
-import { IOSHeader } from '../components/IOSHeader';
+import { TPHeader } from '../components/v2/TPHeader';
 import { TP } from '../styles/themeV2';
 import {
   getCurrentUser,
@@ -26,6 +27,10 @@ import {
 import { supabase } from '../services/supabase';
 import { formatDate, formatCurrency as formatCurrencyLocal } from '../utils/localeFormatters';
 import { simpleT, translatePaymentMethod } from '../i18n/simple';
+import { moneyFormat } from '../utils/money';
+import { useLocale } from '../hooks/useLocale';
+import { trackEvent } from '../services/analytics';
+import { dedupeEventOnce } from '../services/analytics/dedupe';
 
 interface ServiceProviderSummaryScreenProps {
   route: {
@@ -42,6 +47,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
   navigation,
 }) => {
   const { providerId, providerName } = route.params;
+  const { locale } = useLocale();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [unpaidHours, setUnpaidHours] = useState(0);
@@ -52,6 +58,17 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
   const [screenWidth, setScreenWidth] = useState(Dimensions.get('window').width);
   const [hasActiveSession, setHasActiveSession] = useState(false);
   const loadingRef = useRef<boolean>(false); // Debounce guard for loadData
+
+  // Track screen view on mount
+  useEffect(() => {
+    if (dedupeEventOnce('client.provider_detail.viewed')) {
+      trackEvent('client.provider_detail.viewed', {
+        providerId,
+        providerName,
+        unpaidBalance,
+      });
+    }
+  }, []);
 
   const loadData = async () => {
     // Debounce guard: prevent concurrent calls
@@ -315,14 +332,9 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
 
   return (
     <SafeAreaView style={styles.container}>
-      <IOSHeader
+      <TPHeader
         title={providerName}
-        subtitle={simpleT('providerSummary.workSummary')}
-        leftAction={{
-          title: simpleT('providerSummary.back'),
-          onPress: () => navigation.goBack(),
-        }}
-        largeTitleStyle="always"
+        onBack={() => navigation.goBack()}
       />
 
       <ScrollView
@@ -334,7 +346,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
         <View style={styles.summaryCard}>
           <View style={styles.summaryBalanceRow}>
             <Text style={styles.summaryLabel}>{simpleT('providerSummary.balanceDue')}</Text>
-            <Text style={[styles.summaryAmount, unpaidBalance === 0 && styles.summaryAmountPaid]}>{formatCurrencyLocal(unpaidBalance)}</Text>
+            <Text style={[styles.summaryAmount, unpaidBalance === 0 && styles.summaryAmountPaid]}>{moneyFormat(unpaidBalance * 100, 'USD', locale)}</Text>
             {unpaidBalance > 0 && (
               <Text style={styles.summaryHours}> [{formatHours(unpaidHours)} person-hours]</Text>
             )}
@@ -432,7 +444,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                           </View>
                           <View style={styles.timelineRight}>
                             <Text style={styles.timelineAmount}>
-                              {item.data.endTime ? formatCurrencyLocal(item.data.amount || 0) : ''}
+                              {item.data.endTime ? moneyFormat((item.data.amount || 0) * 100, 'USD', locale) : ''}
                             </Text>
                             {item.data.endTime && item.data.status !== 'requested' && (
                               <StatusPill
@@ -451,7 +463,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                               {simpleT('providerSummary.paymentSent')}
                             </Text>
                             <Text style={styles.timelineSubText}>
-                              {formatCurrencyLocal(item.data.data.amount || 0)} • {item.data.data.sessionCount} {item.data.data.sessionCount > 1 ? simpleT('providerSummary.sessions') : simpleT('providerSummary.session')} • {formatHours(item.data.data.personHours || 0)} total
+                              {moneyFormat((item.data.data.amount || 0) * 100, 'USD', locale)} • {item.data.data.sessionCount} {item.data.data.sessionCount > 1 ? simpleT('providerSummary.sessions') : simpleT('providerSummary.session')} • {formatHours(item.data.data.personHours || 0)} total
                             </Text>
                           </View>
                           <View style={styles.timelineRight}>
@@ -469,7 +481,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                               {simpleT('providerSummary.paymentRequested')}
                             </Text>
                             <Text style={styles.timelineSubText}>
-                              {formatCurrencyLocal(item.data.data.amount || 0)} • {item.data.data.sessionCount} {item.data.data.sessionCount > 1 ? simpleT('providerSummary.sessions') : simpleT('providerSummary.session')} • {formatHours(item.data.data.personHours || 0)} total
+                              {moneyFormat((item.data.data.amount || 0) * 100, 'USD', locale)} • {item.data.data.sessionCount} {item.data.data.sessionCount > 1 ? simpleT('providerSummary.sessions') : simpleT('providerSummary.session')} • {formatHours(item.data.data.personHours || 0)} total
                             </Text>
                           </View>
                           <View style={styles.timelineRight}>
@@ -584,10 +596,12 @@ const styles = StyleSheet.create({
   },
   timelineSection: {
     backgroundColor: TP.color.cardBg,
-    borderWidth: 1,
-    borderColor: TP.color.border,
     borderRadius: TP.radius.card,
     padding: TP.spacing.x16,
+    ...Platform.select({
+      ios: TP.shadow.card.ios,
+      android: TP.shadow.card.android,
+    }),
   },
   timelineTitle: {
     fontSize: 18,
@@ -664,13 +678,15 @@ const styles = StyleSheet.create({
   summaryCard: {
     paddingHorizontal: TP.spacing.x20,
     paddingVertical: TP.spacing.x16,
-    borderWidth: 1,
-    borderColor: TP.color.border,
     borderRadius: TP.radius.card,
     backgroundColor: TP.color.cardBg,
     gap: TP.spacing.x12,
     marginTop: TP.spacing.x16,
     marginBottom: TP.spacing.x32,
+    ...Platform.select({
+      ios: TP.shadow.card.ios,
+      android: TP.shadow.card.android,
+    }),
   },
   summaryBalanceRow: {
     flexDirection: 'row',

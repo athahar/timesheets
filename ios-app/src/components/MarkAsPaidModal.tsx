@@ -8,14 +8,21 @@ import {
   StyleSheet,
   Alert,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
-import { Session, PaymentMethod } from '../types';
+import { Session } from '../types';
 import { StickyCTA } from './StickyCTA';
-import { IOSHeader } from './IOSHeader';
+import { TPHeader } from './v2/TPHeader';
 import { theme } from '../styles/theme';
+import { TP } from '../styles/themeV2';
 import { markPaid } from '../services/storageService';
 import { simpleT } from '../i18n/simple';
-import { formatCurrency, formatHours } from '../utils/formatters';
+import { formatHours } from '../utils/formatters';
+import { moneyFormat, parseLocalizedMoney } from '../utils/money';
+import { useLocale } from '../hooks/useLocale';
 import { useAuth } from '../contexts/AuthContext';
 // Analytics
 import { capture, group, E, nowIso } from '../services/analytics';
@@ -38,12 +45,12 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
   sessions,
 }) => {
   const { user } = useAuth();
+  const { locale } = useLocale();
   const [paymentDate, setPaymentDate] = useState(() => {
     const today = new Date();
     return today.toISOString().split('T')[0]; // YYYY-MM-DD format
   });
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
-  const [customAmount, setCustomAmount] = useState(unpaidAmount.toString());
+  const [customAmount, setCustomAmount] = useState(unpaidAmount.toFixed(2));
   const [loading, setLoading] = useState(false);
 
   // Focus management
@@ -56,16 +63,10 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
     const personHours = typeof session.personHours === 'number' ? session.personHours : baseDuration * crew;
     return sum + personHours;
   }, 0);
-  const outstandingAmountLabel = formatCurrency(unpaidAmount);
-  const totalPersonHoursLabel = formatHours(totalPersonHours);
 
-  const paymentMethods: { value: PaymentMethod; label: string }[] = [
-    { value: 'cash', label: simpleT('markAsPaidModal.paymentMethods.cash') },
-    { value: 'zelle', label: simpleT('markAsPaidModal.paymentMethods.zelle') },
-    { value: 'paypal', label: simpleT('markAsPaidModal.paymentMethods.paypal') },
-    { value: 'bank_transfer', label: simpleT('markAsPaidModal.paymentMethods.bankTransfer') },
-    { value: 'other', label: simpleT('markAsPaidModal.paymentMethods.other') },
-  ];
+  // Use moneyFormat for locale-aware currency display
+  const outstandingAmountLabel = moneyFormat(unpaidAmount * 100, 'USD', locale);
+  const totalPersonHoursLabel = formatHours(totalPersonHours);
 
   /**
    * Calculate days between oldest session end time and now (payment confirmed time).
@@ -88,8 +89,11 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
     try {
       setLoading(true);
 
-      const amount = parseFloat(customAmount);
-      if (isNaN(amount) || amount <= 0) {
+      // Parse amount using locale-aware parser (returns cents)
+      const amountCents = parseLocalizedMoney(customAmount, locale, 'USD');
+      const amount = amountCents / 100; // Convert back to dollars for backend
+
+      if (amountCents <= 0) {
         Alert.alert(
           simpleT('markAsPaidModal.errors.invalidAmount'),
           simpleT('markAsPaidModal.errors.validAmount')
@@ -140,17 +144,13 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
       }
 
       if (__DEV__) {
-
-        if (__DEV__) {
-          if (__DEV__) console.log('🔄 MarkAsPaidModal: Recording payment', {
-            clientId,
-            sessionIds,
-            amount,
-            paymentMethod,
-            sessionsCount: payableSessions.length
-          });
-        }
-
+        console.log('🔄 MarkAsPaidModal: Recording payment', {
+          clientId,
+          sessionIds,
+          amount,
+          paymentMethod: 'other', // Always 'other' now
+          sessionsCount: payableSessions.length
+        });
       }
 
       // Analytics: Track payment submission attempt (canonical Tier-0)
@@ -160,7 +160,7 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
           provider_id: providerId || '',
           total_amount: amount,
           success: false, // Will set to true on success
-          payment_method: paymentMethod,
+          payment_method: 'other',
         });
       } catch (analyticsError) {
         if (__DEV__) {
@@ -169,17 +169,14 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
       }
 
       if (__DEV__) {
-
-        if (__DEV__) {
-          if (__DEV__) console.log('💰 MarkAsPaidModal: Calling markPaid...');
-        }
-
+        console.log('💰 MarkAsPaidModal: Calling markPaid...');
       }
-      await markPaid(clientId, sessionIds, amount, paymentMethod);
+
+      // Call markPaid with 'other' as default payment method
+      await markPaid(clientId, sessionIds, amount, 'other');
+
       if (__DEV__) {
-        if (__DEV__) {
-          if (__DEV__) console.log('✅ MarkAsPaidModal: Payment successful, closing modal');
-        }
+        console.log('✅ MarkAsPaidModal: Payment successful, closing modal');
       }
 
       // Analytics: Track successful payment confirmation (canonical Tier-0)
@@ -205,7 +202,7 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
           // Optional extras (tolerated by Zod drift):
           session_count: payableSessions.length,
           total_person_hours: totalPersonHours,
-          payment_method: paymentMethod,
+          payment_method: 'other',
         });
 
         // Track successful action event (canonical fields)
@@ -214,7 +211,7 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
           provider_id: providerId || '',
           total_amount: amount, // Canonical field name
           success: true, // Success flag
-          payment_method: paymentMethod,
+          payment_method: 'other',
         });
       } catch (analyticsError) {
         if (__DEV__) {
@@ -250,13 +247,18 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
   };
 
   const isFormValid = () => {
-    const amount = parseFloat(customAmount);
-    return !isNaN(amount) && amount > 0 && amount <= unpaidAmount;
+    const amountCents = parseLocalizedMoney(customAmount, locale, 'USD');
+    const amount = amountCents / 100;
+    return amountCents > 0 && amount <= unpaidAmount;
   };
 
   const handleDateChange = (text: string) => {
     // Simple date validation - in a real app you'd use a proper date picker
     setPaymentDate(text);
+  };
+
+  const dismissKeyboard = () => {
+    Keyboard.dismiss();
   };
 
   return (
@@ -266,96 +268,78 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={styles.container}>
-        <IOSHeader
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <TPHeader
           title={simpleT('markAsPaidModal.title')}
-          subtitle={simpleT('markAsPaidModal.subtitle', { providerName })}
-          leftAction={{
-            title: simpleT('markAsPaidModal.cancel'),
-            onPress: onClose,
-          }}
-          backgroundColor={theme.color.cardBg}
-          largeTitleStyle="never"
+          onBack={onClose}
         />
 
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          contentInsetAdjustmentBehavior="automatic"
-        >
-          {/* Outstanding Summary */}
-          <View style={styles.summaryBlock}>
-            <Text style={styles.summaryPrimary}>{outstandingAmountLabel}</Text>
-            <Text style={styles.summarySecondary}>{totalPersonHoursLabel} person-hours outstanding</Text>
-          </View>
+        <TouchableWithoutFeedback onPress={dismissKeyboard}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            contentInsetAdjustmentBehavior="automatic"
+          >
+            {/* Outstanding Summary */}
+            <View style={styles.summaryBlock}>
+              <Text style={styles.summaryLabel}>
+                {simpleT('markAsPaidModal.payingTo')}
+              </Text>
+              <Text style={styles.providerName}>{providerName}</Text>
+              <Text style={styles.summaryPrimary}>{outstandingAmountLabel}</Text>
+              <Text style={styles.summarySecondary}>
+                {totalPersonHoursLabel} {simpleT('markAsPaidModal.personHoursOutstanding')}
+              </Text>
+            </View>
 
-          {/* Payment Amount */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>{simpleT('markAsPaidModal.paymentAmount')}</Text>
-            <View style={styles.amountInputContainer}>
-              <Text style={styles.dollarSign}>$</Text>
+            {/* Payment Amount */}
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>{simpleT('markAsPaidModal.paymentAmount')}</Text>
+              <View style={styles.amountInputContainer}>
+                <Text style={styles.dollarSign}>$</Text>
+                <TextInput
+                  ref={amountRef}
+                  style={styles.amountInput}
+                  value={customAmount}
+                  onChangeText={setCustomAmount}
+                  keyboardType="decimal-pad"
+                  placeholder={simpleT('markAsPaidModal.amountPlaceholder')}
+                  placeholderTextColor={theme.color.textSecondary}
+                  autoFocus
+                  returnKeyType="next"
+                  onSubmitEditing={() => dateRef.current?.focus()}
+                  blurOnSubmit={false}
+                />
+              </View>
+              <Text style={styles.fieldHint}>
+                {simpleT('markAsPaidModal.maximumAmount', { amount: unpaidAmount.toFixed(2) })}
+              </Text>
+            </View>
+
+            {/* Payment Date */}
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>{simpleT('markAsPaidModal.paymentDate')}</Text>
               <TextInput
-                ref={amountRef}
-                style={styles.amountInput}
-                value={customAmount}
-                onChangeText={setCustomAmount}
-                keyboardType="decimal-pad"
-                placeholder={simpleT('markAsPaidModal.amountPlaceholder')}
+                ref={dateRef}
+                style={styles.dateInput}
+                value={paymentDate}
+                onChangeText={handleDateChange}
+                placeholder={simpleT('markAsPaidModal.datePlaceholder')}
                 placeholderTextColor={theme.color.textSecondary}
-                autoFocus
-                returnKeyType="next"
-                onSubmitEditing={() => dateRef.current?.focus()}
-                blurOnSubmit={false}
+                returnKeyType="done"
+                onSubmitEditing={dismissKeyboard}
               />
+              <Text style={styles.fieldHint}>
+                {simpleT('markAsPaidModal.dateHint')}
+              </Text>
             </View>
-            <Text style={styles.fieldHint}>
-              {simpleT('markAsPaidModal.maximumAmount', { amount: unpaidAmount.toFixed(2) })}
-            </Text>
-          </View>
-
-          {/* Payment Date */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>{simpleT('markAsPaidModal.paymentDate')}</Text>
-            <TextInput
-              ref={dateRef}
-              style={styles.dateInput}
-              value={paymentDate}
-              onChangeText={handleDateChange}
-              placeholder={simpleT('markAsPaidModal.datePlaceholder')}
-              placeholderTextColor={theme.color.textSecondary}
-              returnKeyType="done"
-            />
-            <Text style={styles.fieldHint}>
-              {simpleT('markAsPaidModal.dateHint')}
-            </Text>
-          </View>
-
-          {/* Payment Method */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>{simpleT('markAsPaidModal.paymentMethod')}</Text>
-            <View style={styles.methodContainer}>
-              {paymentMethods.map((method) => (
-                <TouchableOpacity
-                  key={method.value}
-                  style={[
-                    styles.methodButton,
-                    paymentMethod === method.value && styles.methodButtonSelected
-                  ]}
-                  onPress={() => setPaymentMethod(method.value)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[
-                    styles.methodButtonText,
-                    paymentMethod === method.value && styles.methodButtonTextSelected
-                  ]}>
-                    {method.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </ScrollView>
+          </ScrollView>
+        </TouchableWithoutFeedback>
 
         <StickyCTA
           primaryButton={{
@@ -369,9 +353,9 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
             onPress: onClose,
             disabled: loading,
           }}
-          backgroundColor={theme.color.cardBg}
+          backgroundColor={TP.color.appBg}
         />
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -379,109 +363,94 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.color.cardBg,
+    backgroundColor: TP.color.appBg,
   },
   scrollView: {
     flex: 1,
   },
   content: {
-    paddingHorizontal: 16,
-    paddingTop: 24,
-    paddingBottom: 32,
+    paddingHorizontal: TP.spacing.x16,
+    paddingTop: TP.spacing.x24,
+    paddingBottom: TP.spacing.x32,
   },
   summaryBlock: {
-    marginBottom: 24,
+    marginBottom: TP.spacing.x24,
+    paddingVertical: TP.spacing.x16,
+    paddingHorizontal: TP.spacing.x20,
+    backgroundColor: TP.color.cardBg,
+    borderRadius: TP.radius.card,
+    borderWidth: 1,
+    borderColor: TP.color.divider,
+  },
+  summaryLabel: {
+    fontSize: TP.font.caption,
+    fontWeight: TP.weight.medium,
+    color: TP.color.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  providerName: {
+    fontSize: TP.font.title3,
+    fontWeight: TP.weight.bold,
+    color: TP.color.ink,
+    marginBottom: TP.spacing.x8,
   },
   summaryPrimary: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: theme.color.text,
-    fontFamily: theme.typography.fontFamily.display,
+    fontSize: TP.font.title1,
+    fontWeight: TP.weight.bold,
+    color: TP.color.brand,
+    marginBottom: 4,
   },
   summarySecondary: {
-    fontSize: 14,
-    color: theme.color.textSecondary,
-    marginTop: 4,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: TP.font.body,
+    color: TP.color.textSecondary,
   },
   fieldContainer: {
-    marginBottom: 24,
+    marginBottom: TP.spacing.x24,
   },
   fieldLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.color.text,
-    marginBottom: 8,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.ink,
+    marginBottom: TP.spacing.x8,
   },
   fieldHint: {
-    fontSize: 13,
-    color: theme.color.textSecondary,
-    marginTop: 4,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: TP.font.caption,
+    color: TP.color.textSecondary,
+    marginTop: TP.spacing.x4,
   },
   amountInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.color.cardBg,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    backgroundColor: TP.color.cardBg,
+    borderRadius: TP.radius.input,
+    paddingHorizontal: TP.spacing.x16,
+    paddingVertical: TP.spacing.x12,
     borderWidth: 1,
-    borderColor: theme.color.border,
+    borderColor: TP.color.divider,
     minHeight: 44,
   },
   dollarSign: {
-    fontSize: 16,
-    color: theme.color.textSecondary,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: TP.font.body,
+    color: TP.color.textSecondary,
     marginRight: 4,
   },
   amountInput: {
     flex: 1,
-    fontSize: 16,
-    color: theme.color.text,
-    fontFamily: theme.typography.fontFamily.primary,
+    fontSize: TP.font.body,
+    color: TP.color.ink,
     fontVariant: ['tabular-nums'],
   },
   dateInput: {
-    backgroundColor: theme.color.cardBg,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: theme.color.text,
-    fontFamily: theme.typography.fontFamily.primary,
+    backgroundColor: TP.color.cardBg,
+    borderRadius: TP.radius.input,
+    paddingHorizontal: TP.spacing.x16,
+    paddingVertical: TP.spacing.x12,
+    fontSize: TP.font.body,
+    color: TP.color.ink,
     borderWidth: 1,
-    borderColor: theme.color.border,
+    borderColor: TP.color.divider,
     minHeight: 44,
-  },
-  methodContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  methodButton: {
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: theme.color.cardBg,
-    minHeight: 36,
-    justifyContent: 'center',
-  },
-  methodButtonSelected: {
-    backgroundColor: theme.color.brand,
-    borderColor: theme.color.brand,
-  },
-  methodButtonText: {
-    fontSize: 14,
-    color: theme.color.text,
-    fontFamily: theme.typography.fontFamily.primary,
-    fontWeight: '500',
-  },
-  methodButtonTextSelected: {
-    color: '#FFFFFF',
   },
 });

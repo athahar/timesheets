@@ -10,6 +10,7 @@ import {
   StyleSheet,
   Platform,
   Keyboard,
+  ActionSheetIOS,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -89,31 +90,35 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
   };
 
   // Handle sign out with confirmation
-  const handleSignOut = async () => {
+  const handleSignOut = () => {
     if (__DEV__) {
       console.log('🚪 handleSignOut called');
     }
 
-    // Web compatibility: Use browser confirm() on web, Alert.alert() on native
-    if (Platform.OS === 'web') {
-      const confirmed = window.confirm(`${t('settings.signOut')}\n\n${t('settings.signOutConfirm')}`);
-      if (confirmed) {
-        if (__DEV__) {
-          console.log('🚪 Sign out confirmed (web), calling signOut()...');
-        }
-        try {
-          await signOut();
-          if (__DEV__) {
-            console.log('✅ signOut() completed');
+    if (Platform.OS === 'ios') {
+      // Use ActionSheet on iOS for native feel
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: [t('settings.cancel'), t('settings.signOut')],
+          destructiveButtonIndex: 1,
+          cancelButtonIndex: 0,
+          message: t('settings.signOutConfirm'),
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            if (__DEV__) {
+              console.log('🚪 Sign out confirmed (iOS), calling signOut()...');
+            }
+            signOut().catch((error) => {
+              if (__DEV__) {
+                console.error('❌ Error signing out:', error);
+              }
+            });
           }
-        } catch (error) {
-          if (__DEV__) {
-            console.error('❌ Error signing out:', error);
-          }
         }
-      }
+      );
     } else {
-      // Native platforms (iOS/Android)
+      // Use Alert on Android/Web
       Alert.alert(
         t('settings.signOut'),
         t('settings.signOutConfirm'),
@@ -122,20 +127,15 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
           {
             text: t('settings.signOut'),
             style: 'destructive',
-            onPress: async () => {
+            onPress: () => {
               if (__DEV__) {
-                console.log('🚪 Sign out confirmed (native), calling signOut()...');
+                console.log('🚪 Sign out confirmed (Android), calling signOut()...');
               }
-              try {
-                await signOut();
-                if (__DEV__) {
-                  console.log('✅ signOut() completed');
-                }
-              } catch (error) {
+              signOut().catch((error) => {
                 if (__DEV__) {
                   console.error('❌ Error signing out:', error);
                 }
-              }
+              });
             },
           },
         ]
@@ -158,12 +158,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
           <Text style={styles.headerTitle}>{t('settings.title')}</Text>
         </View>
 
-        <TouchableOpacity
-          onPress={handleSignOut}
-          style={styles.headerButton}
-        >
-          <Text style={styles.headerButtonText}>{t('settings.signOut')}</Text>
-        </TouchableOpacity>
+        <View style={styles.headerButton} />
       </View>
 
       <ScrollView
@@ -238,6 +233,16 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* Logout Button */}
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={handleSignOut}
+            accessibilityRole="button"
+            accessibilityLabel={t('settings.signOut')}
+          >
+            <Text style={styles.logoutButtonText}>{t('settings.signOut')}</Text>
+          </TouchableOpacity>
 
         </View>
       </ScrollView>
@@ -388,6 +393,20 @@ const styles = StyleSheet.create({
     minHeight: 44,
     textAlignVertical: 'center',
     paddingVertical: TP.spacing.x12,
+  },
+
+  // Logout Button (destructive action at bottom)
+  logoutButton: {
+    marginTop: TP.spacing.x32,
+    paddingVertical: TP.spacing.x16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  logoutButtonText: {
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.btn.dangerBg,
   },
   // bottomAction and keyboard accessory styles removed - now using StickyActionBar component
 });
