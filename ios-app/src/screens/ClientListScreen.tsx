@@ -562,7 +562,8 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const allClients = useMemo(() => sections.flatMap(s => s.data), [sections]);
   const totalUnpaid = useMemo(() => allClients.reduce((sum, client) => sum + client.unpaidBalance, 0), [allClients]);
   const totalHoursAcrossClients = useMemo(() => allClients.reduce((sum, client) => sum + client.totalHours, 0), [allClients]);
-  const isZeroState = !loading && !buildingSections && allClients.length === 0;
+  // Check clientsData (source of truth), not allClients (derived from sections which builds async)
+  const isZeroState = !loading && !buildingSections && (!clientsData || clientsData.length === 0);
   const showOutstanding = !isZeroState && (allClients.length > 0 || totalUnpaid > 0);
 
   const renderHeader = () => (
