@@ -175,7 +175,11 @@ const AppNavigator = () => {
         <AppStack.Screen name="AccountSelection">
           {(props) => <SmartAccountSelection {...props} userProfile={userProfile} />}
         </AppStack.Screen>
-        <AppStack.Screen name="ClientList" component={ClientListScreen} />
+        <AppStack.Screen
+          name="ClientList"
+          component={ClientListScreen}
+          options={{ unmountOnBlur: false }} // Prevent remounts that force refetch
+        />
         <AppStack.Screen name="ClientHistory" component={ClientHistoryScreen} />
         <AppStack.Screen name="SessionTracking" component={StyledSessionTrackingScreen} />
         <AppStack.Screen name="ClientProfile" component={ClientProfileScreen} />

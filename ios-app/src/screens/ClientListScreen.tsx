@@ -31,9 +31,9 @@ import { TPTotalOutstandingCard } from '../components/v2/TPTotalOutstandingCard'
 import { TPClientRow } from '../components/v2/TPClientRow';
 import { Toast } from '../components/Toast';
 import { useToast } from '../hooks/useToast';
+import { useClients } from '../hooks/useClients';
 import { StickyActionBar, FOOTER_HEIGHT } from '../components/StickyActionBar';
 import {
-  getClients,
   addClient,
   getClientSummariesForClients,
   getActiveSessionsForClients,
@@ -46,11 +46,6 @@ import { TP } from '../styles/themeV2';
 import { simpleT } from '../i18n/simple';
 // Analytics
 import { capture, group, E, nowIso } from '../services/analytics';
-
-// Module-level guard to prevent React StrictMode duplicate instances
-// (persists across all component instances, not just one ref)
-let lastClientListInitTime = 0;
-const CLIENT_LIST_MIN_INIT_INTERVAL = 2000; // 2 seconds
 
 interface ClientListScreenProps {
   navigation: any;
@@ -71,12 +66,6 @@ interface ClientSection {
 
 export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }) => {
   const [sections, setSections] = useState<ClientSection[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [initialLoad, setInitialLoad] = useState(true);
-  const lastFetchedRef = useRef<number>(0);
-  const loadingRef = useRef<boolean>(false); // Debounce guard for loadClients
-  const didInitRef = useRef<boolean>(false); // Prevent React 18 StrictMode double-effect
-  const lastInitTimeRef = useRef<number>(0); // Time-based guard for StrictMode remount
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
@@ -92,94 +81,69 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const insets = useSafeAreaInsets();
   const { toast, showSuccess, showError, hideToast } = useToast();
 
-  const loadClients = useCallback(async (silent = false) => {
-    // Debounce guard: prevent concurrent calls
-    if (loadingRef.current) {
-      if (__DEV__) console.log('🚫 loadClients: already loading, skipping duplicate call');
-      return;
-    }
+  // Use cached client fetching (stale-time pattern, 30s default)
+  const { data: clientsData, loading, error: clientsError, refresh: refreshClients } = useClients(
+    userProfile?.id || ''
+  );
 
-    loadingRef.current = true;
-    try {
-      if (!silent) setLoading(true);
-
-      const clientsData = await getClients();
-      const clientIds = clientsData.map(c => c.id);
-
-      // Only 2 batch queries for ANY number of clients!
-      const [summaries, activeSet] = await Promise.all([
-        getClientSummariesForClients(clientIds),
-        getActiveSessionsForClients(clientIds),
-      ]);
-
-      const sumById = new Map(summaries.map(s => [s.id, s]));
-
-      const clientsWithSummary: ClientWithSummary[] = clientsData.map(c => {
-        const summary = sumById.get(c.id) ?? { unpaidHours: 0, unpaidBalance: 0, totalHours: 0, paymentStatus: 'paid' as const };
-        return {
-          ...c,
-          ...summary,
-          hasActiveSession: activeSet.has(c.id),
-        };
-      });
-
-      const byName = (a: ClientWithSummary, b: ClientWithSummary) => a.name.localeCompare(b.name);
-      const active = clientsWithSummary.filter(c => c.hasActiveSession).sort(byName);
-      const inactive = clientsWithSummary.filter(c => !c.hasActiveSession).sort(byName);
-
-      const newSections: ClientSection[] = [];
-      if (active.length > 0) newSections.push({ titleKey: 'workInProgress', data: active });
-      if (inactive.length > 0) newSections.push({ titleKey: 'myClients', data: inactive });
-
-      setSections(newSections);
-    } catch (error) {
-      if (__DEV__) console.error('Error loading clients:', error);
-      Alert.alert(simpleT('common.error'), simpleT('clientList.errorLoadClients'));
-    } finally {
-      if (!silent) {
-        setLoading(false);
-        setInitialLoad(false);
+  // Build sections from clients data (runs when clients change)
+  useEffect(() => {
+    const buildSections = async () => {
+      if (!clientsData || clientsData.length === 0) {
+        setSections([]);
+        return;
       }
-      setRefreshing(false);
-      lastFetchedRef.current = Date.now(); // Always update timestamp
-      loadingRef.current = false; // Reset debounce guard
-    }
-  }, []);
 
+      try {
+        const clientIds = clientsData.map(c => c.id);
+
+        // Only 2 batch queries for ANY number of clients!
+        const [summaries, activeSet] = await Promise.all([
+          getClientSummariesForClients(clientIds),
+          getActiveSessionsForClients(clientIds),
+        ]);
+
+        const sumById = new Map(summaries.map(s => [s.id, s]));
+
+        const clientsWithSummary: ClientWithSummary[] = clientsData.map(c => {
+          const summary = sumById.get(c.id) ?? { unpaidHours: 0, unpaidBalance: 0, totalHours: 0, paymentStatus: 'paid' as const };
+          return {
+            ...c,
+            ...summary,
+            hasActiveSession: activeSet.has(c.id),
+          };
+        });
+
+        const byName = (a: ClientWithSummary, b: ClientWithSummary) => a.name.localeCompare(b.name);
+        const active = clientsWithSummary.filter(c => c.hasActiveSession).sort(byName);
+        const inactive = clientsWithSummary.filter(c => !c.hasActiveSession).sort(byName);
+
+        const newSections: ClientSection[] = [];
+        if (active.length > 0) newSections.push({ titleKey: 'workInProgress', data: active });
+        if (inactive.length > 0) newSections.push({ titleKey: 'myClients', data: inactive });
+
+        setSections(newSections);
+      } catch (error) {
+        if (__DEV__) console.error('Error building client sections:', error);
+      }
+    };
+
+    buildSections();
+  }, [clientsData]);
+
+  // On focus: force re-render for language changes
+  // (useClients hook handles all fetch logic with stale-time caching)
   useFocusEffect(
     useCallback(() => {
-      // Force re-render for language changes (section headers will translate dynamically)
       forceUpdate(prev => prev + 1);
-
-      if (initialLoad) {
-        // MODULE-LEVEL guard: Stops StrictMode creating multiple component instances
-        const now = Date.now();
-
-        if (now - lastClientListInitTime < CLIENT_LIST_MIN_INIT_INTERVAL) {
-          if (__DEV__) console.log('🚫 ClientListScreen: Blocking duplicate init (module-level guard, likely StrictMode)');
-          return;
-        }
-
-        lastClientListInitTime = now; // Update module-level timestamp
-        didInitRef.current = true;
-        lastInitTimeRef.current = now;
-
-        // First load - show spinner
-        loadClients(false);
-      } else {
-        // Stale-time pattern: only refetch if >30s old
-        const STALE_MS = 30_000;
-        if (Date.now() - lastFetchedRef.current > STALE_MS) {
-          loadClients(true); // Silent refetch
-        }
-      }
-    }, [initialLoad, loadClients])
+    }, [])
   );
 
   // Timer for active sessions (updates every minute)
   useEffect(() => {
     const updateTimers = async () => {
-      const clientsData = await getClients();
+      if (!clientsData) return;
+
       const timers: Record<string, number> = {};
 
       for (const client of clientsData) {
@@ -201,7 +165,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     const interval = setInterval(updateTimers, 60000);
 
     return () => clearInterval(interval);
-  }, [sections]); // Re-run when sections change (session started/stopped)
+  }, [clientsData, sections]); // Re-run when clients or sections change
 
   // Keyboard listeners
   useEffect(() => {
@@ -220,9 +184,10 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     };
   }, []);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setRefreshing(true);
-    loadClients();
+    await refreshClients(); // Force fresh fetch from cache
+    setRefreshing(false);
   };
 
   const handleAddClient = async () => {
@@ -242,7 +207,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
       setNewClientName('');
       setNewClientRate('');
       setShowAddModal(false);
-      loadClients();
+      refreshClients();
     } catch (error) {
       console.error('Error adding client:', error);
       Alert.alert(simpleT('common.error'), simpleT('clientList.errorAddClient'));
@@ -296,7 +261,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
       }
 
       // Silent refetch - no full-page spinner
-      await loadClients(true);
+      await refreshClients();
 
       // Show success toast
       showSuccess(simpleT('common.sessionStarted'));
@@ -316,7 +281,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     } finally {
       setActioningClientId(null);
     }
-  }, [actioningClientId, loadClients, showSuccess, showError]);
+  }, [actioningClientId, refreshClients, showSuccess, showError]);
 
   const handleStopSession = useCallback(async (client: ClientWithSummary) => {
     if (actioningClientId) return; // Prevent double-tap
@@ -385,7 +350,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
       }
 
       // Silent refetch - no full-page spinner
-      await loadClients(true);
+      await refreshClients();
 
       // Show success toast with duration
       showSuccess(`${simpleT('common.sessionEnded')} - ${formatHours(durationHours)}`);
@@ -395,7 +360,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     } finally{
       setActioningClientId(null);
     }
-  }, [actioningClientId, loadClients, showSuccess, showError]);
+  }, [actioningClientId, refreshClients, showSuccess, showError]);
 
   const renderLeftActions = useCallback((item: ClientWithSummary) => {
     const isLoading = actioningClientId === item.id;
@@ -587,7 +552,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     </ScrollView>
   );
 
-  if (loading && initialLoad) {
+  if (loading && !clientsData) {
     return (
       <SafeAreaView style={styles.container}>
         {renderHeader()}

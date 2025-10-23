@@ -14,10 +14,139 @@ import {
 export const BLOCKER_SESSION_STATUSES = ['active', 'unpaid', 'requested'] as const;
 export const BLOCKER_REQUEST_STATUSES = ['pending', 'sent', 'requested'] as const;
 
-export class DirectSupabaseService {
-  // In-flight promise cache to prevent concurrent duplicate calls
-  private inFlight = new Map<string, Promise<any>>();
+// ============================================================================
+// STALE-TIME CACHE INFRASTRUCTURE
+// ============================================================================
 
+// Default stale-time: 30 seconds (configurable via env)
+export const STALE_MS_DEFAULT = Number(process.env.EXPO_PUBLIC_STALE_MS ?? 30_000);
+
+// Cache types
+type Clients = Array<Client>;
+type CacheEntry<T> = { ts: number; data: T };
+
+// Module-level caches (shared across all service instances)
+const CLIENTS_CACHE = new Map<string, CacheEntry<Clients>>();
+const INFLIGHT = new Map<string, Promise<Clients>>();
+
+// ============================================================================
+// CACHED CLIENT FETCHING (Stale-Time Pattern)
+// ============================================================================
+
+/**
+ * Low-level function that performs the actual Supabase query for clients.
+ * Called by getClientsCached when cache miss occurs.
+ */
+async function actuallyFetchClients(providerId: string): Promise<Clients> {
+  if (__DEV__) {
+    console.log('👥 actuallyFetchClients() called with providerId:', providerId);
+  }
+
+  // Query relationships table and join with client user data
+  const { data, error } = await supabase
+    .from('trackpay_relationships')
+    .select(`
+      client_id,
+      trackpay_users!client_id (
+        id,
+        name,
+        email,
+        hourly_rate,
+        claimed_status
+      )
+    `)
+    .eq('provider_id', providerId);
+
+  if (__DEV__) {
+    console.log('👥 Raw relationships query result:', {
+      count: data?.length || 0,
+      relationships: data?.map(r => ({
+        client_id: r.client_id,
+        client_name: (r.trackpay_users as any)?.name
+      }))
+    });
+  }
+
+  if (error) {
+    console.error('❌ Error fetching clients:', error);
+    throw error;
+  }
+
+  // Map the joined data to Client objects
+  const clients = (data || [])
+    .filter(rel => rel.trackpay_users) // Filter out any null joins
+    .map(rel => {
+      const client = rel.trackpay_users as any;
+      return {
+        id: client.id,
+        name: client.name,
+        email: client.email || '',
+        hourlyRate: client.hourly_rate || 0,
+        claimedStatus: client.claimed_status || 'claimed'
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name)); // Sort by name client-side
+
+  if (__DEV__) {
+    console.log('👥 Returning clients:', clients.map(c => ({ id: c.id, name: c.name })));
+  }
+
+  return clients;
+}
+
+/**
+ * Cached client fetching with stale-time pattern.
+ * Prevents redundant DB calls for the same provider within staleMs window.
+ *
+ * @param providerId - The provider's ID
+ * @param opts.staleMs - Cache validity duration (default: 30s)
+ * @param opts.force - Force fresh fetch, bypass cache
+ */
+export async function getClientsCached(
+  providerId: string,
+  opts: { staleMs?: number; force?: boolean } = {}
+): Promise<Clients> {
+  const { staleMs = STALE_MS_DEFAULT, force = false } = opts;
+  const key = `clients:${providerId}`;
+  const now = Date.now();
+
+  // 1. Check cache first (stale-time pattern)
+  const cached = CLIENTS_CACHE.get(key);
+  if (!force && cached && now - cached.ts < staleMs) {
+    if (__DEV__) console.log('🟩 getClientsCached: cache hit', { key });
+    return cached.data;
+  }
+
+  // 2. Check in-flight (concurrent deduplication)
+  const inflight = INFLIGHT.get(key);
+  if (inflight) {
+    if (__DEV__) console.log('🔄 getClientsCached: returning in-flight', { key });
+    return inflight;
+  }
+
+  // 3. Fetch fresh
+  if (__DEV__) console.log('🟦 getClientsCached: fetching fresh', { key });
+
+  const promise = actuallyFetchClients(providerId)
+    .then((rows) => {
+      CLIENTS_CACHE.set(key, { ts: Date.now(), data: rows });
+      INFLIGHT.delete(key);
+      return rows;
+    })
+    .catch((e) => {
+      INFLIGHT.delete(key);
+      throw e;
+    });
+
+  INFLIGHT.set(key, promise);
+  return promise;
+}
+
+// ============================================================================
+// CLASS-BASED SERVICE (Singleton Pattern)
+// ============================================================================
+
+export class DirectSupabaseService {
   // Helper to get current authenticated provider ID
   private async getCurrentProviderId(): Promise<string> {
     try {
@@ -67,82 +196,10 @@ export class DirectSupabaseService {
     }
   }
 
-  // Client operations (with in-flight promise coalescing)
+  // Client operations (delegates to cached version)
   async getClients(): Promise<Client[]> {
     const providerId = await this.getCurrentProviderId();
-    const key = `clients:${providerId}`;
-
-    // Return in-flight promise if one exists
-    if (this.inFlight.has(key)) {
-      if (__DEV__) console.log('🔄 getClients: returning in-flight promise');
-      return this.inFlight.get(key)!;
-    }
-
-    // Create new request
-    const promise = this._fetchClients(providerId)
-      .finally(() => this.inFlight.delete(key));
-
-    this.inFlight.set(key, promise);
-    return promise;
-  }
-
-  // Actual database fetch (called by getClients)
-  private async _fetchClients(providerId: string): Promise<Client[]> {
-    if (__DEV__) {
-      console.log('👥 getClients() called with providerId:', providerId);
-    }
-
-    // Query relationships table and join with client user data
-    // Only return clients that have an active relationship with this provider
-    const { data, error } = await supabase
-      .from('trackpay_relationships')
-      .select(`
-        client_id,
-        trackpay_users!client_id (
-          id,
-          name,
-          email,
-          hourly_rate,
-          claimed_status
-        )
-      `)
-      .eq('provider_id', providerId);
-
-    if (__DEV__) {
-      console.log('👥 Raw relationships query result:', {
-        count: data?.length || 0,
-        relationships: data?.map(r => ({
-          client_id: r.client_id,
-          client_name: (r.trackpay_users as any)?.name
-        }))
-      });
-    }
-
-    if (error) {
-      console.error('❌ Error fetching clients:', error);
-      throw error;
-    }
-
-    // Map the joined data to Client objects
-    const clients = (data || [])
-      .filter(rel => rel.trackpay_users) // Filter out any null joins
-      .map(rel => {
-        const client = rel.trackpay_users as any;
-        return {
-          id: client.id,
-          name: client.name,
-          email: client.email || '',
-          hourlyRate: client.hourly_rate || 0,
-          claimedStatus: client.claimed_status || 'claimed'
-        };
-      })
-      .sort((a, b) => a.name.localeCompare(b.name)); // Sort by name client-side
-
-    if (__DEV__) {
-      console.log('👥 Returning clients:', clients.map(c => ({ id: c.id, name: c.name })));
-    }
-
-    return clients;
+    return getClientsCached(providerId);
   }
 
   async addClient(name: string, hourlyRate: number, email?: string): Promise<Client & { inviteCode?: string }> {
