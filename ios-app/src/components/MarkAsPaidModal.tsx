@@ -167,11 +167,16 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
       }
 
       if (__DEV__) {
-        console.log('💰 MarkAsPaidModal: Calling markPaid...');
+        console.log('💰 MarkAsPaidModal: Calling markPaid...', {
+          clientId,
+          providerId,
+          sessionIds,
+          amount
+        });
       }
 
-      // Call markPaid with 'other' as default payment method
-      await markPaid(clientId, sessionIds, amount, 'other');
+      // Call markPaid with 'other' as default payment method and providerId
+      await markPaid(clientId, sessionIds, amount, 'other', providerId);
 
       if (__DEV__) {
         console.log('✅ MarkAsPaidModal: Payment successful, closing modal');

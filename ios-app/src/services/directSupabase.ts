@@ -649,13 +649,14 @@ export class DirectSupabaseService {
     clientId: string,
     sessionIds: string[],
     amount: number,
-    method: string
+    method: string,
+    providerId?: string
   ): Promise<Payment> {
     try {
       const paymentId = generateUUID();
 
-      // Get current provider ID
-      const providerId = await this.getCurrentProviderId();
+      // Get provider ID from parameter or fallback to current user
+      const finalProviderId = providerId || await this.getCurrentProviderId();
 
       // Create payment record (using proper schema with session_ids array)
       const { error: paymentError } = await supabase
@@ -663,7 +664,7 @@ export class DirectSupabaseService {
         .insert([{
           id: paymentId,
           client_id: clientId,
-          provider_id: providerId,
+          provider_id: finalProviderId,
           amount,
           method,
           session_ids: sessionIds,

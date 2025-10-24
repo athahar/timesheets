@@ -169,9 +169,10 @@ export const markPaid = (
   clientId: string,
   sessionIds: string[],
   amount: number,
-  method: Payment['method']
+  method: Payment['method'],
+  providerId?: string
 ): Promise<Payment> => {
-  return directSupabase.markPaid(clientId, sessionIds, amount, method);
+  return directSupabase.markPaid(clientId, sessionIds, amount, method, providerId);
 };
 
 // Activity functions
