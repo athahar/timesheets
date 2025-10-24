@@ -68,7 +68,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [welcomeProviderName, setWelcomeProviderName] = useState<string | undefined>(undefined);
 
-  const { signUp, reloadUserProfile, isAuthenticated, user } = useAuth();
+  const { signUp, reloadUserProfile, isAuthenticated, user, updateProfile } = useAuth();
 
   // Monitor auth state changes after successful registration
   useEffect(() => {
@@ -426,7 +426,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation, rout
         providerName={welcomeProviderName}
         onContinue={async () => {
           try {
-            await updateProfile({ hasSeenWelcome: true });
+            await updateProfile({ has_seen_welcome: true });
           } catch (error) {
             if (__DEV__) console.error('Failed to update profile:', error);
           }

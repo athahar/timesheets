@@ -11,10 +11,10 @@ import {
   Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { Feather } from '@expo/vector-icons';
 import { Session, ActivityItem } from '../types';
 import { StatusPill } from '../components/StatusPill';
 import { MarkAsPaidModal } from '../components/MarkAsPaidModal';
-import { TPHeader } from '../components/v2/TPHeader';
 import { TP } from '../styles/themeV2';
 import {
   getCurrentUser,
@@ -332,10 +332,19 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
 
   return (
     <SafeAreaView style={styles.container}>
-      <TPHeader
-        title={providerName}
-        onBack={() => navigation.goBack()}
-      />
+      {/* Custom Header */}
+      <View style={styles.customHeader}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
+          <Feather name="arrow-left" size={24} color={TP.color.ink} />
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerName}>{providerName}</Text>
+        </View>
+        <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.headerButton}>
+          <Feather name="settings" size={24} color={TP.color.ink} />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.headerDivider} />
 
       <ScrollView
         style={styles.scrollView}
@@ -518,6 +527,34 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: TP.color.appBg,
   },
+  // Custom Header
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: TP.spacing.x16,
+    paddingVertical: TP.spacing.x12,
+    backgroundColor: TP.color.appBg,
+  },
+  headerButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerName: {
+    fontSize: TP.font.title,
+    fontWeight: TP.weight.bold,
+    color: TP.color.ink,
+  },
+  headerDivider: {
+    height: 1,
+    backgroundColor: TP.color.divider,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -627,6 +664,36 @@ const styles = StyleSheet.create({
   timelineItem: {
     marginBottom: TP.spacing.x12,
   },
+  // Timeline card styles (matching ClientHistoryScreen)
+  timelineCard: {
+    backgroundColor: TP.color.cardBg,
+    borderRadius: TP.radius.card,
+    borderWidth: 1,
+    borderColor: TP.color.divider,
+    padding: TP.spacing.x16,
+    marginBottom: TP.spacing.x8,
+  },
+  timelineCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: TP.spacing.x8,
+  },
+  timelineCardTitle: {
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.ink,
+  },
+  timelineCardAmount: {
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.ink,
+  },
+  timelineCardMeta: {
+    fontSize: TP.font.footnote,
+    fontWeight: TP.weight.regular,
+    color: TP.color.textSecondary,
+  },
   timelineLine: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -663,16 +730,15 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   dayHeader: {
-    paddingVertical: TP.spacing.x12,
-    paddingHorizontal: TP.spacing.x16,
-    borderBottomWidth: 1,
-    borderBottomColor: TP.color.border,
-    marginBottom: TP.spacing.x8,
+    paddingHorizontal: 16,
+    marginBottom: 4,
+    marginTop: 16,
   },
   dayHeaderText: {
     fontSize: 14,
-    fontWeight: TP.weight.semibold,
+    fontWeight: '600',
     color: '#374151',
+    fontFamily: 'System',
   },
   // Summary card styles - matching provider design
   summaryCard: {
