@@ -52,6 +52,10 @@ import { capture, group, E, nowIso } from '../services/analytics';
 import { getOrCreateInviteCode } from '../features/invite/getOrCreateInviteCode';
 import { buildHoursShare } from '../features/invite/inviteShare';
 import { InvitePromptModal } from '../features/invite/InvitePromptModal';
+// Hamburger Navigation
+import { HamburgerMenu, HamburgerMenuOption } from '../components/HamburgerMenu';
+import { ContactModal } from '../components/ContactModal';
+import { ShareModal } from '../components/ShareModal';
 
 const APP_NAME = process.env.EXPO_PUBLIC_APP_DISPLAY_NAME || 'TrackPay';
 
@@ -86,6 +90,12 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const [buildingSections, setBuildingSections] = useState(false);
   const [sectionsBuiltOnce, setSectionsBuiltOnce] = useState(false);
   const [clockMinute, setClockMinute] = useState(0); // Trigger re-render every 60s
+
+  // Hamburger menu state
+  const [hamburgerMenuVisible, setHamburgerMenuVisible] = useState(false);
+  const [contactModalVisible, setContactModalVisible] = useState(false);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+
   const sectionListRef = useRef<SectionList>(null);
 
   // Invite Growth Loop modal state
@@ -587,7 +597,15 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     <>
       {/* Top Navigation Bar with centered TrackPay */}
       <View style={styles.topNav}>
-        <View style={styles.navSpacer} />
+        <TouchableOpacity
+          onPress={handleHamburgerPress}
+          accessibilityRole="button"
+          accessibilityLabel="Open menu"
+          style={styles.navIconButton}
+          hitSlop={{ top: 6, left: 6, right: 6, bottom: 6 }}
+        >
+          <Feather name="menu" size={20} color={TP.color.ink} />
+        </TouchableOpacity>
         <Text style={styles.navTitle}>{simpleT('common.appName')}</Text>
         <TouchableOpacity
           onPress={handleGearPress}
@@ -682,6 +700,34 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
       </View>
     </ScrollView>
   );
+
+  // Hamburger menu handlers
+  const handleHamburgerPress = () => {
+    // Analytics: menu opened
+    capture(E.MENU_OPENED, {
+      role: 'provider',
+      screen: 'ClientList',
+    });
+    setHamburgerMenuVisible(true);
+  };
+
+  const handleMenuOptionSelected = (option: HamburgerMenuOption) => {
+    if (option === 'help') {
+      navigation.navigate('Help');
+    } else if (option === 'contact') {
+      // Analytics: modal view contact
+      capture(E.MODAL_VIEW_CONTACT, {
+        role: 'provider',
+      });
+      setContactModalVisible(true);
+    } else if (option === 'share') {
+      // Analytics: modal view share
+      capture(E.MODAL_VIEW_SHARE, {
+        role: 'provider',
+      });
+      setShareModalVisible(true);
+    }
+  };
 
   // Render order: Skeleton FIRST (prevents FTUX flash), then FTUX, then Dashboard
   return (
@@ -824,6 +870,29 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
         message={toast.message}
         type={toast.type}
         onHide={hideToast}
+      />
+
+      {/* Hamburger Menu */}
+      <HamburgerMenu
+        visible={hamburgerMenuVisible}
+        onClose={() => setHamburgerMenuVisible(false)}
+        onSelectOption={handleMenuOptionSelected}
+        userRole="provider"
+        currentScreen="ClientList"
+      />
+
+      {/* Contact Modal */}
+      <ContactModal
+        visible={contactModalVisible}
+        onClose={() => setContactModalVisible(false)}
+        userRole="provider"
+      />
+
+      {/* Share Modal */}
+      <ShareModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        userRole="provider"
       />
 
     </SafeAreaView>

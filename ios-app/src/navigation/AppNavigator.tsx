@@ -26,6 +26,7 @@ import { ServiceProviderListScreen } from '../screens/ServiceProviderListScreen'
 import { ServiceProviderSummaryScreen } from '../screens/ServiceProviderSummaryScreen';
 import { ProviderProfileScreen } from '../screens/ProviderProfileScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { HelpScreen } from '../screens/HelpScreen';
 
 // Components
 import { SimplifiedSyncStatus } from '../components/SimplifiedSyncStatus';
@@ -52,6 +53,7 @@ export type AppStackParamList = {
   ServiceProviderSummary: { providerId: string; providerName: string };
   ProviderProfile: { providerId: string; providerName: string };
   Settings: undefined;
+  Help: undefined;
 };
 
 const AuthStack = createStackNavigator<AuthStackParamList>();
@@ -190,6 +192,7 @@ const AppNavigator = () => {
         <AppStack.Screen name="ServiceProviderSummary" component={ServiceProviderSummaryScreen} />
         <AppStack.Screen name="ProviderProfile" component={ProviderProfileScreen} />
         <AppStack.Screen name="Settings" component={SettingsScreen} />
+        <AppStack.Screen name="Help" component={HelpScreen} />
       </AppStack.Navigator>
     </>
   );

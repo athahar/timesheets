@@ -26,6 +26,9 @@ import { moneyFormat } from '../utils/money';
 import { useLocale } from '../hooks/useLocale';
 import { capture, E } from '../services/analytics';
 import { dedupeEventOnce } from '../services/analytics/dedupe';
+import { HamburgerMenu, HamburgerMenuOption } from '../components/HamburgerMenu';
+import { ContactModal } from '../components/ContactModal';
+import { ShareModal } from '../components/ShareModal';
 
 interface ServiceProviderListScreenProps {
   navigation: any;
@@ -56,6 +59,11 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
   const [serviceProviders, setServiceProviders] = useState<ServiceProvider[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Hamburger menu state
+  const [hamburgerMenuVisible, setHamburgerMenuVisible] = useState(false);
+  const [contactModalVisible, setContactModalVisible] = useState(false);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
 
   // Track screen view on mount
   useEffect(() => {
@@ -352,6 +360,34 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
   );
 
   // Calculate total unpaid
+  // Hamburger menu handlers
+  const handleHamburgerPress = () => {
+    // Analytics: menu opened
+    capture(E.MENU_OPENED, {
+      role: 'client',
+      screen: 'ServiceProviderList',
+    });
+    setHamburgerMenuVisible(true);
+  };
+
+  const handleMenuOptionSelected = (option: HamburgerMenuOption) => {
+    if (option === 'help') {
+      navigation.navigate('Help');
+    } else if (option === 'contact') {
+      // Analytics: modal view contact
+      capture(E.MODAL_VIEW_CONTACT, {
+        role: 'client',
+      });
+      setContactModalVisible(true);
+    } else if (option === 'share') {
+      // Analytics: modal view share
+      capture(E.MODAL_VIEW_SHARE, {
+        role: 'client',
+      });
+      setShareModalVisible(true);
+    }
+  };
+
   const totalUnpaid = serviceProviders.reduce((sum, provider) => sum + provider.totalUnpaidBalance, 0);
   const currency = serviceProviders.length > 0 ? serviceProviders[0].currency || 'USD' : 'USD';
 
@@ -359,7 +395,14 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
     <SafeAreaView style={styles.container}>
       {/* Top Navigation Bar with centered TrackPay - matches provider exactly */}
       <View style={styles.topNav}>
-        <View style={styles.navSpacer} />
+        <TouchableOpacity
+          onPress={handleHamburgerPress}
+          accessibilityRole="button"
+          accessibilityLabel="Open menu"
+          style={styles.navIconButton}
+        >
+          <Feather name="menu" size={20} color={TP.color.ink} />
+        </TouchableOpacity>
         <Text style={styles.navTitle}>{simpleT('common.appName')}</Text>
         <TouchableOpacity
           onPress={() => navigation.navigate('Settings')}
@@ -405,6 +448,29 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {/* Hamburger Menu */}
+      <HamburgerMenu
+        visible={hamburgerMenuVisible}
+        onClose={() => setHamburgerMenuVisible(false)}
+        onSelectOption={handleMenuOptionSelected}
+        userRole="client"
+        currentScreen="ServiceProviderList"
+      />
+
+      {/* Contact Modal */}
+      <ContactModal
+        visible={contactModalVisible}
+        onClose={() => setContactModalVisible(false)}
+        userRole="client"
+      />
+
+      {/* Share Modal */}
+      <ShareModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        userRole="client"
+      />
     </SafeAreaView>
   );
 };
