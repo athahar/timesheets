@@ -380,18 +380,18 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
         </View>
 
         {/* Activity Timeline */}
-        <View style={styles.timelineSection}>
-          <Text style={styles.timelineTitle}>{simpleT('providerSummary.activityTimeline')}</Text>
-
-          {timelineItems.length === 0 ? (
+        {timelineItems.length === 0 ? (
+          <View style={styles.timelineSection}>
+            <Text style={styles.timelineTitle}>{simpleT('providerSummary.activityTimeline')}</Text>
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>{simpleT('providerSummary.noActivity')}</Text>
               <Text style={styles.emptyStateSubtext}>
                 {simpleT('providerSummary.noActivitySubtext')}
               </Text>
             </View>
-          ) : (
-            groupedTimeline.map(([dayKey, dayItems]) => {
+          </View>
+        ) : (
+          groupedTimeline.map(([dayKey, dayItems]) => {
               // Get date from first item in group instead of parsing formatted string
               const firstItem = dayItems[0];
               const date = new Date(firstItem.timestamp);
@@ -500,8 +500,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                 </View>
               );
             })
-          )}
-        </View>
+        )}
       </ScrollView>
 
       {/* Mark as Paid Modal */}
