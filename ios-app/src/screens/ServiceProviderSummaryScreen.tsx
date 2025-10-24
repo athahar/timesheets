@@ -351,30 +351,27 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Summary Card - Responsive like provider side */}
+        {/* Summary Card - Matching provider side exactly */}
         <View style={styles.summaryCard}>
-          <View style={styles.summaryBalanceRow}>
-            <Text style={styles.summaryLabel}>{simpleT('providerSummary.balanceDue')}</Text>
-            <Text style={[styles.summaryAmount, unpaidBalance === 0 && styles.summaryAmountPaid]}>{moneyFormat(unpaidBalance * 100, 'USD', locale)}</Text>
-            {unpaidBalance > 0 && (
-              <Text style={styles.summaryHours}> [{formatHours(unpaidHours)} person-hours]</Text>
-            )}
-          </View>
+          <Text style={styles.summaryLabel}>{simpleT('common.totalOutstanding')}</Text>
+          <Text style={styles.summaryAmountLarge}>{moneyFormat(unpaidBalance * 100, 'USD', locale)}</Text>
+          <Text style={styles.summaryHoursUnpaid}>
+            {formatHours(unpaidHours)} {simpleT('clientHistory.unpaid')}
+          </Text>
 
           {unpaidBalance > 0 ? (
-            <View style={styles.summaryButtonRow}>
-              <Pressable
-                style={styles.recordPaymentButton}
-                onPress={() => setShowMarkAsPaidModal(true)}
-              >
-                <Text style={styles.recordPaymentButtonText}>{simpleT('providerSummary.recordPayment')}</Text>
-              </Pressable>
-            </View>
+            <TouchableOpacity
+              style={styles.recordPaymentButton}
+              onPress={() => setShowMarkAsPaidModal(true)}
+              accessibilityRole="button"
+            >
+              <Text style={styles.recordPaymentButtonText}>
+                → {simpleT('providerSummary.recordPayment')}
+              </Text>
+            </TouchableOpacity>
           ) : (
-            <View style={styles.summaryButtonRow}>
-              <View style={styles.paidUpPill}>
-                <Text style={styles.paidUpText}>{simpleT('providerSummary.paidUp')}</Text>
-              </View>
+            <View style={styles.paidUpPill}>
+              <Text style={styles.paidUpText}>{simpleT('providerSummary.paidUp')}</Text>
             </View>
           )}
         </View>
@@ -777,6 +774,19 @@ const styles = StyleSheet.create({
     fontSize: TP.font.body,
     fontWeight: TP.weight.medium,
     color: '#374151',
+    marginBottom: TP.spacing.x8,
+  },
+  summaryAmountLarge: {
+    fontSize: 48,
+    fontWeight: TP.weight.bold,
+    color: TP.color.ink,
+    lineHeight: 56,
+  },
+  summaryHoursUnpaid: {
+    fontSize: TP.font.footnote,
+    fontWeight: TP.weight.regular,
+    color: TP.color.textSecondary,
+    marginBottom: TP.spacing.x8,
   },
   summaryAmount: {
     fontSize: TP.font.body,
