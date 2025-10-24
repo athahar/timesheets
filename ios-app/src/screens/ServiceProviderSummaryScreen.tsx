@@ -492,6 +492,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
         onPaymentCompleted={handlePaymentCompleted}
         unpaidAmount={unpaidBalance}
         providerName={providerName}
+        providerId={providerId}
         sessions={sessions.filter(s => s.status === 'unpaid' || s.status === 'requested')}
       />
     </SafeAreaView>

@@ -34,6 +34,7 @@ interface MarkAsPaidModalProps {
   onPaymentCompleted: () => void;
   unpaidAmount: number;
   providerName: string;
+  providerId: string;
   sessions: Session[];
 }
 
@@ -43,6 +44,7 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
   onPaymentCompleted,
   unpaidAmount,
   providerName,
+  providerId,
   sessions,
 }) => {
   const { user } = useAuth();
@@ -131,7 +133,6 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
 
       const sessionIds = payableSessions.map(session => session.id);
       const clientId = payableSessions[0]?.clientId;
-      const providerId = payableSessions[0]?.providerId;
 
       if (!clientId) {
         Alert.alert(
