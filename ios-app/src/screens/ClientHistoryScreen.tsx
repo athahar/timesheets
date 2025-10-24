@@ -20,6 +20,7 @@ import { TPAvatar } from '../components/v2/TPAvatar';
 import { StatusPill } from '../components/StatusPill';
 import { IOSHeader } from '../components/IOSHeader';
 import { TP } from '../styles/themeV2';
+import DetailPageSkeleton from '../components/DetailPageSkeleton';
 import { theme } from '../styles/theme';
 import {
   getClientById,
@@ -248,24 +249,6 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
 
     // Sort by timestamp, newest first
     items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
-    if (__DEV__) {
-      console.log('📋 Timeline items:', items.map(i => ({
-        type: i.type,
-        timestamp: i.timestamp.toISOString(),
-        isValid: !isNaN(i.timestamp.getTime())
-      })));
-
-      // Debug payment request data specifically
-      const paymentRequests = items.filter(i => i.type === 'payment_request');
-      if (paymentRequests.length > 0) {
-        console.log('💰 Payment request data:', paymentRequests.map(pr => ({
-          type: pr.type,
-          data: pr.data
-        })));
-      }
-    }
-
     return items;
   }, [sessions, activities, activeSession]);
 
@@ -278,22 +261,18 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       // Use ISO date string (YYYY-MM-DD) as the key for grouping
       const dayKey = date.toISOString().split('T')[0]; // "2025-10-09"
 
-      if (__DEV__) {
-        console.log('🗓️ Grouping item:', {
-          type: item.type,
-          timestamp: date.toISOString(),
-          dayKey,
-          formatDateResult: formatDate(date)
-        });
-      }
-
       if (!groups[dayKey]) {
         groups[dayKey] = [];
       }
       groups[dayKey].push(item);
     });
 
-    return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
+    // Sort groups chronologically by first item timestamp (most recent first)
+    return Object.entries(groups).sort(([aKey, aItems], [bKey, bItems]) => {
+      const aTimestamp = aItems[0]?.timestamp || new Date(0);
+      const bTimestamp = bItems[0]?.timestamp || new Date(0);
+      return new Date(bTimestamp).getTime() - new Date(aTimestamp).getTime();
+    });
   }, [timelineItems]);
 
 const handleCrewAdjust = async (delta: number) => {
@@ -355,6 +334,7 @@ const handleCrewAdjust = async (delta: number) => {
       </View>
     );
   };
+
 
   const handleStartSession = async () => {
     if (isSessionLoading) return; // Prevent double-tap
@@ -788,16 +768,14 @@ const handleCrewAdjust = async (delta: number) => {
             <Feather name="arrow-left" size={24} color={TP.color.ink} />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
-            <TPAvatar name={client?.name || 'Loading'} size="sm" />
-            <Text style={styles.headerName}>{client ? formatName(client.name) : 'Loading...'}</Text>
+            <TPAvatar name={client?.name || ''} size="sm" />
+            {client && <Text style={styles.headerName}>{formatName(client.name)}</Text>}
           </View>
           <View style={styles.headerButton} />
         </View>
 
-        {/* Spinner in content area */}
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={TP.color.ink} />
-        </View>
+        {/* Shimmer in content area */}
+        <DetailPageSkeleton />
       </SafeAreaView>
     );
   }
@@ -841,9 +819,12 @@ const handleCrewAdjust = async (delta: number) => {
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>{t('common.totalOutstanding')}</Text>
           <Text style={styles.summaryAmountLarge}>{formatCurrency(totalUnpaidBalance)}</Text>
-          <Text style={styles.summaryHoursUnpaid}>
-            {formatHours(unpaidHours + requestedHours)} {t('clientHistory.unpaid')}
-          </Text>
+
+          {totalUnpaidBalance > 0 && (
+            <Text style={styles.summaryHoursUnpaid}>
+              {formatHours(unpaidHours + requestedHours)} {t('clientHistory.unpaid')}
+            </Text>
+          )}
 
           {(() => {
             // Pure hide/show logic for buttons and paid up state
@@ -866,14 +847,7 @@ const handleCrewAdjust = async (delta: number) => {
               );
             }
 
-            // Case 2: Show Paid up pill (no outstanding balance AND has work history)
-            if (totalUnpaidBalance === 0 && !hasPendingRequest && totalHours > 0) {
-              return (
-                <View style={styles.paidUpPill}>
-                  <Text style={styles.paidUpText}>{t('providerSummary.paidUp')}</Text>
-                </View>
-              );
-            }
+            // Case 2: Removed - No longer show "Paid up" pill when balance is $0
 
             // Case 3: Hide button (pending request or requested-only balance)
             return null;
@@ -948,22 +922,27 @@ const handleCrewAdjust = async (delta: number) => {
                           </Text>
                         </View>
                       ) : item.type === 'payment' ? (
-                        // Payment Line - Simplified
-                        <View style={styles.timelineLine}>
-                          <Text style={styles.timelineIcon}>💰</Text>
-                          <View style={styles.timelineContent}>
-                            <Text style={styles.timelineMainText}>
+                        // Payment Received Card - matching other cards
+                        <View style={styles.timelineCard}>
+                          <View style={styles.timelineCardHeader}>
+                            <Text style={styles.timelineCardTitle}>
                               {t('providerSummary.paymentReceived')}
                             </Text>
-                            <Text style={styles.timelineSubText}>
-                              {formatCurrency(item.data.data.amount || 0)} • {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''} • {formatHours(item.data.data.personHours || 0)} total
+                            <Text style={styles.timelineCardAmount}>
+                              {formatCurrency(item.data.data.amount || 0)}
                             </Text>
                           </View>
-                          <View style={styles.timelineRight}>
-                            <Text style={styles.timelineAmount}>
-                              {translatePaymentMethod(item.data.data.method)}
-                            </Text>
-                          </View>
+                          <Text style={styles.timelineCardMeta}>
+                            {(() => {
+                              const sessionIds = item.data.data.sessionIds || [];
+                              const sessionCount = Array.isArray(sessionIds) ? sessionIds.length : 0;
+                              const personHours = item.data.data.personHours || 0;
+                              const sessionText = sessionCount === 1
+                                ? `1 ${t('clientHistory.session')}`
+                                : `${sessionCount} ${t('clientHistory.sessions')}`;
+                              return `${sessionText} • ${formatHours(personHours)}`;
+                            })()}
+                          </Text>
                         </View>
                       ) : (
                         // Payment Request - Simplified format
@@ -1498,6 +1477,14 @@ const styles = StyleSheet.create({
     fontSize: TP.font.footnote,
     fontWeight: TP.weight.regular,
     color: TP.color.textSecondary,
+  },
+  paymentCardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: TP.spacing.x8,
+  },
+  paymentCardIcon: {
+    fontSize: TP.font.body,
   },
   timelineDivider: {
     height: 1,

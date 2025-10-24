@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,13 @@ import {
   StyleSheet,
   Dimensions,
   Pressable,
+  Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { Feather } from '@expo/vector-icons';
 import { Session, ActivityItem } from '../types';
 import { StatusPill } from '../components/StatusPill';
 import { MarkAsPaidModal } from '../components/MarkAsPaidModal';
-import { IOSHeader } from '../components/IOSHeader';
 import { TP } from '../styles/themeV2';
 import {
   getCurrentUser,
@@ -26,6 +27,11 @@ import {
 import { supabase } from '../services/supabase';
 import { formatDate, formatCurrency as formatCurrencyLocal } from '../utils/localeFormatters';
 import { simpleT, translatePaymentMethod } from '../i18n/simple';
+import { moneyFormat } from '../utils/money';
+import { useLocale } from '../hooks/useLocale';
+import { capture, E } from '../services/analytics';
+import { dedupeEventOnce } from '../services/analytics/dedupe';
+import DetailPageSkeleton from '../components/DetailPageSkeleton';
 
 interface ServiceProviderSummaryScreenProps {
   route: {
@@ -42,6 +48,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
   navigation,
 }) => {
   const { providerId, providerName } = route.params;
+  const { locale } = useLocale();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [unpaidHours, setUnpaidHours] = useState(0);
@@ -52,6 +59,17 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
   const [screenWidth, setScreenWidth] = useState(Dimensions.get('window').width);
   const [hasActiveSession, setHasActiveSession] = useState(false);
   const loadingRef = useRef<boolean>(false); // Debounce guard for loadData
+
+  // Track screen view on mount
+  useEffect(() => {
+    if (dedupeEventOnce('client.provider_detail.viewed')) {
+      capture(E.SCREEN_VIEW_PROVIDER_SUMMARY, {
+        provider_id: providerId,
+        provider_name: providerName,
+        unpaid_balance: unpaidBalance,
+      });
+    }
+  }, []);
 
   const loadData = async () => {
     // Debounce guard: prevent concurrent calls
@@ -117,33 +135,15 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
 
       // Get activities for this client - need to use the client record ID, not auth user ID
       const activitiesData = await getActivities();
-      if (__DEV__) {
-        if (__DEV__) {
-          if (__DEV__) console.log('🔍 All activities:', activitiesData.length);
-        }
-      }
 
       // Get the client record ID from the first session (since we know sessions are filtered correctly)
       const clientRecordId = userSessions.length > 0 ? userSessions[0].clientId : null;
-      if (__DEV__) {
-        if (__DEV__) {
-          if (__DEV__) console.log('🔍 Looking for activities with clientId:', clientRecordId);
-        }
-      }
 
       const clientActivities = activitiesData.filter(a => {
-        if (__DEV__) {
-          if (__DEV__) {
-            if (__DEV__) console.log('🔍 Activity:', a.id, 'clientId:', a.clientId, 'type:', a.type);
-          }
-        }
-        return a.clientId === clientRecordId;
+        // Filter by both clientId AND providerId for proper scoping
+        return a.clientId === clientRecordId && a.providerId === providerId;
       });
-      if (__DEV__) {
-        if (__DEV__) {
-          if (__DEV__) console.log('🔍 Filtered client activities:', clientActivities.length);
-        }
-      }
+
       setActivities(clientActivities);
 
       // Get money state from client perspective (includes requested amounts)
@@ -263,7 +263,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
       })),
       // Map payment activities to timeline items
       ...activities
-        .filter(a => a.type === 'payment_completed' || a.type === 'payment_request_created')
+        .filter(a => a.type === 'payment_completed' || a.type === 'payment_request')
         .map(activity => ({
           type: activity.type === 'payment_completed' ? 'payment' as const : 'payment_request' as const,
           id: activity.id,
@@ -300,77 +300,108 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
       groups[dayKey].push(item);
     });
 
-    return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
+    // Sort groups chronologically by first item timestamp (most recent first)
+    return Object.entries(groups).sort(([aKey, aItems], [bKey, bItems]) => {
+      const aTimestamp = aItems[0]?.timestamp || new Date(0);
+      const bTimestamp = bItems[0]?.timestamp || new Date(0);
+      return new Date(bTimestamp).getTime() - new Date(aTimestamp).getTime();
+    });
   }, [timelineItems]);
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>{simpleT('providerSummary.loadingProviderSummary')}</Text>
+        {/* Custom Header - always visible */}
+        <View style={styles.customHeader}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
+            <Feather name="arrow-left" size={24} color={TP.color.ink} />
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerName}>{providerName}</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('ProviderProfile', {
+              providerId,
+              providerName,
+            })}
+            style={styles.headerButton}
+          >
+            <Feather name="info" size={24} color={TP.color.ink} />
+          </TouchableOpacity>
         </View>
+        <View style={styles.headerDivider} />
+
+        {/* Shimmer in content area */}
+        <DetailPageSkeleton />
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <IOSHeader
-        title={providerName}
-        subtitle={simpleT('providerSummary.workSummary')}
-        leftAction={{
-          title: simpleT('providerSummary.back'),
-          onPress: () => navigation.goBack(),
-        }}
-        largeTitleStyle="always"
-      />
+      {/* Custom Header */}
+      <View style={styles.customHeader}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
+          <Feather name="arrow-left" size={24} color={TP.color.ink} />
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerName}>{providerName}</Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('ProviderProfile', {
+            providerId,
+            providerName,
+          })}
+          style={styles.headerButton}
+        >
+          <Feather name="info" size={24} color={TP.color.ink} />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.headerDivider} />
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Summary Card - Responsive like provider side */}
+        {/* Summary Card - Matching provider side exactly */}
         <View style={styles.summaryCard}>
-          <View style={styles.summaryBalanceRow}>
-            <Text style={styles.summaryLabel}>{simpleT('providerSummary.balanceDue')}</Text>
-            <Text style={[styles.summaryAmount, unpaidBalance === 0 && styles.summaryAmountPaid]}>{formatCurrencyLocal(unpaidBalance)}</Text>
-            {unpaidBalance > 0 && (
-              <Text style={styles.summaryHours}> [{formatHours(unpaidHours)} person-hours]</Text>
-            )}
-          </View>
+          <Text style={styles.summaryLabel}>{simpleT('common.totalOutstanding')}</Text>
+          <Text style={styles.summaryAmountLarge}>{moneyFormat(unpaidBalance * 100, 'USD', locale)}</Text>
 
-          {unpaidBalance > 0 ? (
-            <View style={styles.summaryButtonRow}>
-              <Pressable
-                style={styles.recordPaymentButton}
-                onPress={() => setShowMarkAsPaidModal(true)}
-              >
-                <Text style={styles.recordPaymentButtonText}>{simpleT('providerSummary.recordPayment')}</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <View style={styles.summaryButtonRow}>
-              <View style={styles.paidUpPill}>
-                <Text style={styles.paidUpText}>{simpleT('providerSummary.paidUp')}</Text>
-              </View>
-            </View>
+          {unpaidBalance > 0 && (
+            <Text style={styles.summaryHoursUnpaid}>
+              {formatHours(unpaidHours)} {simpleT('clientHistory.unpaid')}
+            </Text>
+          )}
+
+          {unpaidBalance > 0 && (
+            <TouchableOpacity
+              style={styles.recordPaymentButton}
+              onPress={() => setShowMarkAsPaidModal(true)}
+              accessibilityRole="button"
+            >
+              <Text style={styles.recordPaymentButtonText}>
+                → {simpleT('providerSummary.recordPayment')}
+              </Text>
+            </TouchableOpacity>
           )}
         </View>
 
         {/* Activity Timeline */}
-        <View style={styles.timelineSection}>
-          <Text style={styles.timelineTitle}>{simpleT('providerSummary.activityTimeline')}</Text>
-
-          {timelineItems.length === 0 ? (
+        {timelineItems.length === 0 ? (
+          <View style={styles.timelineSection}>
+            <Text style={styles.timelineTitle}>{simpleT('providerSummary.activityTimeline')}</Text>
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>{simpleT('providerSummary.noActivity')}</Text>
               <Text style={styles.emptyStateSubtext}>
                 {simpleT('providerSummary.noActivitySubtext')}
               </Text>
             </View>
-          ) : (
-            groupedTimeline.map(([dayKey, dayItems]) => {
+          </View>
+        ) : (
+          <>
+            {groupedTimeline.map(([dayKey, dayItems]) => {
               // Get date from first item in group instead of parsing formatted string
               const firstItem = dayItems[0];
               const date = new Date(firstItem.timestamp);
@@ -402,90 +433,93 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                   {dayItems.map((item, index) => (
                     <View key={item.id} style={styles.timelineItem}>
                       {item.type === 'session' ? (
-                        // Work Session Line with crew context
-                        <View style={styles.timelineLine}>
-                          <Text style={styles.timelineIcon}>🕒</Text>
-                          <View style={styles.timelineContent}>
-                            <Text style={styles.timelineMainText}>
+                        // Work Session Card - matching provider view
+                        <View style={styles.timelineCard}>
+                          <View style={styles.timelineCardHeader}>
+                            <Text style={styles.timelineCardTitle}>
                               {simpleT('providerSummary.workSession')}
                             </Text>
-                            <Text style={styles.timelineSubText}>
-                              {(() => {
-                                const session = item.data as Session;
-                                const crewSize = session.crewSize || 1;
-                                const crewText = crewSize === 1 ? '1 person' : `${crewSize} people`;
-                                const start = new Date(session.startTime);
-                                const startLabel = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                                if (session.endTime) {
-                                  const end = new Date(session.endTime);
-                                  const endLabel = end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                                  const baseDuration =
-                                    session.duration ??
-                                    ((end.getTime() - start.getTime()) / (1000 * 60 * 60));
-                                  const totalPersonHours =
-                                    session.personHours ?? baseDuration * crewSize;
-                                  return `${crewText} × ${formatHours(baseDuration)} = ${formatHours(totalPersonHours)} • ${startLabel}-${endLabel}`;
-                                }
-                                return `${crewText} • active since ${startLabel}`;
-                              })()}
+                            <Text style={styles.timelineCardAmount}>
+                              {item.data.endTime ? moneyFormat((item.data.amount || 0) * 100, 'USD', locale) : ''}
                             </Text>
                           </View>
-                          <View style={styles.timelineRight}>
-                            <Text style={styles.timelineAmount}>
-                              {item.data.endTime ? formatCurrencyLocal(item.data.amount || 0) : ''}
-                            </Text>
-                            {item.data.endTime && item.data.status !== 'requested' && (
-                              <StatusPill
-                                status={item.data.status as 'paid' | 'unpaid'}
-                                size="sm"
-                              />
-                            )}
-                          </View>
+                          <Text style={styles.timelineCardMeta}>
+                            {(() => {
+                              const session = item.data as Session;
+                              const crewSize = session.crewSize || 1;
+                              const crewText = crewSize === 1 ? '1 person' : `${crewSize} people`;
+                              const start = new Date(session.startTime);
+                              const startLabel = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                              if (session.endTime) {
+                                const end = new Date(session.endTime);
+                                const endLabel = end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                                const baseDuration =
+                                  session.duration ??
+                                  ((end.getTime() - start.getTime()) / (1000 * 60 * 60));
+                                const totalPersonHours =
+                                  session.personHours ?? baseDuration * crewSize;
+                                return `${startLabel} - ${endLabel} • ${crewText} • ${formatHours(baseDuration)}`;
+                              }
+                              return `active since ${startLabel} • ${crewText}`;
+                            })()}
+                          </Text>
                         </View>
                       ) : item.type === 'payment' ? (
-                        // Payment Line - Simplified
-                        <View style={styles.timelineLine}>
-                          <Text style={styles.timelineIcon}>💰</Text>
-                          <View style={styles.timelineContent}>
-                            <Text style={styles.timelineMainText}>
+                        // Payment Sent Card - client's perspective
+                        <View style={styles.timelineCard}>
+                          <View style={styles.timelineCardHeader}>
+                            <Text style={styles.timelineCardTitle}>
                               {simpleT('providerSummary.paymentSent')}
                             </Text>
-                            <Text style={styles.timelineSubText}>
-                              {formatCurrencyLocal(item.data.data.amount || 0)} • {item.data.data.sessionCount} {item.data.data.sessionCount > 1 ? simpleT('providerSummary.sessions') : simpleT('providerSummary.session')} • {formatHours(item.data.data.personHours || 0)} total
+                            <Text style={styles.timelineCardAmount}>
+                              {moneyFormat((item.data.data.amount || 0) * 100, 'USD', locale)}
                             </Text>
                           </View>
-                          <View style={styles.timelineRight}>
-                            <Text style={styles.timelineAmount}>
-                              {translatePaymentMethod(item.data.data.method)}
-                            </Text>
-                          </View>
+                          <Text style={styles.timelineCardMeta}>
+                            {(() => {
+                              // Calculate sessionCount from sessionIds array
+                              const sessionIds = item.data.data.sessionIds || [];
+                              const sessionCount = Array.isArray(sessionIds) ? sessionIds.length : 0;
+                              const personHours = item.data.data.personHours || 0;
+                              const sessionText = sessionCount === 1
+                                ? `1 ${simpleT('providerSummary.session')}`
+                                : `${sessionCount} ${simpleT('providerSummary.sessions')}`;
+                              return `${sessionText} • ${formatHours(personHours)}`;
+                            })()}
+                          </Text>
                         </View>
                       ) : (
-                        // Payment Request Line - New for client view
-                        <View style={styles.timelineLine}>
-                          <Text style={styles.timelineIcon}>📋</Text>
-                          <View style={styles.timelineContent}>
-                            <Text style={styles.timelineMainText}>
+                        // Payment Request Card - matching provider view
+                        <View style={styles.timelineCard}>
+                          <View style={styles.timelineCardHeader}>
+                            <Text style={styles.timelineCardTitle}>
                               {simpleT('providerSummary.paymentRequested')}
                             </Text>
-                            <Text style={styles.timelineSubText}>
-                              {formatCurrencyLocal(item.data.data.amount || 0)} • {item.data.data.sessionCount} {item.data.data.sessionCount > 1 ? simpleT('providerSummary.sessions') : simpleT('providerSummary.session')} • {formatHours(item.data.data.personHours || 0)} total
+                            <Text style={styles.timelineCardAmount}>
+                              {moneyFormat((item.data.data.amount || 0) * 100, 'USD', locale)}
                             </Text>
                           </View>
-                          <View style={styles.timelineRight}>
-                            <Text style={styles.timelineAmount}>
-                              {simpleT('providerSummary.pending')}
-                            </Text>
-                          </View>
+                          <Text style={styles.timelineCardMeta}>
+                            {(() => {
+                              // Calculate sessionCount from sessionIds array
+                              const sessionIds = item.data.data.sessionIds || [];
+                              const sessionCount = Array.isArray(sessionIds) ? sessionIds.length : 0;
+                              const personHours = item.data.data.personHours || 0;
+                              const sessionText = sessionCount === 1
+                                ? `1 ${simpleT('providerSummary.session')}`
+                                : `${sessionCount} ${simpleT('providerSummary.sessions')}`;
+                              return `${sessionText} • ${formatHours(personHours)}`;
+                            })()}
+                          </Text>
                         </View>
                       )}
                     </View>
                   ))}
                 </View>
               );
-            })
-          )}
-        </View>
+            })}
+          </>
+        )}
       </ScrollView>
 
       {/* Mark as Paid Modal */}
@@ -495,6 +529,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
         onPaymentCompleted={handlePaymentCompleted}
         unpaidAmount={unpaidBalance}
         providerName={providerName}
+        providerId={providerId}
         sessions={sessions.filter(s => s.status === 'unpaid' || s.status === 'requested')}
       />
     </SafeAreaView>
@@ -505,6 +540,34 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: TP.color.appBg,
+  },
+  // Custom Header
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: TP.spacing.x16,
+    paddingVertical: TP.spacing.x12,
+    backgroundColor: TP.color.appBg,
+  },
+  headerButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerName: {
+    fontSize: TP.font.title,
+    fontWeight: TP.weight.bold,
+    color: TP.color.ink,
+  },
+  headerDivider: {
+    height: 1,
+    backgroundColor: TP.color.divider,
   },
   loadingContainer: {
     flex: 1,
@@ -584,10 +647,12 @@ const styles = StyleSheet.create({
   },
   timelineSection: {
     backgroundColor: TP.color.cardBg,
-    borderWidth: 1,
-    borderColor: TP.color.border,
     borderRadius: TP.radius.card,
     padding: TP.spacing.x16,
+    ...Platform.select({
+      ios: TP.shadow.card.ios,
+      android: TP.shadow.card.android,
+    }),
   },
   timelineTitle: {
     fontSize: 18,
@@ -612,6 +677,36 @@ const styles = StyleSheet.create({
   },
   timelineItem: {
     marginBottom: TP.spacing.x12,
+  },
+  // Timeline card styles (matching ClientHistoryScreen)
+  timelineCard: {
+    backgroundColor: TP.color.cardBg,
+    borderRadius: TP.radius.card,
+    borderWidth: 1,
+    borderColor: TP.color.divider,
+    padding: TP.spacing.x16,
+    marginBottom: TP.spacing.x8,
+  },
+  timelineCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: TP.spacing.x8,
+  },
+  timelineCardTitle: {
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.ink,
+  },
+  timelineCardAmount: {
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.ink,
+  },
+  timelineCardMeta: {
+    fontSize: TP.font.footnote,
+    fontWeight: TP.weight.regular,
+    color: TP.color.textSecondary,
   },
   timelineLine: {
     flexDirection: 'row',
@@ -648,29 +743,38 @@ const styles = StyleSheet.create({
     color: TP.color.ink,
     fontVariant: ['tabular-nums'],
   },
+  paymentCardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: TP.spacing.x8,
+  },
+  paymentCardIcon: {
+    fontSize: TP.font.body,
+  },
   dayHeader: {
-    paddingVertical: TP.spacing.x12,
-    paddingHorizontal: TP.spacing.x16,
-    borderBottomWidth: 1,
-    borderBottomColor: TP.color.border,
-    marginBottom: TP.spacing.x8,
+    paddingHorizontal: 16,
+    marginBottom: 4,
+    marginTop: 16,
   },
   dayHeaderText: {
     fontSize: 14,
-    fontWeight: TP.weight.semibold,
+    fontWeight: '600',
     color: '#374151',
+    fontFamily: 'System',
   },
   // Summary card styles - matching provider design
   summaryCard: {
     paddingHorizontal: TP.spacing.x20,
     paddingVertical: TP.spacing.x16,
-    borderWidth: 1,
-    borderColor: TP.color.border,
     borderRadius: TP.radius.card,
     backgroundColor: TP.color.cardBg,
     gap: TP.spacing.x12,
     marginTop: TP.spacing.x16,
     marginBottom: TP.spacing.x32,
+    ...Platform.select({
+      ios: TP.shadow.card.ios,
+      android: TP.shadow.card.android,
+    }),
   },
   summaryBalanceRow: {
     flexDirection: 'row',
@@ -701,6 +805,19 @@ const styles = StyleSheet.create({
     fontSize: TP.font.body,
     fontWeight: TP.weight.medium,
     color: '#374151',
+    marginBottom: TP.spacing.x8,
+  },
+  summaryAmountLarge: {
+    fontSize: 48,
+    fontWeight: TP.weight.bold,
+    color: TP.color.ink,
+    lineHeight: 56,
+  },
+  summaryHoursUnpaid: {
+    fontSize: TP.font.footnote,
+    fontWeight: TP.weight.regular,
+    color: TP.color.textSecondary,
+    marginBottom: TP.spacing.x8,
   },
   summaryAmount: {
     fontSize: TP.font.body,
@@ -720,13 +837,16 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   recordPaymentButton: {
-    backgroundColor: TP.color.ink,
+    backgroundColor: TP.color.cardBg,
+    borderWidth: 1,
+    borderColor: TP.color.ink,
     borderRadius: TP.radius.button,
+    paddingVertical: TP.spacing.x12,
     paddingHorizontal: TP.spacing.x16,
-    paddingVertical: TP.spacing.x8,
+    alignSelf: 'flex-start',
   },
   recordPaymentButtonText: {
-    color: TP.color.cardBg,
+    color: TP.color.ink,
     fontSize: TP.font.body,
     fontWeight: TP.weight.semibold,
   },

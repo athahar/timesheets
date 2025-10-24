@@ -11,6 +11,9 @@ import { theme } from '../styles/theme';
 import { setUserRole, setCurrentUser, getClients } from '../services/storageService';
 import { useAuth } from '../contexts/AuthContext';
 
+// App display name from env
+const APP_DISPLAY_NAME = process.env.EXPO_PUBLIC_APP_DISPLAY_NAME || 'TrackPay';
+
 interface AccountSelectionScreenProps {
   navigation: any;
 }
@@ -150,7 +153,7 @@ export const AccountSelectionScreen: React.FC<AccountSelectionScreenProps> = ({
 
       <View style={styles.content}>
         {/* App Title */}
-        <Text style={styles.appTitle}>TrackPay</Text>
+        <Text style={styles.appTitle}>{APP_DISPLAY_NAME}</Text>
         <Text style={styles.subtitle}>Loading...</Text>
 
         {/* Account Options */}

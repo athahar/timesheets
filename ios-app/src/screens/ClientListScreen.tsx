@@ -32,6 +32,7 @@ import { TPTotalOutstandingCard } from '../components/v2/TPTotalOutstandingCard'
 import { TPClientRow } from '../components/v2/TPClientRow';
 import { Toast } from '../components/Toast';
 import { useToast } from '../hooks/useToast';
+import ClientCardSkeleton from '../components/ClientCardSkeleton';
 import { useClients } from '../hooks/useClients';
 import { StickyActionBar, FOOTER_HEIGHT } from '../components/StickyActionBar';
 import {
@@ -64,6 +65,7 @@ interface ClientWithSummary extends Client {
   totalHours: number;
   hasActiveSession: boolean;
   paymentStatus: 'unpaid' | 'requested' | 'paid';
+  startTimeMs: number | null; // Store source of truth, compute elapsed on render
 }
 
 interface ClientSection {
@@ -81,7 +83,9 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [actioningClientId, setActioningClientId] = useState<string | null>(null);
   const [, forceUpdate] = useState(0); // Force re-render for language changes
-  const [sessionTimers, setSessionTimers] = useState<Record<string, number>>({}); // clientId -> elapsed hours
+  const [buildingSections, setBuildingSections] = useState(false);
+  const [sectionsBuiltOnce, setSectionsBuiltOnce] = useState(false);
+  const [clockMinute, setClockMinute] = useState(0); // Trigger re-render every 60s
   const sectionListRef = useRef<SectionList>(null);
 
   // Invite Growth Loop modal state
@@ -105,17 +109,21 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
 
   // Build sections from clients data (runs when clients change)
   useEffect(() => {
+    let cancelled = false;
+
     const buildSections = async () => {
-      if (!clientsData || clientsData.length === 0) {
-        setSections([]);
-        return;
-      }
+      setBuildingSections(true);
 
       try {
+        if (!clientsData || clientsData.length === 0) {
+          if (!cancelled) setSections([]);
+          return;
+        }
+
         const clientIds = clientsData.map(c => c.id);
 
         // Only 2 batch queries for ANY number of clients!
-        const [summaries, activeSet] = await Promise.all([
+        const [summaries, activeSessionsMap] = await Promise.all([
           getClientSummariesForClients(clientIds),
           getActiveSessionsForClients(clientIds),
         ]);
@@ -124,10 +132,13 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
 
         const clientsWithSummary: ClientWithSummary[] = clientsData.map(c => {
           const summary = sumById.get(c.id) ?? { unpaidHours: 0, unpaidBalance: 0, totalHours: 0, paymentStatus: 'paid' as const };
+          const startTime = activeSessionsMap.get(c.id);
+
           return {
             ...c,
             ...summary,
-            hasActiveSession: activeSet.has(c.id),
+            hasActiveSession: !!startTime,
+            startTimeMs: startTime ? startTime.getTime() : null,
           };
         });
 
@@ -139,50 +150,51 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
         if (active.length > 0) newSections.push({ titleKey: 'workInProgress', data: active });
         if (inactive.length > 0) newSections.push({ titleKey: 'myClients', data: inactive });
 
-        setSections(newSections);
+        if (!cancelled) setSections(newSections);
       } catch (error) {
         if (__DEV__) console.error('Error building client sections:', error);
+      } finally {
+        // CRITICAL: Always reset state even on error
+        if (!cancelled) {
+          setBuildingSections(false);
+          setSectionsBuiltOnce(true); // Set latch to prevent FTUX flash
+        }
       }
     };
 
     buildSections();
-  }, [clientsData]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clientsData]); // Only depends on clientsData
 
   // On focus: force re-render for language changes
-  // (useClients hook handles all fetch logic with stale-time caching)
   useFocusEffect(
     useCallback(() => {
       forceUpdate(prev => prev + 1);
-    }, [])
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []) // Empty deps
   );
 
-  // Timer for active sessions (updates every minute)
+  // Minute tick: increment every 60s to trigger re-render for live timer updates
   useEffect(() => {
-    const updateTimers = async () => {
-      if (!clientsData) return;
-
-      const timers: Record<string, number> = {};
-
-      for (const client of clientsData) {
-        const activeSession = await getActiveSession(client.id);
-        if (activeSession) {
-          const elapsedSeconds = (Date.now() - activeSession.startTime.getTime()) / 1000;
-          const elapsedHours = elapsedSeconds / 3600;
-          timers[client.id] = elapsedHours;
-        }
-      }
-
-      setSessionTimers(timers);
-    };
-
-    // Update immediately
-    updateTimers();
-
-    // Then update every minute (60000ms)
-    const interval = setInterval(updateTimers, 60000);
+    const interval = setInterval(() => {
+      setClockMinute(m => m + 1);
+    }, 60000); // Update every minute
 
     return () => clearInterval(interval);
-  }, [clientsData, sections]); // Re-run when clients or sections change
+  }, []); // Run once on mount
+
+  // Smart latch reset: only when client count actually changes
+  const prevClientLen = useRef<number | null>(null);
+  useEffect(() => {
+    const len = clientsData?.length ?? null;
+    if (prevClientLen.current !== null && prevClientLen.current !== len) {
+      setSectionsBuiltOnce(false); // Reset latch when count changes
+    }
+    prevClientLen.current = len;
+  }, [clientsData?.length]);
 
   // Keyboard listeners
   useEffect(() => {
@@ -513,9 +525,12 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
 
     const isActive = item.hasActiveSession;
     const isLoading = actioningClientId === item.id;
-    const elapsedHours = sessionTimers[item.id] || 0;
 
-    // Format button label with timer for Stop button
+    // Compute elapsed time live from startTimeMs (updates every minute via clockMinute)
+    const now = Date.now();
+    const elapsedHours = item.startTimeMs ? (now - item.startTimeMs) / 3600000 : 0;
+
+    // Timer data is available immediately from buildSections - no loading delay!
     const buttonLabel = isActive
       ? `${simpleT('common.stop')} - ${formatHours(elapsedHours)}`
       : `▶ ${simpleT('common.start')}`;
@@ -530,15 +545,15 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
             actionButton={{
               label: buttonLabel,
               variant: isActive ? 'stop' : 'start',
-              onPress: () => isActive ? handleStopSession(item) : handleStartSession(item),
               loading: isLoading,
+              onPress: () => isActive ? handleStopSession(item) : handleStartSession(item),
             }}
             showStatusPill={false}
           />
         </View>
       </View>
     );
-  }, [actioningClientId, handleStartSession, handleStopSession, handleClientPress, sessionTimers]);
+  }, [actioningClientId, handleStartSession, handleStopSession, handleClientPress, clockMinute]); // Re-render every 60s for live timers
 
   const renderSectionHeader = useCallback(({ section }: { section: ClientSection }) => {
     const isMyClientsSection = section.titleKey === 'myClients';
@@ -561,8 +576,12 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   const allClients = useMemo(() => sections.flatMap(s => s.data), [sections]);
   const totalUnpaid = useMemo(() => allClients.reduce((sum, client) => sum + client.unpaidBalance, 0), [allClients]);
   const totalHoursAcrossClients = useMemo(() => allClients.reduce((sum, client) => sum + client.totalHours, 0), [allClients]);
-  const isZeroState = allClients.length === 0;
-  const showOutstanding = !isZeroState && (allClients.length > 0 || totalUnpaid > 0);
+
+  // Boolean logic for loading states
+  const hasClients = (clientsData?.length ?? 0) > 0;
+  const showSkeleton = loading || buildingSections || !sectionsBuiltOnce;
+  const showZeroState = !showSkeleton && !hasClients;
+  const showOutstanding = !showZeroState && (allClients.length > 0 || totalUnpaid > 0);
 
   const renderHeader = () => (
     <>
@@ -664,22 +683,19 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     </ScrollView>
   );
 
-  if (loading && !clientsData) {
-    return (
-      <SafeAreaView style={styles.container}>
-        {renderHeader()}
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.color.brand} />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
+  // Render order: Skeleton FIRST (prevents FTUX flash), then FTUX, then Dashboard
   return (
     <SafeAreaView style={styles.container}>
       {renderHeader()}
 
-      {isZeroState ? (
+      {showSkeleton ? (
+        <View style={styles.skeletonContainer}>
+          <ClientCardSkeleton />
+          <ClientCardSkeleton />
+          <ClientCardSkeleton />
+          <ClientCardSkeleton />
+        </View>
+      ) : showZeroState ? (
         renderZeroState()
       ) : (
         <SectionList
@@ -904,6 +920,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  skeletonContainer: {
+    flex: 1,
+    paddingTop: TP.spacing.x16,
   },
 
   // Zero State

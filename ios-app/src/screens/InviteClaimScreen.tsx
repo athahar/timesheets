@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { Button } from '../components/Button';
 import { StickyCTA } from '../components/StickyCTA';
+import ClientWelcomeModal from '../components/ClientWelcomeModal';
 import { theme } from '../styles/theme';
 import { directSupabase } from '../services/storageService';
 import { validateInviteCodeFormat, extractInviteCode } from '../utils/inviteCodeGenerator';
@@ -36,12 +37,14 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
   const t = simpleT;
 
   const navigation = useNavigation<any>();
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const [inviteCode, setInviteCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [validating, setValidating] = useState(false);
   const [inviteDetails, setInviteDetails] = useState<any>(null);
   const [errors, setErrors] = useState<{inviteCode?: string}>({});
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [welcomeProviderName, setWelcomeProviderName] = useState('');
 
   // Pre-fill invite code if passed via deep link
   useEffect(() => {
@@ -194,28 +197,16 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
         ? t('inviteClaim.success.acceptedWork').replace('{{clientName}}', inviteDetails.invite.clientName)
         : t('inviteClaim.success.joinedWorkspace').replace('{{clientName}}', inviteDetails.invite.clientName);
 
-      Alert.alert(
-        t('inviteClaim.success.title'),
-        successMessage,
-        [
-          {
-            text: t('inviteClaim.success.continue'),
-            onPress: () => {
-              // Navigate to appropriate dashboard based on invite type
-              navigation.reset({
-                index: 0,
-                routes: [{
-                  name: 'ServiceProviderSummary',
-                  params: {
-                    providerId: result.providerId,
-                    providerName: inviteDetails.invite.clientName
-                  }
-                }],
-              });
-            },
-          },
-        ]
-      );
+      // Update profile to mark as having seen welcome
+      try {
+        await updateProfile({ has_seen_welcome: true });
+      } catch (error) {
+        if (__DEV__) console.log('Failed to update has_seen_welcome:', error);
+      }
+
+      // Show welcome modal
+      setWelcomeProviderName(inviteDetails.invite.clientName);
+      setShowWelcomeModal(true);
     } catch (error) {
       console.error('Error claiming invite:', error);
 
@@ -230,6 +221,24 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
       Alert.alert(t('inviteClaim.errors.error'), t('inviteClaim.errors.claimFailed'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle welcome modal continue button
+  const handleWelcomeModalContinue = () => {
+    setShowWelcomeModal(false);
+    // Navigate to provider detail screen
+    if (inviteDetails) {
+      navigation.reset({
+        index: 0,
+        routes: [{
+          name: 'ServiceProviderSummary',
+          params: {
+            providerId: inviteDetails.invite.providerId || '',
+            providerName: inviteDetails.invite.clientName
+          }
+        }],
+      });
     }
   };
 
@@ -328,6 +337,13 @@ export const InviteClaimScreen: React.FC<InviteClaimScreenProps> = ({ route }) =
           loading: loading,
         }}
         backgroundColor={theme.color.appBg}
+      />
+
+      {/* Welcome Modal */}
+      <ClientWelcomeModal
+        visible={showWelcomeModal}
+        providerName={welcomeProviderName}
+        onContinue={handleWelcomeModalContinue}
       />
     </SafeAreaView>
   );

@@ -649,13 +649,14 @@ export class DirectSupabaseService {
     clientId: string,
     sessionIds: string[],
     amount: number,
-    method: string
+    method: string,
+    providerId?: string
   ): Promise<Payment> {
     try {
       const paymentId = generateUUID();
 
-      // Get current provider ID
-      const providerId = await this.getCurrentProviderId();
+      // Get provider ID from parameter or fallback to current user
+      const finalProviderId = providerId || await this.getCurrentProviderId();
 
       // Create payment record (using proper schema with session_ids array)
       const { error: paymentError } = await supabase
@@ -663,7 +664,7 @@ export class DirectSupabaseService {
         .insert([{
           id: paymentId,
           client_id: clientId,
-          provider_id: providerId,
+          provider_id: finalProviderId,
           amount,
           method,
           session_ids: sessionIds,
@@ -727,23 +728,35 @@ export class DirectSupabaseService {
       }); }
       }
 
+      // Create payment activity directly with correct providerId
       try {
-        await this.addActivity({
-          type: 'payment_completed',
-          clientId,
-          data: {
-            paymentId,
-            amount,
-            method,
-            paymentDate,
-            sessionIds,
-            sessionCount: sessionIds.length,
-            personHours: totalPersonHours,
-            description: `Payment $${amount.toFixed(2)} made via ${method}`
-          }
-        });
-        if (__DEV__) {
-          if (__DEV__) { if (__DEV__) console.log('✅ Payment activity created successfully'); }
+        const activityId = generateUUID();
+        const { error: activityError } = await supabase
+          .from('trackpay_activities')
+          .insert([{
+            id: activityId,
+            type: 'payment_completed',
+            provider_id: finalProviderId,
+            client_id: clientId,
+            session_id: null,
+            data: {
+              paymentId,
+              amount,
+              method,
+              paymentDate,
+              sessionIds,
+              sessionCount: sessionIds.length,
+              personHours: totalPersonHours,
+              description: `Payment $${amount.toFixed(2)} made via ${method}`
+            },
+            created_at: new Date().toISOString()
+          }]);
+
+        if (activityError) {
+          console.error('❌ Failed to create payment activity:', activityError);
+          // Don't throw - payment was still successful
+        } else if (__DEV__) {
+          if (__DEV__) { if (__DEV__) console.log('✅ Payment activity created successfully with providerId:', finalProviderId); }
         }
       } catch (activityError) {
         console.error('❌ Failed to create payment activity:', activityError);
@@ -838,6 +851,7 @@ export class DirectSupabaseService {
       id: activity.id,
       type: activity.type as ActivityItem['type'],
       clientId: activity.client_id,
+      providerId: activity.provider_id || undefined,
       timestamp: new Date(activity.created_at),
       data: activity.data
     }));

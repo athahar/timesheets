@@ -211,6 +211,15 @@ const translations = {
     'providerList.emptyTitle': 'No service providers yet',
     'providerList.emptySubtitle': 'You\'ll see providers you work with here',
 
+    // ClientWelcomeModal (post-invite claim success)
+    'clientWelcome.title': 'Welcome to TrackPay',
+    'clientWelcome.subtitle': 'You\'ve joined {{providerName}}\'s workspace.',
+    'clientWelcome.cta': 'Continue',
+
+    // Client home empty state
+    'clientList.emptyTitle': 'No providers yet',
+    'clientList.emptySubtitle': 'Ask your service provider for your invite code.',
+
     // ClientHistoryScreen
     'clientHistory.loading': 'Loading...',
     'clientHistory.clientNotFound': 'Client not found',
@@ -278,6 +287,10 @@ const translations = {
     'clientProfile.alreadyDeleted': 'This client was already removed',
     'clientProfile.errorDeleteFailed': 'Please resolve active sessions or unpaid items before deleting.',
     'clientProfile.offlineWarning': 'No internet connection',
+
+    // ProviderProfileScreen
+    'providerProfile.hourlyRate': 'Hourly Rate',
+    'providerProfile.hourlyRateInfo': 'This is the hourly rate {{providerName}} charges for work. All sessions are calculated using this rate.',
 
     // Empty state messages
     'emptyState.noWork': 'No work yet',
@@ -373,6 +386,8 @@ const translations = {
     'toast.success': 'Success',
     'toast.error': 'Error',
     'toast.warning': 'Warning',
+    'toast.paymentRecorded': 'Payment recorded',
+    'toast.errorRetry': 'Pull to refresh to retry',
     'toast.info': 'Info',
 
     // ConfirmationModal
@@ -387,6 +402,11 @@ const translations = {
     'markAsPaidModal.title': 'Mark as Paid',
     'markAsPaidModal.subtitle': 'Record payment to {{providerName}}',
     'markAsPaidModal.cancel': 'Cancel',
+    'markAsPaidModal.save': 'Save',
+    'markAsPaidModal.payingTo': 'Paying to',
+    'markAsPaidModal.personHoursOutstanding': 'person-hours outstanding',
+    'markAsPaidModal.requestedAmount': 'Requested Amount',
+    'markAsPaidModal.paidAmount': 'Paid Amount',
     'markAsPaidModal.paymentAmount': 'Payment Amount',
     'markAsPaidModal.paymentDate': 'Payment Date',
     'markAsPaidModal.paymentMethod': 'Payment Method',
@@ -490,6 +510,7 @@ const translations = {
     'common.stop': 'Stop',
     'common.sessionStarted': 'Session started',
     'common.sessionEnded': 'Session ended',
+    'common.today': 'Today',
     'common.edit': 'Edit',
     'common.cancel': 'Cancel',
     'common.save': 'Save',
@@ -723,6 +744,15 @@ const translations = {
     'providerList.emptyTitle': 'Aún no hay proveedores de servicios',
     'providerList.emptySubtitle': 'Verás aquí a los proveedores con los que trabajas',
 
+    // ClientWelcomeModal (Spanish)
+    'clientWelcome.title': 'Bienvenido a TrackPay',
+    'clientWelcome.subtitle': 'Te has unido al espacio de trabajo de {{providerName}}.',
+    'clientWelcome.cta': 'Continuar',
+
+    // Client home empty state (Spanish)
+    'clientList.emptyTitle': 'Aún no hay proveedores',
+    'clientList.emptySubtitle': 'Pídele a tu proveedor de servicios tu código de invitación.',
+
     // ClientHistoryScreen (Spanish)
     'clientHistory.loading': 'Cargando...',
     'clientHistory.clientNotFound': 'Cliente no encontrado',
@@ -790,6 +820,10 @@ const translations = {
     'clientProfile.alreadyDeleted': 'Este cliente ya fue eliminado',
     'clientProfile.errorDeleteFailed': 'Por favor resuelve sesiones activas o elementos sin pagar antes de eliminar.',
     'clientProfile.offlineWarning': 'Sin conexión a internet',
+
+    // ProviderProfileScreen (Spanish)
+    'providerProfile.hourlyRate': 'Tarifa por Hora',
+    'providerProfile.hourlyRateInfo': 'Esta es la tarifa por hora que {{providerName}} cobra por el trabajo. Todas las sesiones se calculan usando esta tarifa.',
 
     // Empty state messages (Spanish)
     'emptyState.noWork': 'Sin trabajo aún',
@@ -885,6 +919,8 @@ const translations = {
     'toast.success': 'Éxito',
     'toast.error': 'Error',
     'toast.warning': 'Advertencia',
+    'toast.paymentRecorded': 'Pago registrado',
+    'toast.errorRetry': 'Desliza para actualizar y reintentar',
     'toast.info': 'Información',
 
     // ConfirmationModal (Spanish)
@@ -899,6 +935,11 @@ const translations = {
     'markAsPaidModal.title': 'Marcar como Pagado',
     'markAsPaidModal.subtitle': 'Registrar pago a {{providerName}}',
     'markAsPaidModal.cancel': 'Cancelar',
+    'markAsPaidModal.save': 'Guardar',
+    'markAsPaidModal.payingTo': 'Pagando a',
+    'markAsPaidModal.personHoursOutstanding': 'horas-persona pendientes',
+    'markAsPaidModal.requestedAmount': 'Monto Solicitado',
+    'markAsPaidModal.paidAmount': 'Monto Pagado',
     'markAsPaidModal.paymentAmount': 'Monto del Pago',
     'markAsPaidModal.paymentDate': 'Fecha de Pago',
     'markAsPaidModal.paymentMethod': 'Método de Pago',
@@ -1002,6 +1043,7 @@ const translations = {
     'common.stop': 'Detener',
     'common.sessionStarted': 'Sesión iniciada',
     'common.sessionEnded': 'Sesión terminada',
+    'common.today': 'Hoy',
     'common.edit': 'Editar',
     'common.cancel': 'Cancelar',
     'common.save': 'Guardar',

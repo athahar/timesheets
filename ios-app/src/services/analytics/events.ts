@@ -58,6 +58,14 @@ export const E = {
   INVITE_REDEEMED: 'invite_redeemed',
   INVITE_REDEMPTION_FAILED: 'invite_redemption_failed',
   RELATIONSHIP_CREATED_FROM_INVITE: 'relationship_created_from_invite',
+
+  // Client UX Events (6 new events)
+  CLIENT_HOME_VIEWED: 'client.home.viewed',
+  CLIENT_PROVIDER_CARD_TAPPED: 'client.provider.card_tapped',
+  CLIENT_PROVIDER_DETAIL_VIEWED: 'client.provider_detail.viewed',
+  CLIENT_LOGIN_SUCCESS: 'client.login.success',
+  CLIENT_PAYMENT_OPEN_MARK_PAID: 'client.payment.open_mark_paid',
+  CLIENT_PAYMENT_RECORDED: 'client.payment.recorded',
 } as const;
 
 // ============================================
@@ -342,6 +350,50 @@ export const zActionLanguageChanged = z.object({
 export type ActionLanguageChanged = z.infer<typeof zActionLanguageChanged>;
 
 // ============================================
+// CLIENT UX EVENTS SCHEMAS (6 events)
+// ============================================
+
+export const zClientHomeViewed = z.object({
+  providerCount: z.number().int().nonnegative(),
+});
+export type ClientHomeViewed = z.infer<typeof zClientHomeViewed>;
+
+export const zClientProviderCardTapped = z.object({
+  providerId: z.string(),
+  providerName: z.string(),
+  totalBalance: z.number().nonnegative(),
+});
+export type ClientProviderCardTapped = z.infer<typeof zClientProviderCardTapped>;
+
+export const zClientProviderDetailViewed = z.object({
+  providerId: z.string(),
+  providerName: z.string(),
+  unpaidBalance: z.number().nonnegative(),
+});
+export type ClientProviderDetailViewed = z.infer<typeof zClientProviderDetailViewed>;
+
+export const zClientLoginSuccess = z.object({
+  method: z.enum(['email_password', 'invite_claim']),
+  hasSeenWelcome: z.boolean(),
+});
+export type ClientLoginSuccess = z.infer<typeof zClientLoginSuccess>;
+
+export const zClientPaymentOpenMarkPaid = z.object({
+  providerId: z.string(),
+  providerName: z.string(),
+  unpaidBalance: z.number().nonnegative(),
+});
+export type ClientPaymentOpenMarkPaid = z.infer<typeof zClientPaymentOpenMarkPaid>;
+
+export const zClientPaymentRecorded = z.object({
+  providerId: z.string(),
+  providerName: z.string(),
+  amount: z.number().positive(),
+  currency: z.string(),
+});
+export type ClientPaymentRecorded = z.infer<typeof zClientPaymentRecorded>;
+
+// ============================================
 // SCHEMA MAP (for runtime validation)
 // ============================================
 
@@ -383,6 +435,14 @@ export const schemaMap: Record<string, z.ZodTypeAny | undefined> = {
   [E_T1.ACTION_LOGIN_CTA_CLICKED]: zActionLoginCtaClicked,
   [E_T1.ACTION_INVITE_CLAIM_CTA_CLICKED]: zActionInviteClaimCtaClicked,
   [E_T1.ACTION_LANGUAGE_CHANGED]: zActionLanguageChanged,
+
+  // Client UX Events
+  [E.CLIENT_HOME_VIEWED]: zClientHomeViewed,
+  [E.CLIENT_PROVIDER_CARD_TAPPED]: zClientProviderCardTapped,
+  [E.CLIENT_PROVIDER_DETAIL_VIEWED]: zClientProviderDetailViewed,
+  [E.CLIENT_LOGIN_SUCCESS]: zClientLoginSuccess,
+  [E.CLIENT_PAYMENT_OPEN_MARK_PAID]: zClientPaymentOpenMarkPaid,
+  [E.CLIENT_PAYMENT_RECORDED]: zClientPaymentRecorded,
 };
 
 /**
