@@ -60,9 +60,13 @@ export const ProviderProfileScreen: React.FC<ProviderProfileScreenProps> = ({
         .single();
 
       if (!relError && relationship?.hourly_rate) {
+        // Use relationship-specific rate if available
         setHourlyRate(relationship.hourly_rate);
+      } else if (userProfile.hourlyRate) {
+        // Fall back to client's own rate (this is the rate they pay the provider)
+        setHourlyRate(userProfile.hourlyRate);
       } else {
-        // Fall back to provider's base rate
+        // Last resort: try provider's base rate
         const { data: provider, error: providerError } = await supabase
           .from('trackpay_users')
           .select('hourly_rate')
