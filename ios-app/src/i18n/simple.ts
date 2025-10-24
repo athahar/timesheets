@@ -559,6 +559,82 @@ const translations = {
     'help.section.general': 'General',
     'help.emptyState': 'We\'re adding more tips soon. Email support if you don\'t see your question.',
 
+    // FAQ - Provider - Sessions
+    'faq.provider.sessions.1.q': 'How do I start a new session?',
+    'faq.provider.sessions.1.a': 'Open the client from your list, review the details, then tap "Start". The timer begins immediately and you can monitor elapsed time at the top of the screen.',
+    'faq.provider.sessions.2.q': 'How do I end a running session?',
+    'faq.provider.sessions.2.a': 'From the active session screen, tap "Stop" when the visit ends. TrackPay calculates duration, person hours, and the amount due automatically.',
+    'faq.provider.sessions.3.q': 'Can I adjust the crew size during a session?',
+    'faq.provider.sessions.3.a': 'Yes. Use the crew size stepper while the session is active. Changes apply to the entire session and the payment summary updates as soon as you confirm.',
+    'faq.provider.sessions.4.q': 'How do I change a client\'s hourly rate?',
+    'faq.provider.sessions.4.a': 'Go to the client profile, tap Edit, update the hourly rate field, and save. New sessions will use the updated rate immediately.',
+    'faq.provider.sessions.5.q': 'What if a session ended but the duration looks wrong?',
+    'faq.provider.sessions.5.a': 'Pause new work, review the session history, and contact support with the session ID so we can help correct the entry.',
+
+    // FAQ - Provider - Invites
+    'faq.provider.invites.1.q': 'How do I invite a client to TrackPay?',
+    'faq.provider.invites.1.a': 'On the client list, tap Invite, generate a code, and share it via text or email. The client enters that code during sign-up to link to you.',
+    'faq.provider.invites.2.q': 'What happens if a client never accepts my invite?',
+    'faq.provider.invites.2.a': 'You can resend the invite from the client profile. If the link expires, create a fresh code and share it again, or remove the placeholder client if no longer needed.',
+    'faq.provider.invites.3.q': 'Can I revoke an invite that went to the wrong person?',
+    'faq.provider.invites.3.a': 'No you cannot directly. you need to contact us.',
+
+    // FAQ - Provider - Payments
+    'faq.provider.payments.1.q': 'How do I request payment for recent sessions?',
+    'faq.provider.payments.1.a': 'From the client history, select unpaid sessions and tap Request Payment. TrackPay notifies the client and tracks the outstanding balance.',
+    'faq.provider.payments.2.q': 'How do I mark a payment as received?',
+    'faq.provider.payments.2.a': 'Open the payment request or unpaid session list, choose the sessions that were paid, and tap Record Payment. Enter the amount and payment method, then confirm.',
+    'faq.provider.payments.3.q': 'What if a payment amount looks incorrect?',
+    'faq.provider.payments.3.a': 'Review the session details for crew size and duration. If something still feels off, email support with the session IDs and we\'ll help reconcile the numbers.',
+    'faq.provider.payments.4.q': 'Can I see which clients still owe me money?',
+    'faq.provider.payments.4.a': 'Yes. The client list shows outstanding balances at a glance, and the analytics summary breaks down unpaid, requested, and paid totals.',
+
+    // FAQ - Provider - General
+    'faq.provider.general.1.q': 'How do I share TrackPay with other providers?',
+    'faq.provider.general.1.a': 'Tap the hamburger menu, choose Share, and use the pre-filled message to text or email colleagues about TrackPay.',
+    'faq.provider.general.2.q': 'How can I contact TrackPay support?',
+    'faq.provider.general.2.a': 'Open the hamburger menu, tap Contact, and hit Email Support. The message automatically includes your app version so we can help faster.',
+    'faq.provider.general.3.q': 'Where can I see all my recent activity?',
+    'faq.provider.general.3.a': 'Each client\'s detail screen has an Activity Timeline showing session starts, ends, payment requests, and payment confirmations in chronological order.',
+    'faq.provider.general.4.q': 'What should I do if something looks inaccurate?',
+    'faq.provider.general.4.a': 'Pause before adjusting data manually, take screenshots if possible, and email support with a short description and session IDs so we can investigate.',
+
+    // FAQ - Client - Sessions
+    'faq.client.sessions.1.q': 'How do I know when my provider is on-site?',
+    'faq.client.sessions.1.a': 'You\'ll see a live session banner in the provider list once they tap "Start." The Activity Timeline in the provider detail also logs the start time.',
+    'faq.client.sessions.2.q': 'Can I view the details of past sessions?',
+    'faq.client.sessions.2.a': 'Yes. Open the provider, then tap Session History to see dates, durations, crew sizes, and notes for every visit.',
+    'faq.client.sessions.3.q': 'How do I request corrections to a session?',
+    'faq.client.sessions.3.a': 'If something looks wrong, contact your provider directly or use the Contact option in the menu to email TrackPay support with the session details.',
+
+    // FAQ - Client - Invites
+    'faq.client.invites.1.q': 'How do I accept a provider\'s invite?',
+    'faq.client.invites.1.a': 'During sign-up, enter the invite code your provider shared. TrackPay links your account instantly so you can view their sessions and requests.',
+    'faq.client.invites.2.q': 'What if I never received an invite code?',
+    'faq.client.invites.2.a': 'Ask your provider to resend the code or send you a new one. If you still don\'t receive it, contact support and we\'ll verify the provider-client connection.',
+    'faq.client.invites.3.q': 'How do I invite another family member to help manage care?',
+    'faq.client.invites.3.a': 'Share your login credentials sparingly or contact support to set up access for a family coordinator (multi-user support is on the roadmap).',
+
+    // FAQ - Client - Payments
+    'faq.client.payments.1.q': 'How do I review payment requests from my provider?',
+    'faq.client.payments.1.a': 'Open the provider list, tap the provider with a badge, and review unpaid sessions grouped by request. Each entry shows hours and amounts due.',
+    'faq.client.payments.2.q': 'How do I mark a payment as completed?',
+    'faq.client.payments.2.a': 'Select the request, tap Record Payment, choose the method (cash, Zelle, etc.), and confirm. TrackPay updates the provider instantly.',
+    'faq.client.payments.3.q': 'Can I pay only part of the amount now?',
+    'faq.client.payments.3.a': 'Partial payments aren\'t supported yet. Contact your provider to coordinate adjustments and have them reissue a request once ready.',
+    'faq.client.payments.4.q': 'What if the amount looks higher than expected?',
+    'faq.client.payments.4.a': 'Review the session list for crew size or extended time. If it still seems incorrect, reach out to the provider or email TrackPay support with the request ID.',
+
+    // FAQ - Client - General
+    'faq.client.general.1.q': 'How do I contact TrackPay for help?',
+    'faq.client.general.1.a': 'Tap the hamburger menu, choose Contact, and select Email Support. A draft opens with your app version included automatically.',
+    'faq.client.general.2.q': 'How can I share TrackPay with other families?',
+    'faq.client.general.2.a': 'Use the Share option in the hamburger menu to send a pre-written message with the TrackPay link.',
+    'faq.client.general.3.q': 'How do I switch between multiple providers?',
+    'faq.client.general.3.a': 'The provider list shows all active providers. Tap any card to dive into their sessions, payments, and activity history.',
+    'faq.client.general.4.q': 'What should I do if my provider stops appearing in the list?',
+    'faq.client.general.4.a': 'Refresh the screen to pull the latest data. If they still don\'t show up, contact the provider or email support so we can confirm the relationship status.',
+
     // Contact Modal
     'contact.title': 'Contact TrackPay',
     'contact.hero': 'We\'d love to hear from you.',
@@ -1128,6 +1204,84 @@ const translations = {
     'help.section.payments': 'Pagos',
     'help.section.general': 'General',
     'help.emptyState': 'Pronto añadiremos más consejos. Envía un correo a soporte si no encuentras tu pregunta.',
+
+    // FAQ Translations - Provider (Spanish)
+    // Sessions
+    'faq.provider.sessions.1.q': '¿Cómo inicio una nueva sesión?',
+    'faq.provider.sessions.1.a': 'Abre el cliente de tu lista, revisa los detalles, luego toca "Iniciar". El temporizador comienza inmediatamente y puedes monitorear el tiempo transcurrido en la parte superior de la pantalla.',
+    'faq.provider.sessions.2.q': '¿Cómo finalizo una sesión en curso?',
+    'faq.provider.sessions.2.a': 'Desde la pantalla de sesión activa, toca "Detener" cuando termine la visita. TrackPay calcula automáticamente la duración, las horas-persona y el monto adeudado.',
+    'faq.provider.sessions.3.q': '¿Puedo ajustar el tamaño del equipo durante una sesión?',
+    'faq.provider.sessions.3.a': 'Sí. Usa el selector de tamaño de equipo mientras la sesión esté activa. Los cambios se aplican a toda la sesión y el resumen de pago se actualiza tan pronto como confirmes.',
+    'faq.provider.sessions.4.q': '¿Cómo cambio la tarifa por hora de un cliente?',
+    'faq.provider.sessions.4.a': 'Ve al perfil del cliente, toca Editar, actualiza el campo de tarifa por hora y guarda. Las nuevas sesiones usarán la tarifa actualizada inmediatamente.',
+    'faq.provider.sessions.5.q': '¿Qué pasa si una sesión terminó pero la duración parece incorrecta?',
+    'faq.provider.sessions.5.a': 'Pausa el nuevo trabajo, revisa el historial de sesiones y contacta a soporte con el ID de sesión para que podamos ayudarte a corregir la entrada.',
+
+    // Invites
+    'faq.provider.invites.1.q': '¿Cómo invito a un cliente a TrackPay?',
+    'faq.provider.invites.1.a': 'En la lista de clientes, toca Invitar, genera un código y compártelo por mensaje de texto o correo electrónico. El cliente ingresa ese código durante el registro para vincularse contigo.',
+    'faq.provider.invites.2.q': '¿Qué pasa si un cliente nunca acepta mi invitación?',
+    'faq.provider.invites.2.a': 'Puedes reenviar la invitación desde el perfil del cliente. Si el enlace expira, crea un código nuevo y compártelo de nuevo, o elimina el cliente marcador de posición si ya no es necesario.',
+    'faq.provider.invites.3.q': '¿Puedo revocar una invitación que fue a la persona equivocada?',
+    'faq.provider.invites.3.a': 'No puedes hacerlo directamente. Necesitas contactarnos.',
+
+    // Payments
+    'faq.provider.payments.1.q': '¿Cómo solicito el pago por sesiones recientes?',
+    'faq.provider.payments.1.a': 'Desde el historial del cliente, selecciona las sesiones no pagadas y toca Solicitar Pago. TrackPay notifica al cliente y rastrea el saldo pendiente.',
+    'faq.provider.payments.2.q': '¿Cómo marco un pago como recibido?',
+    'faq.provider.payments.2.a': 'Abre la solicitud de pago o la lista de sesiones no pagadas, elige las sesiones que fueron pagadas y toca Registrar Pago. Ingresa el monto y el método de pago, luego confirma.',
+    'faq.provider.payments.3.q': '¿Qué pasa si el monto del pago parece incorrecto?',
+    'faq.provider.payments.3.a': 'Revisa los detalles de la sesión para el tamaño del equipo y la duración. Si aún algo parece mal, envía un correo a soporte con los IDs de sesión y te ayudaremos a conciliar los números.',
+    'faq.provider.payments.4.q': '¿Puedo ver qué clientes aún me deben dinero?',
+    'faq.provider.payments.4.a': 'Sí. La lista de clientes muestra saldos pendientes de un vistazo, y el resumen de análisis desglosa los totales no pagados, solicitados y pagados.',
+
+    // General
+    'faq.provider.general.1.q': '¿Cómo comparto TrackPay con otros proveedores?',
+    'faq.provider.general.1.a': 'Toca el menú hamburguesa, elige Compartir y usa el mensaje prellenado para enviar por mensaje de texto o correo electrónico a colegas sobre TrackPay.',
+    'faq.provider.general.2.q': '¿Cómo puedo contactar al soporte de TrackPay?',
+    'faq.provider.general.2.a': 'Abre el menú hamburguesa, toca Contacto y presiona Enviar Correo a Soporte. El mensaje incluye automáticamente la versión de tu aplicación para que podamos ayudarte más rápido.',
+    'faq.provider.general.3.q': '¿Dónde puedo ver toda mi actividad reciente?',
+    'faq.provider.general.3.a': 'La pantalla de detalles de cada cliente tiene una Línea de Tiempo de Actividad que muestra inicios de sesión, finalizaciones, solicitudes de pago y confirmaciones de pago en orden cronológico.',
+    'faq.provider.general.4.q': '¿Qué debo hacer si algo parece inexacto?',
+    'faq.provider.general.4.a': 'Pausa antes de ajustar datos manualmente, toma capturas de pantalla si es posible y envía un correo a soporte con una breve descripción y los IDs de sesión para que podamos investigar.',
+
+    // FAQ Translations - Client (Spanish)
+    // Sessions
+    'faq.client.sessions.1.q': '¿Cómo sé cuándo mi proveedor está en el lugar?',
+    'faq.client.sessions.1.a': 'Verás un banner de sesión en vivo en la lista de proveedores una vez que toquen "Iniciar". La Línea de Tiempo de Actividad en el detalle del proveedor también registra la hora de inicio.',
+    'faq.client.sessions.2.q': '¿Puedo ver los detalles de sesiones pasadas?',
+    'faq.client.sessions.2.a': 'Sí. Abre el proveedor, luego toca Historial de Sesiones para ver fechas, duraciones, tamaños de equipo y notas de cada visita.',
+    'faq.client.sessions.3.q': '¿Cómo solicito correcciones a una sesión?',
+    'faq.client.sessions.3.a': 'Si algo parece incorrecto, contacta a tu proveedor directamente o usa la opción Contacto en el menú para enviar un correo a soporte de TrackPay con los detalles de la sesión.',
+
+    // Invites
+    'faq.client.invites.1.q': '¿Cómo acepto la invitación de un proveedor?',
+    'faq.client.invites.1.a': 'Durante el registro, ingresa el código de invitación que tu proveedor compartió. TrackPay vincula tu cuenta al instante para que puedas ver sus sesiones y solicitudes.',
+    'faq.client.invites.2.q': '¿Qué pasa si nunca recibí un código de invitación?',
+    'faq.client.invites.2.a': 'Pídele a tu proveedor que reenvíe el código o te envíe uno nuevo. Si aún no lo recibes, contacta a soporte y verificaremos la conexión proveedor-cliente.',
+    'faq.client.invites.3.q': '¿Cómo invito a otro miembro de la familia para ayudar a gestionar el cuidado?',
+    'faq.client.invites.3.a': 'Comparte tus credenciales de inicio de sesión con moderación o contacta a soporte para configurar el acceso para un coordinador familiar (el soporte multiusuario está en la hoja de ruta).',
+
+    // Payments
+    'faq.client.payments.1.q': '¿Cómo reviso las solicitudes de pago de mi proveedor?',
+    'faq.client.payments.1.a': 'Abre la lista de proveedores, toca el proveedor con una insignia y revisa las sesiones no pagadas agrupadas por solicitud. Cada entrada muestra horas y montos adeudados.',
+    'faq.client.payments.2.q': '¿Cómo marco un pago como completado?',
+    'faq.client.payments.2.a': 'Selecciona la solicitud, toca Registrar Pago, elige el método (efectivo, Zelle, etc.) y confirma. TrackPay actualiza al proveedor al instante.',
+    'faq.client.payments.3.q': '¿Puedo pagar solo una parte del monto ahora?',
+    'faq.client.payments.3.a': 'Los pagos parciales aún no están soportados. Contacta a tu proveedor para coordinar ajustes y que vuelvan a emitir una solicitud una vez estén listos.',
+    'faq.client.payments.4.q': '¿Qué pasa si el monto parece más alto de lo esperado?',
+    'faq.client.payments.4.a': 'Revisa la lista de sesiones para el tamaño del equipo o tiempo extendido. Si aún parece incorrecto, comunícate con el proveedor o envía un correo a soporte de TrackPay con el ID de solicitud.',
+
+    // General
+    'faq.client.general.1.q': '¿Cómo contacto a TrackPay para obtener ayuda?',
+    'faq.client.general.1.a': 'Toca el menú hamburguesa, elige Contacto y selecciona Enviar Correo a Soporte. Se abre un borrador con la versión de tu aplicación incluida automáticamente.',
+    'faq.client.general.2.q': '¿Cómo puedo compartir TrackPay con otras familias?',
+    'faq.client.general.2.a': 'Usa la opción Compartir en el menú hamburguesa para enviar un mensaje preescrito con el enlace de TrackPay.',
+    'faq.client.general.3.q': '¿Cómo cambio entre múltiples proveedores?',
+    'faq.client.general.3.a': 'La lista de proveedores muestra todos los proveedores activos. Toca cualquier tarjeta para sumergirte en sus sesiones, pagos e historial de actividad.',
+    'faq.client.general.4.q': '¿Qué debo hacer si mi proveedor deja de aparecer en la lista?',
+    'faq.client.general.4.a': 'Actualiza la pantalla para obtener los datos más recientes. Si aún no aparecen, contacta al proveedor o envía un correo a soporte para que podamos confirmar el estado de la relación.',
 
     // Contact Modal (Spanish)
     'contact.title': 'Contactar a TrackPay',

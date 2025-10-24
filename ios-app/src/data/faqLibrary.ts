@@ -6,6 +6,8 @@
  * Organized by persona (provider/client) and category for display in HelpScreen.
  */
 
+import { simpleT } from '../i18n/simple';
+
 export type FAQCategory = 'sessions' | 'invites' | 'payments' | 'general';
 export type Persona = 'provider' | 'client';
 
@@ -25,104 +27,104 @@ export const faqLibrary: FAQEntry[] = [
   {
     persona: 'provider',
     category: 'sessions',
-    question: 'How do I start a new session?',
-    answer: 'Open the client from your list, review the details, then tap "Start". The timer begins immediately and you can monitor elapsed time at the top of the screen.',
+    question: simpleT('faq.provider.sessions.1.q'),
+    answer: simpleT('faq.provider.sessions.1.a'),
   },
   {
     persona: 'provider',
     category: 'sessions',
-    question: 'How do I end a running session?',
-    answer: 'From the active session screen, tap "Stop" when the visit ends. TrackPay calculates duration, person hours, and the amount due automatically.',
+    question: simpleT('faq.provider.sessions.2.q'),
+    answer: simpleT('faq.provider.sessions.2.a'),
   },
   {
     persona: 'provider',
     category: 'sessions',
-    question: 'Can I adjust the crew size during a session?',
-    answer: 'Yes. Use the crew size stepper while the session is active. Changes apply to the entire session and the payment summary updates as soon as you confirm.',
+    question: simpleT('faq.provider.sessions.3.q'),
+    answer: simpleT('faq.provider.sessions.3.a'),
   },
   {
     persona: 'provider',
     category: 'sessions',
-    question: 'How do I change a client\'s hourly rate?',
-    answer: 'Go to the client profile, tap Edit, update the hourly rate field, and save. New sessions will use the updated rate immediately.',
+    question: simpleT('faq.provider.sessions.4.q'),
+    answer: simpleT('faq.provider.sessions.4.a'),
   },
   {
     persona: 'provider',
     category: 'sessions',
-    question: 'What if a session ended but the duration looks wrong?',
-    answer: 'Pause new work, review the session history, and contact support with the session ID so we can help correct the entry.',
+    question: simpleT('faq.provider.sessions.5.q'),
+    answer: simpleT('faq.provider.sessions.5.a'),
   },
 
   // Invites
   {
     persona: 'provider',
     category: 'invites',
-    question: 'How do I invite a client to TrackPay?',
-    answer: 'On the client list, tap Invite, generate a code, and share it via text or email. The client enters that code during sign-up to link to you.',
+    question: simpleT('faq.provider.invites.1.q'),
+    answer: simpleT('faq.provider.invites.1.a'),
   },
   {
     persona: 'provider',
     category: 'invites',
-    question: 'What happens if a client never accepts my invite?',
-    answer: 'You can resend the invite from the client profile. If the link expires, create a fresh code and share it again, or remove the placeholder client if no longer needed.',
+    question: simpleT('faq.provider.invites.2.q'),
+    answer: simpleT('faq.provider.invites.2.a'),
   },
   {
     persona: 'provider',
     category: 'invites',
-    question: 'Can I revoke an invite that went to the wrong person?',
-    answer: 'No you cannot directly. you need to contact us.',
+    question: simpleT('faq.provider.invites.3.q'),
+    answer: simpleT('faq.provider.invites.3.a'),
   },
 
   // Payments
   {
     persona: 'provider',
     category: 'payments',
-    question: 'How do I request payment for recent sessions?',
-    answer: 'From the client history, select unpaid sessions and tap Request Payment. TrackPay notifies the client and tracks the outstanding balance.',
+    question: simpleT('faq.provider.payments.1.q'),
+    answer: simpleT('faq.provider.payments.1.a'),
   },
   {
     persona: 'provider',
     category: 'payments',
-    question: 'How do I mark a payment as received?',
-    answer: 'Open the payment request or unpaid session list, choose the sessions that were paid, and tap Record Payment. Enter the amount and payment method, then confirm.',
+    question: simpleT('faq.provider.payments.2.q'),
+    answer: simpleT('faq.provider.payments.2.a'),
   },
   {
     persona: 'provider',
     category: 'payments',
-    question: 'What if a payment amount looks incorrect?',
-    answer: 'Review the session details for crew size and duration. If something still feels off, email support with the session IDs and we\'ll help reconcile the numbers.',
+    question: simpleT('faq.provider.payments.3.q'),
+    answer: simpleT('faq.provider.payments.3.a'),
   },
   {
     persona: 'provider',
     category: 'payments',
-    question: 'Can I see which clients still owe me money?',
-    answer: 'Yes. The client list shows outstanding balances at a glance, and the analytics summary breaks down unpaid, requested, and paid totals.',
+    question: simpleT('faq.provider.payments.4.q'),
+    answer: simpleT('faq.provider.payments.4.a'),
   },
 
   // General
   {
     persona: 'provider',
     category: 'general',
-    question: 'How do I share TrackPay with other providers?',
-    answer: 'Tap the hamburger menu, choose Share, and use the pre-filled message to text or email colleagues about TrackPay.',
+    question: simpleT('faq.provider.general.1.q'),
+    answer: simpleT('faq.provider.general.1.a'),
   },
   {
     persona: 'provider',
     category: 'general',
-    question: 'How can I contact TrackPay support?',
-    answer: 'Open the hamburger menu, tap Contact, and hit Email Support. The message automatically includes your app version so we can help faster.',
+    question: simpleT('faq.provider.general.2.q'),
+    answer: simpleT('faq.provider.general.2.a'),
   },
   {
     persona: 'provider',
     category: 'general',
-    question: 'Where can I see all my recent activity?',
-    answer: 'Each client\'s detail screen has an Activity Timeline showing session starts, ends, payment requests, and payment confirmations in chronological order.',
+    question: simpleT('faq.provider.general.3.q'),
+    answer: simpleT('faq.provider.general.3.a'),
   },
   {
     persona: 'provider',
     category: 'general',
-    question: 'What should I do if something looks inaccurate?',
-    answer: 'Pause before adjusting data manually, take screenshots if possible, and email support with a short description and session IDs so we can investigate.',
+    question: simpleT('faq.provider.general.4.q'),
+    answer: simpleT('faq.provider.general.4.a'),
   },
 
   // ============================================
@@ -133,92 +135,92 @@ export const faqLibrary: FAQEntry[] = [
   {
     persona: 'client',
     category: 'sessions',
-    question: 'How do I know when my provider is on-site?',
-    answer: 'You\'ll see a live session banner in the provider list once they tap "Start." The Activity Timeline in the provider detail also logs the start time.',
+    question: simpleT('faq.client.sessions.1.q'),
+    answer: simpleT('faq.client.sessions.1.a'),
   },
   {
     persona: 'client',
     category: 'sessions',
-    question: 'Can I view the details of past sessions?',
-    answer: 'Yes. Open the provider, then tap Session History to see dates, durations, crew sizes, and notes for every visit.',
+    question: simpleT('faq.client.sessions.2.q'),
+    answer: simpleT('faq.client.sessions.2.a'),
   },
   {
     persona: 'client',
     category: 'sessions',
-    question: 'How do I request corrections to a session?',
-    answer: 'If something looks wrong, contact your provider directly or use the Contact option in the menu to email TrackPay support with the session details.',
+    question: simpleT('faq.client.sessions.3.q'),
+    answer: simpleT('faq.client.sessions.3.a'),
   },
 
   // Invites
   {
     persona: 'client',
     category: 'invites',
-    question: 'How do I accept a provider\'s invite?',
-    answer: 'During sign-up, enter the invite code your provider shared. TrackPay links your account instantly so you can view their sessions and requests.',
+    question: simpleT('faq.client.invites.1.q'),
+    answer: simpleT('faq.client.invites.1.a'),
   },
   {
     persona: 'client',
     category: 'invites',
-    question: 'What if I never received an invite code?',
-    answer: 'Ask your provider to resend the code or send you a new one. If you still don\'t receive it, contact support and we\'ll verify the provider-client connection.',
+    question: simpleT('faq.client.invites.2.q'),
+    answer: simpleT('faq.client.invites.2.a'),
   },
   {
     persona: 'client',
     category: 'invites',
-    question: 'How do I invite another family member to help manage care?',
-    answer: 'Share your login credentials sparingly or contact support to set up access for a family coordinator (multi-user support is on the roadmap).',
+    question: simpleT('faq.client.invites.3.q'),
+    answer: simpleT('faq.client.invites.3.a'),
   },
 
   // Payments
   {
     persona: 'client',
     category: 'payments',
-    question: 'How do I review payment requests from my provider?',
-    answer: 'Open the provider list, tap the provider with a badge, and review unpaid sessions grouped by request. Each entry shows hours and amounts due.',
+    question: simpleT('faq.client.payments.1.q'),
+    answer: simpleT('faq.client.payments.1.a'),
   },
   {
     persona: 'client',
     category: 'payments',
-    question: 'How do I mark a payment as completed?',
-    answer: 'Select the request, tap Record Payment, choose the method (cash, Zelle, etc.), and confirm. TrackPay updates the provider instantly.',
+    question: simpleT('faq.client.payments.2.q'),
+    answer: simpleT('faq.client.payments.2.a'),
   },
   {
     persona: 'client',
     category: 'payments',
-    question: 'Can I pay only part of the amount now?',
-    answer: 'Partial payments aren\'t supported yet. Contact your provider to coordinate adjustments and have them reissue a request once ready.',
+    question: simpleT('faq.client.payments.3.q'),
+    answer: simpleT('faq.client.payments.3.a'),
   },
   {
     persona: 'client',
     category: 'payments',
-    question: 'What if the amount looks higher than expected?',
-    answer: 'Review the session list for crew size or extended time. If it still seems incorrect, reach out to the provider or email TrackPay support with the request ID.',
+    question: simpleT('faq.client.payments.4.q'),
+    answer: simpleT('faq.client.payments.4.a'),
   },
 
   // General
   {
     persona: 'client',
     category: 'general',
-    question: 'How do I contact TrackPay for help?',
-    answer: 'Tap the hamburger menu, choose Contact, and select Email Support. A draft opens with your app version included automatically.',
+    question: simpleT('faq.client.general.1.q'),
+    answer: simpleT('faq.client.general.1.a'),
   },
   {
     persona: 'client',
     category: 'general',
-    question: 'How can I share TrackPay with other families?',
-    answer: 'Use the Share option in the hamburger menu to send a pre-written message with the TrackPay link.',
+    question: simpleT('faq.client.general.2.q'),
+    answer: simpleT('faq.client.general.2.a'),
   },
   {
     persona: 'client',
     category: 'general',
-    question: 'How do I switch between multiple providers?',
-    answer: 'The provider list shows all active providers. Tap any card to dive into their sessions, payments, and activity history.',
+    question: simpleT('faq.client.general.3.q'),
+    answer: simpleT('faq.client.general.3.a'),
   },
   {
     persona: 'client',
     category: 'general',
-    question: 'What should I do if my provider stops appearing in the list?',
-    answer: 'Refresh the screen to pull the latest data. If they still don\'t show up, contact the provider or email support so we can confirm the relationship status.',
+    question: simpleT('faq.client.general.4.q'),
+    answer: simpleT('faq.client.general.4.a'),
   },
 ];
 
