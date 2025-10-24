@@ -464,7 +464,9 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                           </View>
                           <Text style={styles.timelineCardMeta}>
                             {(() => {
-                              const sessionCount = item.data.data.sessionCount || 0;
+                              // Calculate sessionCount from sessionIds array
+                              const sessionIds = item.data.data.sessionIds || [];
+                              const sessionCount = Array.isArray(sessionIds) ? sessionIds.length : 0;
                               const personHours = item.data.data.personHours || 0;
                               const sessionText = sessionCount === 1
                                 ? `1 ${simpleT('providerSummary.session')}`
