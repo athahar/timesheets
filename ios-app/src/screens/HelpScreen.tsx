@@ -114,9 +114,9 @@ export const HelpScreen: React.FC<HelpScreenProps> = ({ navigation }) => {
                         <View key={index} style={styles.faqItem}>
                           <View style={styles.faqQuestionRow}>
                             <Feather name="help-circle" size={16} color={TP.color.primary} />
-                            <Text style={styles.faqQuestion}>{faq.question}</Text>
+                            <Text style={styles.faqQuestion}>{simpleT(faq.questionKey)}</Text>
                           </View>
-                          <Text style={styles.faqAnswer}>{faq.answer}</Text>
+                          <Text style={styles.faqAnswer}>{simpleT(faq.answerKey)}</Text>
                         </View>
                       ))}
                     </View>
