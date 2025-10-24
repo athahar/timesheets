@@ -154,7 +154,8 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
             if (__DEV__) console.log('🔍 Activity:', a.id, 'clientId:', a.clientId, 'providerId:', a.providerId, 'type:', a.type);
           }
         }
-        return a.clientId === clientRecordId && a.providerId === providerId;
+        // Filter by clientId only - providerId filtering removed because it hides payment activities
+        return a.clientId === clientRecordId;
       });
       if (__DEV__) {
         if (__DEV__) {
