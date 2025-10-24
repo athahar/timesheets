@@ -1079,12 +1079,12 @@ export class DirectSupabaseService {
       claimed_status: 'claimed'
     };
 
-    // Add email and display_name if provided (from registration)
+    // Add email and name if provided (from registration)
     if (userEmail) {
       updateData.email = userEmail;
     }
     if (displayName) {
-      updateData.display_name = displayName;
+      updateData.name = displayName; // Column is 'name', not 'display_name'
     }
 
     const { error: updateError } = await supabase

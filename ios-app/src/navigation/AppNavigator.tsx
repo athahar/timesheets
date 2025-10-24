@@ -17,7 +17,6 @@ import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
 import { InviteClaimScreen } from '../screens/InviteClaimScreen';
 
 // App Screens
-import { AccountSelectionScreen } from '../screens/AccountSelectionScreen';
 import { ClientListScreen } from '../screens/ClientListScreen';
 import { ClientHistoryScreen } from '../screens/ClientHistoryScreen';
 import { StyledSessionTrackingScreen } from '../screens/StyledSessionTrackingScreen';
@@ -44,7 +43,6 @@ export type AuthStackParamList = {
 };
 
 export type AppStackParamList = {
-  AccountSelection: undefined;
   ClientList: undefined;
   ClientHistory: { clientId: string };
   SessionTracking: { clientId: string };
@@ -66,44 +64,7 @@ const LoadingScreen = () => (
   </View>
 );
 
-// Smart Account Selection - Auto-navigates based on user role
-const SmartAccountSelection = ({ navigation, userProfile, isLoading }: { navigation: any; userProfile: any; isLoading: boolean }) => {
-  const [navigated, setNavigated] = useState(false);
-
-  useEffect(() => {
-    if (userProfile && !navigated) {
-
-      // Small delay to ensure navigation completes properly
-      const navigationTimeout = setTimeout(() => {
-        if (userProfile.role === 'provider') {
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'ClientList' }],
-          });
-        } else {
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'ServiceProviderList' }],
-          });
-        }
-        setNavigated(true);
-      }, 200); // Increased delay
-
-      return () => clearTimeout(navigationTimeout);
-    } else if (!userProfile) {
-      setNavigated(false);
-    }
-  }, [userProfile, navigation, navigated]);
-
-  // If loading or have userProfile, show loading screen
-  if (isLoading || userProfile) {
-    return <LoadingScreen />;
-  }
-
-  // Only show AccountSelection if not loading and no userProfile
-  // This prevents the "Welcome!" screen from flashing during initial load
-  return <AccountSelectionScreen navigation={navigation} />;
-};
+// Removed SmartAccountSelection - no longer needed
 
 // Auth Navigator - for unauthenticated users
 const AuthNavigator = () => (
@@ -146,10 +107,11 @@ const AppNavigator = () => {
   // Determine initial route based on user role
   const getInitialRoute = (): keyof AppStackParamList => {
     if (!userProfile) {
-      return 'AccountSelection';
+      // While profile is loading, show ServiceProviderList (safer default for clients)
+      // Most invite flows are clients, and this screen handles empty state gracefully
+      return 'ServiceProviderList';
     }
 
-    // Direct navigation based on role - bypass AccountSelection
     return userProfile.role === 'provider' ? 'ClientList' : 'ServiceProviderList';
   };
 
@@ -177,9 +139,6 @@ const AppNavigator = () => {
           }),
         }}
       >
-        <AppStack.Screen name="AccountSelection">
-          {(props) => <SmartAccountSelection {...props} userProfile={userProfile} isLoading={isLoading} />}
-        </AppStack.Screen>
         <AppStack.Screen
           name="ClientList"
           component={ClientListScreen}

@@ -95,7 +95,20 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
       console.log('🚪 handleSignOut called');
     }
 
-    if (Platform.OS === 'ios') {
+    if (Platform.OS === 'web') {
+      // Use native window.confirm on web
+      const confirmed = window.confirm(t('settings.signOutConfirm'));
+      if (confirmed) {
+        if (__DEV__) {
+          console.log('🚪 Sign out confirmed (Web), calling signOut()...');
+        }
+        signOut().catch((error) => {
+          if (__DEV__) {
+            console.error('❌ Error signing out:', error);
+          }
+        });
+      }
+    } else if (Platform.OS === 'ios') {
       // Use ActionSheet on iOS for native feel
       ActionSheetIOS.showActionSheetWithOptions(
         {
@@ -118,7 +131,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
         }
       );
     } else {
-      // Use Alert on Android/Web
+      // Use Alert on Android
       Alert.alert(
         t('settings.signOut'),
         t('settings.signOutConfirm'),
