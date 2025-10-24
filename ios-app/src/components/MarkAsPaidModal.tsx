@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
     maxWidth: 500,
     backgroundColor: TP.color.cardBg,
     borderRadius: 20,
-    maxHeight: '80%',
+    maxHeight: '85%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
@@ -406,6 +406,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: TP.spacing.x24,
+    paddingBottom: TP.spacing.x32,
   },
   title: {
     fontSize: TP.font.title1,
