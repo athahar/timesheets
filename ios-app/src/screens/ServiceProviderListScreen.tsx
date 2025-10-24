@@ -295,7 +295,6 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
           {/* Left Side: Provider Info */}
           <View style={styles.providerInfo}>
             <Text style={styles.providerName}>{item.name}</Text>
-            <Text style={styles.providerSubtitle}>{t('providerList.serviceProvider')}</Text>
           </View>
 
           {/* Right Side: Balance Info */}
