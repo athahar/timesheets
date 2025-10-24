@@ -312,11 +312,11 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
                 {/* Context-aware balance text */}
                 {item.paymentStatus === 'requested' ? (
                   <Text style={styles.balanceRequested}>
-                    {moneyFormat(item.totalUnpaidBalance, currency, locale)}
+                    {moneyFormat(item.totalUnpaidBalance * 100, currency, locale)}
                   </Text>
                 ) : (
                   <Text style={styles.balanceDue}>
-                    {moneyFormat(item.totalUnpaidBalance, currency, locale)}
+                    {moneyFormat(item.totalUnpaidBalance * 100, currency, locale)}
                   </Text>
                 )}
 
