@@ -298,7 +298,12 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
 
             {/* Paid Amount */}
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>{simpleT('markAsPaidModal.paidAmount')}</Text>
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>{simpleT('markAsPaidModal.paidAmount')}</Text>
+                <Text style={styles.fieldHintInline}>
+                  {simpleT('markAsPaidModal.maximumAmount', { amount: unpaidAmount.toFixed(2) })}
+                </Text>
+              </View>
               <View style={styles.amountInputContainer}>
                 <Text style={styles.dollarSign}>$</Text>
                 <TextInput
@@ -315,14 +320,16 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
                   blurOnSubmit={false}
                 />
               </View>
-              <Text style={styles.fieldHint}>
-                {simpleT('markAsPaidModal.maximumAmount', { amount: unpaidAmount.toFixed(2) })}
-              </Text>
             </View>
 
             {/* Payment Date */}
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>{simpleT('markAsPaidModal.paymentDate')}</Text>
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>{simpleT('markAsPaidModal.paymentDate')}</Text>
+                <Text style={styles.fieldHintInline}>
+                  {simpleT('markAsPaidModal.dateHint')}
+                </Text>
+              </View>
               <TextInput
                 ref={dateRef}
                 style={styles.dateInput}
@@ -333,9 +340,6 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
                 returnKeyType="done"
                 onSubmitEditing={dismissKeyboard}
               />
-              <Text style={styles.fieldHint}>
-                {simpleT('markAsPaidModal.dateHint')}
-              </Text>
             </View>
 
             {/* Buttons */}
@@ -405,16 +409,20 @@ const styles = StyleSheet.create({
   fieldContainer: {
     marginBottom: TP.spacing.x20,
   },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: TP.spacing.x8,
+  },
   fieldLabel: {
     fontSize: TP.font.body,
     fontWeight: TP.weight.semibold,
     color: TP.color.ink,
-    marginBottom: TP.spacing.x8,
   },
-  fieldHint: {
+  fieldHintInline: {
     fontSize: TP.font.caption,
     color: TP.color.textSecondary,
-    marginTop: TP.spacing.x4,
   },
   amountInputContainer: {
     flexDirection: 'row',
