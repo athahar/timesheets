@@ -13,6 +13,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Session } from '../types';
 import { StickyCTA } from './StickyCTA';
 import { TPHeader } from './v2/TPHeader';
@@ -46,16 +47,13 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
 }) => {
   const { user } = useAuth();
   const { locale } = useLocale();
-  const [paymentDate, setPaymentDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0]; // YYYY-MM-DD format
-  });
+  const [paymentDate, setPaymentDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [customAmount, setCustomAmount] = useState(unpaidAmount.toFixed(2));
   const [loading, setLoading] = useState(false);
 
   // Focus management
   const amountRef = useRef<TextInput>(null);
-  const dateRef = useRef<TextInput>(null);
 
   const totalPersonHours = sessions.reduce((sum, session) => {
     const crew = session.crewSize || 1;
@@ -252,9 +250,18 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
     return amountCents > 0 && amount <= unpaidAmount;
   };
 
-  const handleDateChange = (text: string) => {
-    // Simple date validation - in a real app you'd use a proper date picker
-    setPaymentDate(text);
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      setPaymentDate(selectedDate);
+    }
+  };
+
+  const formatDateDisplay = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   const dismissKeyboard = () => {
@@ -324,23 +331,24 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
 
             {/* Payment Date */}
             <View style={styles.fieldContainer}>
-              <View style={styles.labelRow}>
-                <Text style={styles.fieldLabel}>{simpleT('markAsPaidModal.paymentDate')}</Text>
-                <Text style={styles.fieldHintInline}>
-                  {simpleT('markAsPaidModal.dateHint')}
-                </Text>
-              </View>
-              <TextInput
-                ref={dateRef}
-                style={styles.dateInput}
-                value={paymentDate}
-                onChangeText={handleDateChange}
-                placeholder={simpleT('markAsPaidModal.datePlaceholder')}
-                placeholderTextColor={theme.color.textSecondary}
-                returnKeyType="done"
-                onSubmitEditing={dismissKeyboard}
-              />
+              <Text style={styles.fieldLabel}>{simpleT('markAsPaidModal.paymentDate')}</Text>
+              <TouchableOpacity
+                style={styles.dateButton}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Text style={styles.dateButtonText}>{formatDateDisplay(paymentDate)}</Text>
+              </TouchableOpacity>
             </View>
+
+            {/* Date Picker */}
+            {showDatePicker && (
+              <DateTimePicker
+                value={paymentDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleDateChange}
+              />
+            )}
 
             {/* Buttons */}
             <View style={styles.buttonContainer}>
@@ -446,16 +454,20 @@ const styles = StyleSheet.create({
     color: TP.color.ink,
     fontVariant: ['tabular-nums'],
   },
-  dateInput: {
+  dateButton: {
     backgroundColor: TP.color.cardBg,
     borderRadius: TP.radius.input,
     paddingHorizontal: TP.spacing.x16,
     paddingVertical: TP.spacing.x12,
-    fontSize: TP.font.body,
-    color: TP.color.ink,
     borderWidth: 1,
     borderColor: TP.color.divider,
     minHeight: 44,
+    justifyContent: 'center',
+  },
+  dateButtonText: {
+    fontSize: TP.font.body,
+    color: TP.color.ink,
+    fontVariant: ['tabular-nums'],
   },
   readOnlyField: {
     backgroundColor: TP.color.appBg,
