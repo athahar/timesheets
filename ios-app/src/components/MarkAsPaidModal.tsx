@@ -286,18 +286,6 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
             {/* Title */}
             <Text style={styles.title}>{simpleT('markAsPaidModal.title')}</Text>
 
-            {/* Outstanding Summary */}
-            <View style={styles.summaryBlock}>
-              <Text style={styles.summaryLabel}>
-                {simpleT('markAsPaidModal.payingTo')}
-              </Text>
-              <Text style={styles.providerName}>{providerName}</Text>
-              <Text style={styles.summaryPrimary}>{outstandingAmountLabel}</Text>
-              <Text style={styles.summarySecondary}>
-                {totalPersonHoursLabel} {simpleT('markAsPaidModal.personHoursOutstanding')}
-              </Text>
-            </View>
-
             {/* Requested Amount (Read-only) */}
             <View style={styles.fieldContainer}>
               <Text style={styles.fieldLabel}>{simpleT('markAsPaidModal.requestedAmount')}</Text>
@@ -413,39 +401,6 @@ const styles = StyleSheet.create({
     color: TP.color.ink,
     textAlign: 'center',
     marginBottom: TP.spacing.x24,
-  },
-  summaryBlock: {
-    marginBottom: TP.spacing.x24,
-    paddingVertical: TP.spacing.x16,
-    paddingHorizontal: TP.spacing.x20,
-    backgroundColor: TP.color.appBg,
-    borderRadius: TP.radius.card,
-    borderWidth: 1,
-    borderColor: TP.color.divider,
-  },
-  summaryLabel: {
-    fontSize: TP.font.caption,
-    fontWeight: TP.weight.medium,
-    color: TP.color.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  providerName: {
-    fontSize: TP.font.title3,
-    fontWeight: TP.weight.bold,
-    color: TP.color.ink,
-    marginBottom: TP.spacing.x8,
-  },
-  summaryPrimary: {
-    fontSize: TP.font.title1,
-    fontWeight: TP.weight.bold,
-    color: TP.color.brand,
-    marginBottom: 4,
-  },
-  summarySecondary: {
-    fontSize: TP.font.body,
-    color: TP.color.textSecondary,
   },
   fieldContainer: {
     marginBottom: TP.spacing.x20,
