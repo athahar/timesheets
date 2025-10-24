@@ -423,45 +423,36 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                   {dayItems.map((item, index) => (
                     <View key={item.id} style={styles.timelineItem}>
                       {item.type === 'session' ? (
-                        // Work Session Line with crew context
-                        <View style={styles.timelineLine}>
-                          <Text style={styles.timelineIcon}>🕒</Text>
-                          <View style={styles.timelineContent}>
-                            <Text style={styles.timelineMainText}>
+                        // Work Session Card - matching provider view
+                        <View style={styles.timelineCard}>
+                          <View style={styles.timelineCardHeader}>
+                            <Text style={styles.timelineCardTitle}>
                               {simpleT('providerSummary.workSession')}
                             </Text>
-                            <Text style={styles.timelineSubText}>
-                              {(() => {
-                                const session = item.data as Session;
-                                const crewSize = session.crewSize || 1;
-                                const crewText = crewSize === 1 ? '1 person' : `${crewSize} people`;
-                                const start = new Date(session.startTime);
-                                const startLabel = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                                if (session.endTime) {
-                                  const end = new Date(session.endTime);
-                                  const endLabel = end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
-                                  const baseDuration =
-                                    session.duration ??
-                                    ((end.getTime() - start.getTime()) / (1000 * 60 * 60));
-                                  const totalPersonHours =
-                                    session.personHours ?? baseDuration * crewSize;
-                                  return `${crewText} × ${formatHours(baseDuration)} = ${formatHours(totalPersonHours)} • ${startLabel}-${endLabel}`;
-                                }
-                                return `${crewText} • active since ${startLabel}`;
-                              })()}
-                            </Text>
-                          </View>
-                          <View style={styles.timelineRight}>
-                            <Text style={styles.timelineAmount}>
+                            <Text style={styles.timelineCardAmount}>
                               {item.data.endTime ? moneyFormat((item.data.amount || 0) * 100, 'USD', locale) : ''}
                             </Text>
-                            {item.data.endTime && item.data.status !== 'requested' && (
-                              <StatusPill
-                                status={item.data.status as 'paid' | 'unpaid'}
-                                size="sm"
-                              />
-                            )}
                           </View>
+                          <Text style={styles.timelineCardMeta}>
+                            {(() => {
+                              const session = item.data as Session;
+                              const crewSize = session.crewSize || 1;
+                              const crewText = crewSize === 1 ? '1 person' : `${crewSize} people`;
+                              const start = new Date(session.startTime);
+                              const startLabel = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                              if (session.endTime) {
+                                const end = new Date(session.endTime);
+                                const endLabel = end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+                                const baseDuration =
+                                  session.duration ??
+                                  ((end.getTime() - start.getTime()) / (1000 * 60 * 60));
+                                const totalPersonHours =
+                                  session.personHours ?? baseDuration * crewSize;
+                                return `${startLabel} - ${endLabel} • ${crewText} • ${formatHours(baseDuration)}`;
+                              }
+                              return `active since ${startLabel} • ${crewText}`;
+                            })()}
+                          </Text>
                         </View>
                       ) : item.type === 'payment' ? (
                         // Payment Line - Simplified
@@ -482,22 +473,26 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                           </View>
                         </View>
                       ) : (
-                        // Payment Request Line - New for client view
-                        <View style={styles.timelineLine}>
-                          <Text style={styles.timelineIcon}>📋</Text>
-                          <View style={styles.timelineContent}>
-                            <Text style={styles.timelineMainText}>
+                        // Payment Request Card - matching provider view
+                        <View style={styles.timelineCard}>
+                          <View style={styles.timelineCardHeader}>
+                            <Text style={styles.timelineCardTitle}>
                               {simpleT('providerSummary.paymentRequested')}
                             </Text>
-                            <Text style={styles.timelineSubText}>
-                              {moneyFormat((item.data.data.amount || 0) * 100, 'USD', locale)} • {item.data.data.sessionCount} {item.data.data.sessionCount > 1 ? simpleT('providerSummary.sessions') : simpleT('providerSummary.session')} • {formatHours(item.data.data.personHours || 0)} total
+                            <Text style={styles.timelineCardAmount}>
+                              {moneyFormat((item.data.data.amount || 0) * 100, 'USD', locale)}
                             </Text>
                           </View>
-                          <View style={styles.timelineRight}>
-                            <Text style={styles.timelineAmount}>
-                              {simpleT('providerSummary.pending')}
-                            </Text>
-                          </View>
+                          <Text style={styles.timelineCardMeta}>
+                            {(() => {
+                              const sessionCount = item.data.data.sessionCount || 0;
+                              const personHours = item.data.data.personHours || 0;
+                              const sessionText = sessionCount === 1
+                                ? `1 ${simpleT('providerSummary.session')}`
+                                : `${sessionCount} ${simpleT('providerSummary.sessions')}`;
+                              return `${sessionText} • ${formatHours(personHours)}`;
+                            })()}
+                          </Text>
                         </View>
                       )}
                     </View>
