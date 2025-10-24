@@ -151,10 +151,10 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
       const clientActivities = activitiesData.filter(a => {
         if (__DEV__) {
           if (__DEV__) {
-            if (__DEV__) console.log('🔍 Activity:', a.id, 'clientId:', a.clientId, 'type:', a.type);
+            if (__DEV__) console.log('🔍 Activity:', a.id, 'clientId:', a.clientId, 'providerId:', a.providerId, 'type:', a.type);
           }
         }
-        return a.clientId === clientRecordId;
+        return a.clientId === clientRecordId && a.providerId === providerId;
       });
       if (__DEV__) {
         if (__DEV__) {
