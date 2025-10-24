@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     borderRadius: TP.radius.button,
     gap: TP.spacing.x8,
     marginBottom: TP.spacing.x20,
-    ...TP.shadow.button.ios,
+    ...TP.shadow.card.ios,
     elevation: 2,
   },
   shareButtonText: {
