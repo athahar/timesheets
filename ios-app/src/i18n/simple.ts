@@ -540,6 +540,43 @@ const translations = {
     'sessionCard.rate': 'Rate',
     'sessionCard.ratePerHour': '${{rate}}/hr',
     'sessionCard.amount': 'Amount',
+
+    // Hamburger Menu
+    'hamburger.menu.title': 'Menu',
+    'hamburger.menu.help': 'Help',
+    'hamburger.menu.contact': 'Contact',
+    'hamburger.menu.share': 'Share',
+    'hamburger.menu.cancel': 'Cancel',
+
+    // Help Screen
+    'help.title': 'Help & FAQs',
+    'help.hero': 'Answers to your most common TrackPay questions.',
+    'help.intro.provider': 'Browse quick answers tailored for providers. Need more help? Reach out from the Contact tab.',
+    'help.intro.client': 'Browse quick answers tailored for clients. Need more help? Reach out from the Contact tab.',
+    'help.section.sessions': 'Sessions',
+    'help.section.invites': 'Invites',
+    'help.section.payments': 'Payments',
+    'help.section.general': 'General',
+    'help.emptyState': 'We\'re adding more tips soon. Email support if you don\'t see your question.',
+
+    // Contact Modal
+    'contact.title': 'Contact TrackPay',
+    'contact.hero': 'We\'d love to hear from you.',
+    'contact.body': 'Send us a note with any questions, feedback, or ideas. Our team usually replies within one business day.',
+    'contact.emailButton': 'Email Support',
+    'contact.emailLabel': 'Support Email',
+    'contact.footer': 'Include screenshots when possible so we can help faster.',
+    'contact.emailSubject': 'TrackPay Support Request',
+    'contact.emailBody': 'Hi TrackPay Team,\n\n[Please describe your question or issue here.]\n\nApp version: {{version}}',
+
+    // Share Modal
+    'share.title': 'Spread the Word',
+    'share.hero': 'Help other families and providers discover TrackPay.',
+    'share.body': 'Share your referral message below or send it through your favourite app. Every introduction helps us support more relationships.',
+    'share.shareButton': 'Share TrackPay',
+    'share.copyLabel': 'Referral Message',
+    'share.fallback': 'Copy the message above and paste it wherever you like to share.',
+    'share.message': 'TrackPay helps me stay on top of sessions and payments. Download it here: {{link}}',
   },
   'es-US': {
     'lang.english': 'English',
@@ -1073,6 +1110,43 @@ const translations = {
     'sessionCard.rate': 'Tarifa',
     'sessionCard.ratePerHour': '${{rate}}/hora',
     'sessionCard.amount': 'Monto',
+
+    // Hamburger Menu (Spanish)
+    'hamburger.menu.title': 'Menú',
+    'hamburger.menu.help': 'Ayuda',
+    'hamburger.menu.contact': 'Contacto',
+    'hamburger.menu.share': 'Compartir',
+    'hamburger.menu.cancel': 'Cancelar',
+
+    // Help Screen (Spanish)
+    'help.title': 'Ayuda y Preguntas Frecuentes',
+    'help.hero': 'Respuestas a tus preguntas más comunes sobre TrackPay.',
+    'help.intro.provider': 'Explora respuestas rápidas adaptadas para proveedores. ¿Necesitas más ayuda? Contáctanos desde la pestaña de Contacto.',
+    'help.intro.client': 'Explora respuestas rápidas adaptadas para clientes. ¿Necesitas más ayuda? Contáctanos desde la pestaña de Contacto.',
+    'help.section.sessions': 'Sesiones',
+    'help.section.invites': 'Invitaciones',
+    'help.section.payments': 'Pagos',
+    'help.section.general': 'General',
+    'help.emptyState': 'Pronto añadiremos más consejos. Envía un correo a soporte si no encuentras tu pregunta.',
+
+    // Contact Modal (Spanish)
+    'contact.title': 'Contactar a TrackPay',
+    'contact.hero': 'Nos encantaría saber de ti.',
+    'contact.body': 'Envíanos una nota con cualquier pregunta, comentario o idea. Nuestro equipo generalmente responde en un día hábil.',
+    'contact.emailButton': 'Enviar Correo a Soporte',
+    'contact.emailLabel': 'Correo de Soporte',
+    'contact.footer': 'Incluye capturas de pantalla cuando sea posible para que podamos ayudarte más rápido.',
+    'contact.emailSubject': 'Solicitud de Soporte TrackPay',
+    'contact.emailBody': 'Hola Equipo TrackPay,\n\n[Por favor describe tu pregunta o problema aquí.]\n\nVersión de la aplicación: {{version}}',
+
+    // Share Modal (Spanish)
+    'share.title': 'Comparte la Aplicación',
+    'share.hero': 'Ayuda a otras familias y proveedores a descubrir TrackPay.',
+    'share.body': 'Comparte tu mensaje de referido a continuación o envíalo a través de tu aplicación favorita. Cada introducción nos ayuda a apoyar más relaciones.',
+    'share.shareButton': 'Compartir TrackPay',
+    'share.copyLabel': 'Mensaje de Referido',
+    'share.fallback': 'Copia el mensaje de arriba y pégalo donde quieras compartir.',
+    'share.message': 'TrackPay me ayuda a mantenerme al día con sesiones y pagos. Descárgalo aquí: {{link}}',
   }
 };
 
