@@ -34,6 +34,7 @@ export interface ActivityItem {
   id: string;
   type: 'session_start' | 'session_end' | 'session_updated' | 'payment_request' | 'payment_completed';
   clientId: string;
+  providerId?: string; // Optional for backward compatibility with legacy data
   timestamp: Date;
   data: any; // flexible data for different activity types
 }

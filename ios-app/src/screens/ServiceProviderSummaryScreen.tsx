@@ -134,34 +134,19 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
 
       // Get activities for this client - need to use the client record ID, not auth user ID
       const activitiesData = await getActivities();
-      if (__DEV__) {
-        if (__DEV__) {
-          if (__DEV__) console.log('🔍 All activities:', activitiesData.length);
-        }
-      }
 
       // Get the client record ID from the first session (since we know sessions are filtered correctly)
       const clientRecordId = userSessions.length > 0 ? userSessions[0].clientId : null;
-      if (__DEV__) {
-        if (__DEV__) {
-          if (__DEV__) console.log('🔍 Looking for activities with clientId:', clientRecordId);
-        }
-      }
 
       const clientActivities = activitiesData.filter(a => {
-        if (__DEV__) {
-          if (__DEV__) {
-            if (__DEV__) console.log('🔍 Activity:', a.id, 'clientId:', a.clientId, 'providerId:', a.providerId, 'type:', a.type);
-          }
-        }
-        // Filter by clientId only - providerId filtering removed because it hides payment activities
-        return a.clientId === clientRecordId;
+        // Filter by both clientId AND providerId for proper scoping
+        return a.clientId === clientRecordId && a.providerId === providerId;
       });
+
       if (__DEV__) {
-        if (__DEV__) {
-          if (__DEV__) console.log('🔍 Filtered client activities:', clientActivities.length);
-        }
+        console.log('📊 Activities: Total=' + activitiesData.length + ', Filtered=' + clientActivities.length + ' (clientId=' + clientRecordId + ', providerId=' + providerId + ')');
       }
+
       setActivities(clientActivities);
 
       // Get money state from client perspective (includes requested amounts)

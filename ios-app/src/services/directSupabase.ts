@@ -838,6 +838,7 @@ export class DirectSupabaseService {
       id: activity.id,
       type: activity.type as ActivityItem['type'],
       clientId: activity.client_id,
+      providerId: activity.provider_id || undefined,
       timestamp: new Date(activity.created_at),
       data: activity.data
     }));
