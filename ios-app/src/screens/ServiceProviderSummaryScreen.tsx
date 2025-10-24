@@ -319,7 +319,15 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
           <View style={styles.headerCenter}>
             <Text style={styles.headerName}>{providerName}</Text>
           </View>
-          <View style={styles.headerButton} />
+          <TouchableOpacity
+            onPress={() => navigation.navigate('ProviderProfile', {
+              providerId,
+              providerName,
+            })}
+            style={styles.headerButton}
+          >
+            <Feather name="info" size={24} color={TP.color.ink} />
+          </TouchableOpacity>
         </View>
         <View style={styles.headerDivider} />
 
@@ -339,7 +347,15 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
         <View style={styles.headerCenter}>
           <Text style={styles.headerName}>{providerName}</Text>
         </View>
-        <View style={styles.headerButton} />
+        <TouchableOpacity
+          onPress={() => navigation.navigate('ProviderProfile', {
+            providerId,
+            providerName,
+          })}
+          style={styles.headerButton}
+        >
+          <Feather name="info" size={24} color={TP.color.ink} />
+        </TouchableOpacity>
       </View>
       <View style={styles.headerDivider} />
 

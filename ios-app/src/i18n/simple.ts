@@ -288,6 +288,10 @@ const translations = {
     'clientProfile.errorDeleteFailed': 'Please resolve active sessions or unpaid items before deleting.',
     'clientProfile.offlineWarning': 'No internet connection',
 
+    // ProviderProfileScreen
+    'providerProfile.hourlyRate': 'Hourly Rate',
+    'providerProfile.hourlyRateInfo': 'This is the hourly rate {{providerName}} charges for work. All sessions are calculated using this rate.',
+
     // Empty state messages
     'emptyState.noWork': 'No work yet',
     'emptyState.workWillAppear': 'Work sessions and payments will appear here.',
@@ -816,6 +820,10 @@ const translations = {
     'clientProfile.alreadyDeleted': 'Este cliente ya fue eliminado',
     'clientProfile.errorDeleteFailed': 'Por favor resuelve sesiones activas o elementos sin pagar antes de eliminar.',
     'clientProfile.offlineWarning': 'Sin conexión a internet',
+
+    // ProviderProfileScreen (Spanish)
+    'providerProfile.hourlyRate': 'Tarifa por Hora',
+    'providerProfile.hourlyRateInfo': 'Esta es la tarifa por hora que {{providerName}} cobra por el trabajo. Todas las sesiones se calculan usando esta tarifa.',
 
     // Empty state messages (Spanish)
     'emptyState.noWork': 'Sin trabajo aún',
