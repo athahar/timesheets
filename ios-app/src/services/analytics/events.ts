@@ -66,6 +66,15 @@ export const E = {
   CLIENT_LOGIN_SUCCESS: 'client.login.success',
   CLIENT_PAYMENT_OPEN_MARK_PAID: 'client.payment.open_mark_paid',
   CLIENT_PAYMENT_RECORDED: 'client.payment.recorded',
+
+  // Hamburger Navigation (7 new events)
+  MENU_OPENED: 'menu_opened',
+  MENU_OPTION_SELECTED: 'menu_option_selected',
+  SCREEN_VIEW_HELP: 'screen_view_help',
+  MODAL_VIEW_CONTACT: 'modal_view_contact',
+  MODAL_VIEW_SHARE: 'modal_view_share',
+  CONTACT_EMAIL_TAPPED: 'contact_email_tapped',
+  SHARE_INTENT_TRIGGERED: 'share_intent_triggered',
 } as const;
 
 // ============================================
@@ -394,6 +403,48 @@ export const zClientPaymentRecorded = z.object({
 export type ClientPaymentRecorded = z.infer<typeof zClientPaymentRecorded>;
 
 // ============================================
+// HAMBURGER NAVIGATION SCHEMAS (7 events)
+// ============================================
+
+export const zMenuOpened = z.object({
+  role: UserRole,
+  screen: z.string(),
+});
+export type MenuOpened = z.infer<typeof zMenuOpened>;
+
+export const zMenuOptionSelected = z.object({
+  role: UserRole,
+  option: z.enum(['help', 'contact', 'share']),
+});
+export type MenuOptionSelected = z.infer<typeof zMenuOptionSelected>;
+
+export const zScreenViewHelp = z.object({
+  role: UserRole,
+  faq_count: z.number().int().nonnegative(),
+});
+export type ScreenViewHelp = z.infer<typeof zScreenViewHelp>;
+
+export const zModalViewContact = z.object({
+  role: UserRole,
+});
+export type ModalViewContact = z.infer<typeof zModalViewContact>;
+
+export const zModalViewShare = z.object({
+  role: UserRole,
+});
+export type ModalViewShare = z.infer<typeof zModalViewShare>;
+
+export const zContactEmailTapped = z.object({
+  role: UserRole,
+});
+export type ContactEmailTapped = z.infer<typeof zContactEmailTapped>;
+
+export const zShareIntentTriggered = z.object({
+  role: UserRole,
+});
+export type ShareIntentTriggered = z.infer<typeof zShareIntentTriggered>;
+
+// ============================================
 // SCHEMA MAP (for runtime validation)
 // ============================================
 
@@ -443,6 +494,15 @@ export const schemaMap: Record<string, z.ZodTypeAny | undefined> = {
   [E.CLIENT_LOGIN_SUCCESS]: zClientLoginSuccess,
   [E.CLIENT_PAYMENT_OPEN_MARK_PAID]: zClientPaymentOpenMarkPaid,
   [E.CLIENT_PAYMENT_RECORDED]: zClientPaymentRecorded,
+
+  // Hamburger Navigation
+  [E.MENU_OPENED]: zMenuOpened,
+  [E.MENU_OPTION_SELECTED]: zMenuOptionSelected,
+  [E.SCREEN_VIEW_HELP]: zScreenViewHelp,
+  [E.MODAL_VIEW_CONTACT]: zModalViewContact,
+  [E.MODAL_VIEW_SHARE]: zModalViewShare,
+  [E.CONTACT_EMAIL_TAPPED]: zContactEmailTapped,
+  [E.SHARE_INTENT_TRIGGERED]: zShareIntentTriggered,
 };
 
 /**
