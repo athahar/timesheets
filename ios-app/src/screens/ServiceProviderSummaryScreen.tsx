@@ -143,10 +143,6 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
         return a.clientId === clientRecordId && a.providerId === providerId;
       });
 
-      if (__DEV__) {
-        console.log('📊 Activities: Total=' + activitiesData.length + ', Filtered=' + clientActivities.length + ' (clientId=' + clientRecordId + ', providerId=' + providerId + ')');
-      }
-
       setActivities(clientActivities);
 
       // Get money state from client perspective (includes requested amounts)
@@ -266,7 +262,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
       })),
       // Map payment activities to timeline items
       ...activities
-        .filter(a => a.type === 'payment_completed' || a.type === 'payment_request_created')
+        .filter(a => a.type === 'payment_completed' || a.type === 'payment_request')
         .map(activity => ({
           type: activity.type === 'payment_completed' ? 'payment' as const : 'payment_request' as const,
           id: activity.id,
