@@ -19,7 +19,7 @@ import {
   getCurrentUser,
   getServiceProvidersForClient,
   getClientSummary,
-  getClientSessionsForProvider,
+  getSessionsByClient,
 } from '../services/storageService';
 import { simpleT } from '../i18n/simple';
 import { moneyFormat } from '../utils/money';
@@ -109,16 +109,20 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
                 console.log('💰 ServiceProviderList: Loading provider summaries for', relatedProviders.length, 'providers...');
               }
 
+              // Get ALL sessions for this client once
+              const allSessions = await getSessionsByClient(userProfile.id);
+              if (__DEV__) {
+                console.log('📊 ServiceProviderList: Loaded', allSessions.length, 'total sessions for client');
+              }
+
               const providersWithSummary = await Promise.allSettled(
                 (relatedProviders || []).map(async (provider) => {
                   try {
-                    // Load sessions for this specific provider-client relationship
-                    const sessions = await Promise.race([
-                      getClientSessionsForProvider(userProfile.id, provider.id),
-                      new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('Sessions timeout')), 2000)
-                      )
-                    ]) as any[];
+                    // Filter sessions for this specific provider
+                    const sessions = allSessions.filter(s => s.providerId === provider.id);
+                    if (__DEV__) {
+                      console.log('📊 Provider', provider.name, 'has', sessions.length, 'sessions');
+                    }
 
                     // Calculate summary from these sessions
                     const unpaidSessions = sessions.filter(s => s.status === 'unpaid');
