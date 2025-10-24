@@ -26,13 +26,13 @@ export const faqLibrary: FAQEntry[] = [
     persona: 'provider',
     category: 'sessions',
     question: 'How do I start a new session?',
-    answer: 'Open the client from your list, review the details, then tap "I\'m Here". The timer begins immediately and you can monitor elapsed time at the top of the screen.',
+    answer: 'Open the client from your list, review the details, then tap "Start". The timer begins immediately and you can monitor elapsed time at the top of the screen.',
   },
   {
     persona: 'provider',
     category: 'sessions',
     question: 'How do I end a running session?',
-    answer: 'From the active session screen, tap "I\'m Done" when the visit ends. TrackPay calculates duration, person hours, and the amount due automatically.',
+    answer: 'From the active session screen, tap "Stop" when the visit ends. TrackPay calculates duration, person hours, and the amount due automatically.',
   },
   {
     persona: 'provider',
@@ -63,12 +63,6 @@ export const faqLibrary: FAQEntry[] = [
   {
     persona: 'provider',
     category: 'invites',
-    question: 'How do I invite another provider to help with my clients?',
-    answer: 'Use the provider invite flow in Settings to generate a provider code. Share it directly with the provider you trust so they can join your workspace.',
-  },
-  {
-    persona: 'provider',
-    category: 'invites',
     question: 'What happens if a client never accepts my invite?',
     answer: 'You can resend the invite from the client profile. If the link expires, create a fresh code and share it again, or remove the placeholder client if no longer needed.',
   },
@@ -76,7 +70,7 @@ export const faqLibrary: FAQEntry[] = [
     persona: 'provider',
     category: 'invites',
     question: 'Can I revoke an invite that went to the wrong person?',
-    answer: 'Yes. Open the invite record, choose Revoke, and the code stops working immediately. Create a new invite for the correct contact when ready.',
+    answer: 'No you cannot directly. you need to contact us.',
   },
 
   // Payments
@@ -90,7 +84,7 @@ export const faqLibrary: FAQEntry[] = [
     persona: 'provider',
     category: 'payments',
     question: 'How do I mark a payment as received?',
-    answer: 'Open the payment request or unpaid session list, choose the sessions that were paid, and tap Mark as Paid. Enter the amount and payment method, then confirm.',
+    answer: 'Open the payment request or unpaid session list, choose the sessions that were paid, and tap Record Payment. Enter the amount and payment method, then confirm.',
   },
   {
     persona: 'provider',
@@ -122,7 +116,7 @@ export const faqLibrary: FAQEntry[] = [
     persona: 'provider',
     category: 'general',
     question: 'Where can I see all my recent activity?',
-    answer: 'Visit the Activity Feed to view session starts, ends, payment requests, and payment confirmations in chronological order.',
+    answer: 'Each client\'s detail screen has an Activity Timeline showing session starts, ends, payment requests, and payment confirmations in chronological order.',
   },
   {
     persona: 'provider',
@@ -140,7 +134,7 @@ export const faqLibrary: FAQEntry[] = [
     persona: 'client',
     category: 'sessions',
     question: 'How do I know when my provider is on-site?',
-    answer: 'You\'ll see a live session banner in the provider list once they tap "I\'m Here." The Activity Feed also logs the start time.',
+    answer: 'You\'ll see a live session banner in the provider list once they tap "Start." The Activity Timeline in the provider detail also logs the start time.',
   },
   {
     persona: 'client',
@@ -171,12 +165,6 @@ export const faqLibrary: FAQEntry[] = [
   {
     persona: 'client',
     category: 'invites',
-    question: 'Can I invite another provider to TrackPay?',
-    answer: 'Yes. Use the Invite Provider option to send them a code. Once they join, you can see their sessions alongside your other providers.',
-  },
-  {
-    persona: 'client',
-    category: 'invites',
     question: 'How do I invite another family member to help manage care?',
     answer: 'Share your login credentials sparingly or contact support to set up access for a family coordinator (multi-user support is on the roadmap).',
   },
@@ -192,7 +180,7 @@ export const faqLibrary: FAQEntry[] = [
     persona: 'client',
     category: 'payments',
     question: 'How do I mark a payment as completed?',
-    answer: 'Select the request, tap Mark as Paid, choose the method (cash, Zelle, etc.), and confirm. TrackPay updates the provider instantly.',
+    answer: 'Select the request, tap Record Payment, choose the method (cash, Zelle, etc.), and confirm. TrackPay updates the provider instantly.',
   },
   {
     persona: 'client',
@@ -219,12 +207,6 @@ export const faqLibrary: FAQEntry[] = [
     category: 'general',
     question: 'How can I share TrackPay with other families?',
     answer: 'Use the Share option in the hamburger menu to send a pre-written message with the TrackPay link.',
-  },
-  {
-    persona: 'client',
-    category: 'general',
-    question: 'Where do I find app updates or new features?',
-    answer: 'Check the Activity Feed announcements section or read our release notes linked from the Contact screen footer.',
   },
   {
     persona: 'client',
