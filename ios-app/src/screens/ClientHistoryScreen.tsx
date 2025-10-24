@@ -768,8 +768,8 @@ const handleCrewAdjust = async (delta: number) => {
             <Feather name="arrow-left" size={24} color={TP.color.ink} />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
-            <TPAvatar name={client?.name || 'Loading'} size="sm" />
-            <Text style={styles.headerName}>{client ? formatName(client.name) : 'Loading...'}</Text>
+            <TPAvatar name={client?.name || ''} size="sm" />
+            {client && <Text style={styles.headerName}>{formatName(client.name)}</Text>}
           </View>
           <View style={styles.headerButton} />
         </View>
