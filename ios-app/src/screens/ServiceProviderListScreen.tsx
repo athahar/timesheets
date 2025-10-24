@@ -390,7 +390,7 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
               <View style={styles.outstandingCard}>
                 <Text style={styles.outstandingLabel}>{t('providerList.totalYouOwe')}</Text>
                 <Text style={styles.outstandingAmount}>
-                  {moneyFormat(totalUnpaid, currency, locale)}
+                  {moneyFormat(totalUnpaid * 100, currency, locale)}
                 </Text>
               </View>
             ) : null
