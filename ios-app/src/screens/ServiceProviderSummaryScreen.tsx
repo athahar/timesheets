@@ -355,11 +355,14 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>{simpleT('common.totalOutstanding')}</Text>
           <Text style={styles.summaryAmountLarge}>{moneyFormat(unpaidBalance * 100, 'USD', locale)}</Text>
-          <Text style={styles.summaryHoursUnpaid}>
-            {formatHours(unpaidHours)} {simpleT('clientHistory.unpaid')}
-          </Text>
 
-          {unpaidBalance > 0 ? (
+          {unpaidBalance > 0 && (
+            <Text style={styles.summaryHoursUnpaid}>
+              {formatHours(unpaidHours)} {simpleT('clientHistory.unpaid')}
+            </Text>
+          )}
+
+          {unpaidBalance > 0 && (
             <TouchableOpacity
               style={styles.recordPaymentButton}
               onPress={() => setShowMarkAsPaidModal(true)}
@@ -369,10 +372,6 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                 → {simpleT('providerSummary.recordPayment')}
               </Text>
             </TouchableOpacity>
-          ) : (
-            <View style={styles.paidUpPill}>
-              <Text style={styles.paidUpText}>{simpleT('providerSummary.paidUp')}</Text>
-            </View>
           )}
         </View>
 
