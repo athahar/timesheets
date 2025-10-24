@@ -388,7 +388,8 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
             </View>
           </View>
         ) : (
-          groupedTimeline.map(([dayKey, dayItems]) => {
+          <>
+            {groupedTimeline.map(([dayKey, dayItems]) => {
               // Get date from first item in group instead of parsing formatted string
               const firstItem = dayItems[0];
               const date = new Date(firstItem.timestamp);
@@ -496,7 +497,8 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                   ))}
                 </View>
               );
-            })
+            })}
+          </>
         )}
       </ScrollView>
 

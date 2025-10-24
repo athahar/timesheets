@@ -17,6 +17,9 @@ import { simpleT, getCurrentLanguageSimple, changeLanguageSimple, isSpanishSimpl
 // Analytics (Tier-1)
 import { capture, E_T1 } from '../services/analytics';
 
+// App display name from env
+const APP_DISPLAY_NAME = process.env.EXPO_PUBLIC_APP_DISPLAY_NAME || 'TrackPay';
+
 interface WelcomeScreenProps {
   navigation: any;
 }
@@ -147,7 +150,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
         >
           {/* Top Bar with Logo and Language Selector */}
           <View style={styles.topBar}>
-            <Text style={styles.wordmark}>TrackPay</Text>
+            <Text style={styles.wordmark}>{APP_DISPLAY_NAME}</Text>
 
             {/* Compact Language Picker */}
             <View style={styles.languagePicker}>

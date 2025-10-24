@@ -264,27 +264,28 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
+      transparent
+      animationType="fade"
       onRequestClose={onClose}
     >
       <KeyboardAvoidingView
-        style={styles.container}
+        style={styles.overlay}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
       >
-        <TPHeader
-          title={simpleT('markAsPaidModal.title')}
-          onBack={onClose}
-        />
+        <TouchableWithoutFeedback onPress={onClose}>
+          <View style={styles.overlayBackground} />
+        </TouchableWithoutFeedback>
 
-        <TouchableWithoutFeedback onPress={dismissKeyboard}>
+        <View style={styles.modalContainer}>
           <ScrollView
             style={styles.scrollView}
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
-            contentInsetAdjustmentBehavior="automatic"
+            showsVerticalScrollIndicator={false}
           >
+            {/* Title */}
+            <Text style={styles.title}>{simpleT('markAsPaidModal.title')}</Text>
+
             {/* Outstanding Summary */}
             <View style={styles.summaryBlock}>
               <Text style={styles.summaryLabel}>
@@ -297,9 +298,19 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
               </Text>
             </View>
 
-            {/* Payment Amount */}
+            {/* Requested Amount (Read-only) */}
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>{simpleT('markAsPaidModal.paymentAmount')}</Text>
+              <Text style={styles.fieldLabel}>{simpleT('markAsPaidModal.requestedAmount')}</Text>
+              <View style={styles.readOnlyField}>
+                <Text style={styles.readOnlyText}>
+                  {outstandingAmountLabel} [{totalPersonHoursLabel}]
+                </Text>
+              </View>
+            </View>
+
+            {/* Paid Amount */}
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>{simpleT('markAsPaidModal.paidAmount')}</Text>
               <View style={styles.amountInputContainer}>
                 <Text style={styles.dollarSign}>$</Text>
                 <TextInput
@@ -338,46 +349,76 @@ export const MarkAsPaidModal: React.FC<MarkAsPaidModalProps> = ({
                 {simpleT('markAsPaidModal.dateHint')}
               </Text>
             </View>
-          </ScrollView>
-        </TouchableWithoutFeedback>
 
-        <StickyCTA
-          primaryButton={{
-            title: loading ? simpleT('markAsPaidModal.recording') : simpleT('markAsPaidModal.markPaid'),
-            onPress: handleMarkAsPaid,
-            disabled: !isFormValid(),
-            loading,
-          }}
-          secondaryButton={{
-            title: simpleT('markAsPaidModal.cancel'),
-            onPress: onClose,
-            disabled: loading,
-          }}
-          backgroundColor={TP.color.appBg}
-        />
+            {/* Buttons */}
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={onClose}
+                disabled={loading}
+              >
+                <Text style={styles.cancelButtonText}>
+                  {simpleT('markAsPaidModal.cancel')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.saveButton, (!isFormValid() || loading) && styles.saveButtonDisabled]}
+                onPress={handleMarkAsPaid}
+                disabled={!isFormValid() || loading}
+              >
+                <Text style={styles.saveButtonText}>
+                  {loading ? simpleT('markAsPaidModal.recording') : simpleT('markAsPaidModal.save')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  overlay: {
     flex: 1,
-    backgroundColor: TP.color.appBg,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  overlayBackground: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContainer: {
+    width: '90%',
+    maxWidth: 500,
+    backgroundColor: TP.color.cardBg,
+    borderRadius: 20,
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
   },
   scrollView: {
-    flex: 1,
+    maxHeight: '100%',
   },
   content: {
-    paddingHorizontal: TP.spacing.x16,
-    paddingTop: TP.spacing.x24,
-    paddingBottom: TP.spacing.x32,
+    padding: TP.spacing.x24,
+  },
+  title: {
+    fontSize: TP.font.title1,
+    fontWeight: TP.weight.bold,
+    color: TP.color.ink,
+    textAlign: 'center',
+    marginBottom: TP.spacing.x24,
   },
   summaryBlock: {
     marginBottom: TP.spacing.x24,
     paddingVertical: TP.spacing.x16,
     paddingHorizontal: TP.spacing.x20,
-    backgroundColor: TP.color.cardBg,
+    backgroundColor: TP.color.appBg,
     borderRadius: TP.radius.card,
     borderWidth: 1,
     borderColor: TP.color.divider,
@@ -407,7 +448,7 @@ const styles = StyleSheet.create({
     color: TP.color.textSecondary,
   },
   fieldContainer: {
-    marginBottom: TP.spacing.x24,
+    marginBottom: TP.spacing.x20,
   },
   fieldLabel: {
     fontSize: TP.font.body,
@@ -452,5 +493,58 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: TP.color.divider,
     minHeight: 44,
+  },
+  readOnlyField: {
+    backgroundColor: TP.color.appBg,
+    borderRadius: TP.radius.input,
+    paddingHorizontal: TP.spacing.x16,
+    paddingVertical: TP.spacing.x12,
+    borderWidth: 1,
+    borderColor: TP.color.divider,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  readOnlyText: {
+    fontSize: TP.font.body,
+    color: TP.color.textSecondary,
+    fontVariant: ['tabular-nums'],
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: TP.spacing.x12,
+    marginTop: TP.spacing.x8,
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: TP.color.cardBg,
+    borderWidth: 1,
+    borderColor: TP.color.ink,
+    borderRadius: TP.radius.button,
+    paddingVertical: TP.spacing.x14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  cancelButtonText: {
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.ink,
+  },
+  saveButton: {
+    flex: 1,
+    backgroundColor: TP.color.ink,
+    borderRadius: TP.radius.button,
+    paddingVertical: TP.spacing.x14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  saveButtonDisabled: {
+    opacity: 0.5,
+  },
+  saveButtonText: {
+    fontSize: TP.font.body,
+    fontWeight: TP.weight.semibold,
+    color: TP.color.cardBg,
   },
 });

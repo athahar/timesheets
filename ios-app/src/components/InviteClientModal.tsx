@@ -20,6 +20,9 @@ import { useAuth } from '../contexts/AuthContext';
 // Analytics
 import { capture, group, E, nowIso } from '../services/analytics';
 
+// App display name from env
+const APP_DISPLAY_NAME = process.env.EXPO_PUBLIC_APP_DISPLAY_NAME || 'TrackPay';
+
 interface InviteClientModalProps {
   visible: boolean;
   onClose: () => void;
@@ -180,8 +183,8 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
 
       try {
         await Share.share({
-          title: 'TrackPay Invitation',
-          message: `You've been invited to work with me on TrackPay!\n\nUse invite code: ${inviteCode}\n\nOr click this link: ${webLink}\n\nDownload TrackPay to get started!`,
+          title: `${APP_DISPLAY_NAME} Invitation`,
+          message: `You've been invited to work with me on ${APP_DISPLAY_NAME}!\n\nUse invite code: ${inviteCode}\n\nOr click this link: ${webLink}\n\nDownload ${APP_DISPLAY_NAME} to get started!`,
           url: webLink, // iOS will use this
         });
 
@@ -241,7 +244,7 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
       <View style={styles.content}>
         <View style={styles.descriptionContainer}>
           <Text style={styles.description}>
-            Create an invite for your client. They'll receive a code to join TrackPay and start tracking time with you.
+            Create an invite for your client. They'll receive a code to join {APP_DISPLAY_NAME} and start tracking time with you.
           </Text>
         </View>
 
@@ -369,7 +372,7 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
             <Text style={styles.instructionsTitle}>What happens next?</Text>
             <Text style={styles.instructionsText}>
               • {name} will receive the invite code{'\n'}
-              • They'll download TrackPay and enter the code{'\n'}
+              • They'll download {APP_DISPLAY_NAME} and enter the code{'\n'}
               • You can start tracking time together immediately{'\n'}
               • You'll see them as "Claimed" once they join
             </Text>

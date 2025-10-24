@@ -29,6 +29,9 @@ import { formatCurrency } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
 import { simpleT } from '../i18n/simple';
 
+// App display name from env
+const APP_DISPLAY_NAME = process.env.EXPO_PUBLIC_APP_DISPLAY_NAME || 'TrackPay';
+
 // Helper function to format names in proper sentence case
 const formatName = (name: string): string => {
   if (!name) return '';
@@ -190,11 +193,11 @@ export const ClientProfileScreen: React.FC<ClientProfileScreenProps> = ({
 
     try {
       const link = generateInviteLink(inviteCode, false);
-      const message = `You've been invited to join TrackPay!\n\nInvite Code: ${inviteCode}\n\nOr use this link: ${link}`;
+      const message = `You've been invited to join ${APP_DISPLAY_NAME}!\n\nInvite Code: ${inviteCode}\n\nOr use this link: ${link}`;
 
       await Share.share({
         message,
-        title: 'TrackPay Invite',
+        title: `${APP_DISPLAY_NAME} Invite`,
       });
     } catch (error) {
       console.error('Error sharing invite:', error);

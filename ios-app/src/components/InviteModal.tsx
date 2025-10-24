@@ -16,6 +16,9 @@ import { useAuth } from '../contexts/AuthContext';
 // Analytics
 import { capture, E, nowIso } from '../services/analytics';
 
+// App display name from env
+const APP_DISPLAY_NAME = process.env.EXPO_PUBLIC_APP_DISPLAY_NAME || 'TrackPay';
+
 interface InviteModalProps {
   visible: boolean;
   onClose: () => void;
@@ -80,8 +83,8 @@ export const InviteModal: React.FC<InviteModalProps> = ({
 
     try {
       await Share.share({
-        title: 'TrackPay Invitation',
-        message: `You've been invited to work with me on TrackPay!\n\nUse invite code: ${inviteCode}\n\nOr click this link: ${webLink}\n\nDownload TrackPay to get started!`,
+        title: `${APP_DISPLAY_NAME} Invitation`,
+        message: `You've been invited to work with me on ${APP_DISPLAY_NAME}!\n\nUse invite code: ${inviteCode}\n\nOr click this link: ${webLink}\n\nDownload ${APP_DISPLAY_NAME} to get started!`,
         url: webLink,
       });
 
