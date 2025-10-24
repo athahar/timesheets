@@ -31,6 +31,7 @@ import { moneyFormat } from '../utils/money';
 import { useLocale } from '../hooks/useLocale';
 import { capture, E } from '../services/analytics';
 import { dedupeEventOnce } from '../services/analytics/dedupe';
+import DetailPageSkeleton from '../components/DetailPageSkeleton';
 
 interface ServiceProviderSummaryScreenProps {
   route: {
@@ -299,15 +300,31 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
       groups[dayKey].push(item);
     });
 
-    return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
+    // Sort groups chronologically by first item timestamp (most recent first)
+    return Object.entries(groups).sort(([aKey, aItems], [bKey, bItems]) => {
+      const aTimestamp = aItems[0]?.timestamp || new Date(0);
+      const bTimestamp = bItems[0]?.timestamp || new Date(0);
+      return new Date(bTimestamp).getTime() - new Date(aTimestamp).getTime();
+    });
   }, [timelineItems]);
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>{simpleT('providerSummary.loadingProviderSummary')}</Text>
+        {/* Custom Header - always visible */}
+        <View style={styles.customHeader}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
+            <Feather name="arrow-left" size={24} color={TP.color.ink} />
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerName}>{providerName}</Text>
+          </View>
+          <View style={styles.headerButton} />
         </View>
+        <View style={styles.headerDivider} />
+
+        {/* Shimmer in content area */}
+        <DetailPageSkeleton />
       </SafeAreaView>
     );
   }
@@ -322,9 +339,7 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
         <View style={styles.headerCenter}>
           <Text style={styles.headerName}>{providerName}</Text>
         </View>
-        <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.headerButton}>
-          <Feather name="settings" size={24} color={TP.color.ink} />
-        </TouchableOpacity>
+        <View style={styles.headerButton} />
       </View>
       <View style={styles.headerDivider} />
 
@@ -434,22 +449,28 @@ export const ServiceProviderSummaryScreen: React.FC<ServiceProviderSummaryScreen
                           </Text>
                         </View>
                       ) : item.type === 'payment' ? (
-                        // Payment Line - Simplified
-                        <View style={styles.timelineLine}>
-                          <Text style={styles.timelineIcon}>💰</Text>
-                          <View style={styles.timelineContent}>
-                            <Text style={styles.timelineMainText}>
+                        // Payment Sent Card - client's perspective
+                        <View style={styles.timelineCard}>
+                          <View style={styles.timelineCardHeader}>
+                            <Text style={styles.timelineCardTitle}>
                               {simpleT('providerSummary.paymentSent')}
                             </Text>
-                            <Text style={styles.timelineSubText}>
-                              {moneyFormat((item.data.data.amount || 0) * 100, 'USD', locale)} • {item.data.data.sessionCount} {item.data.data.sessionCount > 1 ? simpleT('providerSummary.sessions') : simpleT('providerSummary.session')} • {formatHours(item.data.data.personHours || 0)} total
+                            <Text style={styles.timelineCardAmount}>
+                              {moneyFormat((item.data.data.amount || 0) * 100, 'USD', locale)}
                             </Text>
                           </View>
-                          <View style={styles.timelineRight}>
-                            <Text style={styles.timelineAmount}>
-                              {translatePaymentMethod(item.data.data.method)}
-                            </Text>
-                          </View>
+                          <Text style={styles.timelineCardMeta}>
+                            {(() => {
+                              // Calculate sessionCount from sessionIds array
+                              const sessionIds = item.data.data.sessionIds || [];
+                              const sessionCount = Array.isArray(sessionIds) ? sessionIds.length : 0;
+                              const personHours = item.data.data.personHours || 0;
+                              const sessionText = sessionCount === 1
+                                ? `1 ${simpleT('providerSummary.session')}`
+                                : `${sessionCount} ${simpleT('providerSummary.sessions')}`;
+                              return `${sessionText} • ${formatHours(personHours)}`;
+                            })()}
+                          </Text>
                         </View>
                       ) : (
                         // Payment Request Card - matching provider view
@@ -705,6 +726,14 @@ const styles = StyleSheet.create({
     fontWeight: TP.weight.semibold,
     color: TP.color.ink,
     fontVariant: ['tabular-nums'],
+  },
+  paymentCardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: TP.spacing.x8,
+  },
+  paymentCardIcon: {
+    fontSize: TP.font.body,
   },
   dayHeader: {
     paddingHorizontal: 16,

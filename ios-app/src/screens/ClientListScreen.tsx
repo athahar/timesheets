@@ -170,11 +170,11 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
   }, [clientsData]); // Only depends on clientsData
 
   // On focus: force re-render for language changes
-  // (useClients hook handles all fetch logic with stale-time caching)
   useFocusEffect(
     useCallback(() => {
       forceUpdate(prev => prev + 1);
-    }, [])
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []) // Empty deps
   );
 
   // Minute tick: increment every 60s to trigger re-render for live timer updates

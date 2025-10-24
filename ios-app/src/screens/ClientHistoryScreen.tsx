@@ -20,6 +20,7 @@ import { TPAvatar } from '../components/v2/TPAvatar';
 import { StatusPill } from '../components/StatusPill';
 import { IOSHeader } from '../components/IOSHeader';
 import { TP } from '../styles/themeV2';
+import DetailPageSkeleton from '../components/DetailPageSkeleton';
 import { theme } from '../styles/theme';
 import {
   getClientById,
@@ -248,24 +249,6 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
 
     // Sort by timestamp, newest first
     items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
-    if (__DEV__) {
-      console.log('📋 Timeline items:', items.map(i => ({
-        type: i.type,
-        timestamp: i.timestamp.toISOString(),
-        isValid: !isNaN(i.timestamp.getTime())
-      })));
-
-      // Debug payment request data specifically
-      const paymentRequests = items.filter(i => i.type === 'payment_request');
-      if (paymentRequests.length > 0) {
-        console.log('💰 Payment request data:', paymentRequests.map(pr => ({
-          type: pr.type,
-          data: pr.data
-        })));
-      }
-    }
-
     return items;
   }, [sessions, activities, activeSession]);
 
@@ -278,22 +261,18 @@ export const ClientHistoryScreen: React.FC<ClientHistoryScreenProps> = ({
       // Use ISO date string (YYYY-MM-DD) as the key for grouping
       const dayKey = date.toISOString().split('T')[0]; // "2025-10-09"
 
-      if (__DEV__) {
-        console.log('🗓️ Grouping item:', {
-          type: item.type,
-          timestamp: date.toISOString(),
-          dayKey,
-          formatDateResult: formatDate(date)
-        });
-      }
-
       if (!groups[dayKey]) {
         groups[dayKey] = [];
       }
       groups[dayKey].push(item);
     });
 
-    return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
+    // Sort groups chronologically by first item timestamp (most recent first)
+    return Object.entries(groups).sort(([aKey, aItems], [bKey, bItems]) => {
+      const aTimestamp = aItems[0]?.timestamp || new Date(0);
+      const bTimestamp = bItems[0]?.timestamp || new Date(0);
+      return new Date(bTimestamp).getTime() - new Date(aTimestamp).getTime();
+    });
   }, [timelineItems]);
 
 const handleCrewAdjust = async (delta: number) => {
@@ -355,6 +334,7 @@ const handleCrewAdjust = async (delta: number) => {
       </View>
     );
   };
+
 
   const handleStartSession = async () => {
     if (isSessionLoading) return; // Prevent double-tap
@@ -794,10 +774,8 @@ const handleCrewAdjust = async (delta: number) => {
           <View style={styles.headerButton} />
         </View>
 
-        {/* Spinner in content area */}
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={TP.color.ink} />
-        </View>
+        {/* Shimmer in content area */}
+        <DetailPageSkeleton />
       </SafeAreaView>
     );
   }
@@ -944,22 +922,27 @@ const handleCrewAdjust = async (delta: number) => {
                           </Text>
                         </View>
                       ) : item.type === 'payment' ? (
-                        // Payment Line - Simplified
-                        <View style={styles.timelineLine}>
-                          <Text style={styles.timelineIcon}>💰</Text>
-                          <View style={styles.timelineContent}>
-                            <Text style={styles.timelineMainText}>
+                        // Payment Received Card - matching other cards
+                        <View style={styles.timelineCard}>
+                          <View style={styles.timelineCardHeader}>
+                            <Text style={styles.timelineCardTitle}>
                               {t('providerSummary.paymentReceived')}
                             </Text>
-                            <Text style={styles.timelineSubText}>
-                              {formatCurrency(item.data.data.amount || 0)} • {item.data.data.sessionCount} session{item.data.data.sessionCount > 1 ? 's' : ''} • {formatHours(item.data.data.personHours || 0)} total
+                            <Text style={styles.timelineCardAmount}>
+                              {formatCurrency(item.data.data.amount || 0)}
                             </Text>
                           </View>
-                          <View style={styles.timelineRight}>
-                            <Text style={styles.timelineAmount}>
-                              {translatePaymentMethod(item.data.data.method)}
-                            </Text>
-                          </View>
+                          <Text style={styles.timelineCardMeta}>
+                            {(() => {
+                              const sessionIds = item.data.data.sessionIds || [];
+                              const sessionCount = Array.isArray(sessionIds) ? sessionIds.length : 0;
+                              const personHours = item.data.data.personHours || 0;
+                              const sessionText = sessionCount === 1
+                                ? `1 ${t('clientHistory.session')}`
+                                : `${sessionCount} ${t('clientHistory.sessions')}`;
+                              return `${sessionText} • ${formatHours(personHours)}`;
+                            })()}
+                          </Text>
                         </View>
                       ) : (
                         // Payment Request - Simplified format
@@ -1494,6 +1477,14 @@ const styles = StyleSheet.create({
     fontSize: TP.font.footnote,
     fontWeight: TP.weight.regular,
     color: TP.color.textSecondary,
+  },
+  paymentCardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: TP.spacing.x8,
+  },
+  paymentCardIcon: {
+    fontSize: TP.font.body,
   },
   timelineDivider: {
     height: 1,
