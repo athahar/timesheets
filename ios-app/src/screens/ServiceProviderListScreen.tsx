@@ -19,6 +19,7 @@ import {
   getCurrentUser,
   getServiceProvidersForClient,
   getClientSummary,
+  getClientSessionsForProvider,
 } from '../services/storageService';
 import { simpleT } from '../i18n/simple';
 import { moneyFormat } from '../utils/money';
@@ -111,30 +112,55 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
               const providersWithSummary = await Promise.allSettled(
                 (relatedProviders || []).map(async (provider) => {
                   try {
-                    // Load session summary for this provider-client relationship
-                    const summary = await Promise.race([
-                      getClientSummary(userProfile.id), // Get summary from client's perspective
+                    // Load sessions for this specific provider-client relationship
+                    const sessions = await Promise.race([
+                      getClientSessionsForProvider(userProfile.id, provider.id),
                       new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('Summary timeout')), 2000)
+                        setTimeout(() => reject(new Error('Sessions timeout')), 2000)
                       )
-                    ]);
+                    ]) as any[];
+
+                    // Calculate summary from these sessions
+                    const unpaidSessions = sessions.filter(s => s.status === 'unpaid');
+                    const requestedSessions = sessions.filter(s => s.status === 'requested');
+
+                    const computePersonHours = (session: any) => {
+                      const baseDuration = session.duration || 0;
+                      const crew = session.crewSize || 1;
+                      return typeof session.personHours === 'number'
+                        ? session.personHours
+                        : baseDuration * crew;
+                    };
+
+                    const unpaidPersonHours = unpaidSessions.reduce((sum, s) => sum + computePersonHours(s), 0);
+                    const requestedPersonHours = requestedSessions.reduce((sum, s) => sum + computePersonHours(s), 0);
+                    const unpaidBalance = unpaidSessions.reduce((sum, s) => sum + (s.amount || 0), 0);
+                    const requestedBalance = requestedSessions.reduce((sum, s) => sum + (s.amount || 0), 0);
+
+                    // Determine payment status
+                    let paymentStatus: 'unpaid' | 'requested' | 'paid' = 'paid';
+                    if (unpaidSessions.length > 0) {
+                      paymentStatus = 'unpaid';
+                    } else if (requestedSessions.length > 0) {
+                      paymentStatus = 'requested';
+                    }
 
                     return {
                       id: provider.id,
                       name: provider.name,
-                      unpaidHours: summary.unpaidHours,
-                      requestedHours: summary.requestedHours,
-                      unpaidBalance: summary.unpaidBalance,
-                      requestedBalance: summary.requestedBalance,
-                      totalUnpaidBalance: summary.totalUnpaidBalance,
-                      hasUnpaidSessions: summary.hasUnpaidSessions,
-                      hasRequestedSessions: summary.hasRequestedSessions,
-                      paymentStatus: summary.paymentStatus,
+                      unpaidHours: unpaidPersonHours,
+                      requestedHours: requestedPersonHours,
+                      unpaidBalance,
+                      requestedBalance,
+                      totalUnpaidBalance: unpaidBalance + requestedBalance,
+                      hasUnpaidSessions: unpaidSessions.length > 0,
+                      hasRequestedSessions: requestedSessions.length > 0,
+                      paymentStatus,
                       currency: provider.currency || 'USD',
                     };
                   } catch (error) {
                     if (__DEV__) {
-                      console.warn('⚠️ Failed to load summary for provider:', provider.name, error.message);
+                      console.warn('⚠️ Failed to load sessions for provider:', provider.name, error.message);
                     }
                     // Return provider with default summary
                     return {
