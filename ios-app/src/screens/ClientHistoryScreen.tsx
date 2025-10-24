@@ -841,9 +841,12 @@ const handleCrewAdjust = async (delta: number) => {
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>{t('common.totalOutstanding')}</Text>
           <Text style={styles.summaryAmountLarge}>{formatCurrency(totalUnpaidBalance)}</Text>
-          <Text style={styles.summaryHoursUnpaid}>
-            {formatHours(unpaidHours + requestedHours)} {t('clientHistory.unpaid')}
-          </Text>
+
+          {totalUnpaidBalance > 0 && (
+            <Text style={styles.summaryHoursUnpaid}>
+              {formatHours(unpaidHours + requestedHours)} {t('clientHistory.unpaid')}
+            </Text>
+          )}
 
           {(() => {
             // Pure hide/show logic for buttons and paid up state
@@ -866,14 +869,7 @@ const handleCrewAdjust = async (delta: number) => {
               );
             }
 
-            // Case 2: Show Paid up pill (no outstanding balance AND has work history)
-            if (totalUnpaidBalance === 0 && !hasPendingRequest && totalHours > 0) {
-              return (
-                <View style={styles.paidUpPill}>
-                  <Text style={styles.paidUpText}>{t('providerSummary.paidUp')}</Text>
-                </View>
-              );
-            }
+            // Case 2: Removed - No longer show "Paid up" pill when balance is $0
 
             // Case 3: Hide button (pending request or requested-only balance)
             return null;
