@@ -42,37 +42,50 @@ Add a shared hamburger menu for provider and client experiences. The menu provid
   - `E.MENU_OPTION_SELECTED` with `{ role, option }`.
 
 ### 5.2 Help Screen (Full Screen)
-- Title: “Help & FAQs” (role variants: “Client Help & FAQs” / “Provider Help & FAQs”).
-- Optional hero copy: “Answers to common questions.”
-- Sections per category: Sessions, Invites, Payments, General.
-- FAQ content sourced from `docs/spec/hamburger/hamburger-faqs.md` (English baseline), rendered per persona.
-- Extendable with additional entries; copy managed through `simpleT`.
-- Analytics: `E.SCREEN_VIEW_HELP` with `{ role, faq_count }`.
+- **Title copy**
+  - Client: “Help & FAQs”
+  - Provider: “Help & FAQs”
+- **Hero tagline**: “Answers to your most common TrackPay questions.”
+- **Section headers**
+  - Sessions
+  - Invites
+  - Payments
+  - General
+- **Intro paragraph**
+  - Client: “Browse quick answers tailored for clients. Need more help? Reach out from the Contact tab.”
+  - Provider: “Browse quick answers tailored for providers. Need more help? Reach out from the Contact tab.”
+- **FAQ body**: render entries from `docs/spec/hamburger/hamburger-faqs.md` filtered by persona and category order above.
+- **Empty state copy**: “We’re adding more tips soon. Email support if you don’t see your question.”
+- **Analytics**: track `E.SCREEN_VIEW_HELP` with `{ role, faq_count }`.
 
 ### 5.3 Contact Screen
-- Title: “Contact TrackPay”.
-- Friendly body copy inviting feedback.
-- Primary button: “Email Support” -> `mailto:` link using env var `EXPO_PUBLIC_SUPPORT_EMAIL` (default `hello@trackpay.com`).
-  - Subject: `TrackPay Support Request`.
-  - Body template:
+- **Title copy**: “Contact TrackPay”
+- **Hero message**: “We’d love to hear from you.”
+- **Body paragraph**: “Send us a note with any questions, feedback, or ideas. Our team usually replies within one business day.”
+- **Primary CTA button**
+  - Label: “Email Support”
+  - Action: `mailto:` using `EXPO_PUBLIC_SUPPORT_EMAIL` (default `hello@trackpay.com`) with subject `TrackPay Support Request` and body:
     ```
     Hi TrackPay Team,
 
-    [User message here]
+    [Please describe your question or issue here.]
 
     App version: <injected version>
     ```
-  - Use Expo `Constants.expoConfig?.version` or `expo-application` helper.
-- Secondary section showing raw support email for manual copy.
-- Analytics: `E.CONTACT_EMAIL_TAPPED` with `{ role }`.
+- **Secondary details**: display the support email as selectable text with copy-to-clipboard affordance.
+- **Footer note**: “Include screenshots when possible so we can help faster.”
+- **Analytics**: track `E.CONTACT_EMAIL_TAPPED` with `{ role }`.
 
 ### 5.4 Share Screen
-- Title: “Spread the Word”.
-- Copy emphasising benefits of sharing.
-- Primary button triggers native share sheet (`Share.share`) with message:
-  > “TrackPay helps me stay on top of sessions and payments. Try it: https://trackpay.app”
-- Fallback if share unsupported: copy message to clipboard and display toast.
-- Analytics: `E.SHARE_INTENT_TRIGGERED` with `{ role }`.
+- **Title copy**: “Spread the Word”
+- **Hero message**: “Help other families and providers discover TrackPay.”
+- **Body paragraph**: “Share your referral message below or send it through your favourite app. Every introduction helps us support more relationships.”
+- **Primary CTA button**
+  - Label: “Share TrackPay”
+  - Action: invoke `Share.share` with message `TrackPay helps me stay on top of sessions and payments. Try it: https://trackpay.app`
+- **Secondary action**: show the referral message in a text box with copy-to-clipboard icon for manual sharing.
+- **Fallback copy** (share unsupported): “Copy the message above and paste it wherever you like to share.”
+- **Analytics**: track `E.SHARE_INTENT_TRIGGERED` with `{ role }`.
 
 ## 6. Technical Requirements
 - **Navigation**
@@ -95,25 +108,26 @@ Add a shared hamburger menu for provider and client experiences. The menu provid
   - Confirm FAQ content renders correctly (especially on narrow devices).
 
 ## 7. Copy & Content Ownership
-- Copy owner: Codex (this document). Future updates should be reviewed with product stakeholders when available.
+- Spanish translations reviewed by bilingual contributor before release.
 - Future chatbot integration can reuse FAQ data structure.
 
 ## 8. Rollout Plan
 1. Implement shared menu component and inject into target stacks.
 2. Build Help, Contact, Share screens with env/config support.
-3. Populate FAQs from the library and review copy with stakeholders.
+3. Populate FAQs and translations; review with stakeholders.
 4. QA across platforms (iOS/Android, light/dark, small/large text).
 5. Verify analytics events in staging.
 6. Update release notes/documentation to highlight new support access.
 
 ## 9. Risks & Mitigations
+- **Incomplete translations** – track in issue tracker; block release until reviewed.
 - **Mailto limitations** – show fallback text when mail app not configured.
 - **Share sheet unsupported** – default to copy-to-clipboard plus toast.
 - **Menu creep** – limit initial options to three; revisit if future items needed.
 
 ## 10. Acceptance Criteria
 - Hamburger menu visible and functional for both clients and providers.
-- Help/Contact/Share screens match spec, surface role-aware FAQs, and emit analytics events.
+- Help/Contact/Share screens match spec, support bilingual copy, and emit analytics events.
 - Support email configurable via env and mailto body includes app version.
 - Share sheet launches with predefined message/link (with fallback).
 - All screens pass basic accessibility checks (VoiceOver/TalkBack).
