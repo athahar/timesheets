@@ -1202,7 +1202,7 @@ const translations = {
     'help.section.sessions': 'Sesiones',
     'help.section.invites': 'Invitaciones',
     'help.section.payments': 'Pagos',
-    'help.section.general': 'General',
+    'help.section.general': 'Generales',
     'help.emptyState': 'Pronto añadiremos más consejos. Envía un correo a soporte si no encuentras tu pregunta.',
 
     // FAQ Translations - Provider (Spanish)
