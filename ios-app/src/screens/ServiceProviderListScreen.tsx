@@ -82,136 +82,262 @@ export const ServiceProviderListScreen: React.FC<ServiceProviderListScreenProps>
       let providersData: ServiceProvider[] = [];
 
       if (userProfile) {
-        // Authenticated user - load providers based on relationships
-        if (__DEV__) {
-          console.log('📊 Auth user - loading relationship-based providers for:', userProfile.name);
-        }
+        const isClient = userProfile.role === 'client';
+        const isProvider = userProfile.role === 'provider';
 
-        try {
-          // Get provider IDs that have relationships with this client
-          const { data: relationships, error: relError } = await supabase
-            .from('trackpay_relationships')
-            .select('provider_id')
-            .eq('client_id', userProfile.id);
-
-          if (relError) {
-            console.error('❌ Error loading relationships:', relError);
-            providersData = [];
-          } else if (relationships && relationships.length > 0) {
-            if (__DEV__) console.log('📊 Found', relationships.length, 'relationships');
-
-            // Get provider details for each relationship
-            const providerIds = relationships.map(rel => rel.provider_id);
-            const { data: relatedProviders, error: providerError } = await supabase
-              .from('trackpay_users')
-              .select('*')
-              .in('id', providerIds)
-              .eq('role', 'provider');
-
-            if (providerError) {
-              console.error('❌ Error loading related providers:', providerError);
-              providersData = [];
-            } else {
-              // Convert Supabase format to ServiceProvider format and load real session data
-              if (__DEV__) {
-                console.log('💰 ServiceProviderList: Loading provider summaries for', relatedProviders.length, 'providers...');
-              }
-
-              // Get ALL sessions for this client once
-              const allSessions = await getSessionsByClient(userProfile.id);
-              if (__DEV__) {
-                console.log('📊 ServiceProviderList: Loaded', allSessions.length, 'total sessions for client');
-              }
-
-              const providersWithSummary = await Promise.allSettled(
-                (relatedProviders || []).map(async (provider) => {
-                  try {
-                    // Filter sessions for this specific provider
-                    const sessions = allSessions.filter(s => s.providerId === provider.id);
-                    if (__DEV__) {
-                      console.log('📊 Provider', provider.name, 'has', sessions.length, 'sessions');
-                    }
-
-                    // Calculate summary from these sessions
-                    const unpaidSessions = sessions.filter(s => s.status === 'unpaid');
-                    const requestedSessions = sessions.filter(s => s.status === 'requested');
-
-                    const computePersonHours = (session: any) => {
-                      const baseDuration = session.duration || 0;
-                      const crew = session.crewSize || 1;
-                      return typeof session.personHours === 'number'
-                        ? session.personHours
-                        : baseDuration * crew;
-                    };
-
-                    const unpaidPersonHours = unpaidSessions.reduce((sum, s) => sum + computePersonHours(s), 0);
-                    const requestedPersonHours = requestedSessions.reduce((sum, s) => sum + computePersonHours(s), 0);
-                    const unpaidBalance = unpaidSessions.reduce((sum, s) => sum + (s.amount || 0), 0);
-                    const requestedBalance = requestedSessions.reduce((sum, s) => sum + (s.amount || 0), 0);
-
-                    // Determine payment status
-                    let paymentStatus: 'unpaid' | 'requested' | 'paid' = 'paid';
-                    if (unpaidSessions.length > 0) {
-                      paymentStatus = 'unpaid';
-                    } else if (requestedSessions.length > 0) {
-                      paymentStatus = 'requested';
-                    }
-
-                    return {
-                      id: provider.id,
-                      name: provider.name,
-                      unpaidHours: unpaidPersonHours,
-                      requestedHours: requestedPersonHours,
-                      unpaidBalance,
-                      requestedBalance,
-                      totalUnpaidBalance: unpaidBalance + requestedBalance,
-                      hasUnpaidSessions: unpaidSessions.length > 0,
-                      hasRequestedSessions: requestedSessions.length > 0,
-                      paymentStatus,
-                      currency: provider.currency || 'USD',
-                    };
-                  } catch (error) {
-                    if (__DEV__) {
-                      console.warn('⚠️ Failed to load sessions for provider:', provider.name, error.message);
-                    }
-                    // Return provider with default summary
-                    return {
-                      id: provider.id,
-                      name: provider.name,
-                      unpaidHours: 0,
-                      requestedHours: 0,
-                      unpaidBalance: 0,
-                      requestedBalance: 0,
-                      totalUnpaidBalance: 0,
-                      hasUnpaidSessions: false,
-                      hasRequestedSessions: false,
-                      paymentStatus: 'paid' as const,
-                      currency: provider.currency || 'USD',
-                    };
-                  }
-                })
-              );
-
-              // Filter successful results
-              providersData = providersWithSummary
-                .filter((result): result is PromiseFulfilledResult<ServiceProvider> =>
-                  result.status === 'fulfilled'
-                )
-                .map(result => result.value);
-
-              if (__DEV__) {
-                console.log('✅ Loaded', providersData.length, 'related providers with session data');
-              }
-            }
-          } else {
-            if (__DEV__) {
-              console.log('📊 No relationships found - empty provider list');
-            }
-            providersData = [];
+        if (isClient) {
+          if (__DEV__) {
+            console.log('📊 Auth client - loading relationship-based providers for:', userProfile.name);
           }
-        } catch (dbError) {
-          console.error('❌ Database error:', dbError);
-          providersData = [];
+
+          try {
+            const { data: relationships, error: relError } = await supabase
+              .from('trackpay_relationships')
+              .select('provider_id')
+              .eq('client_id', userProfile.id);
+
+            if (relError) {
+              console.error('❌ Error loading relationships:', relError);
+            } else if (relationships && relationships.length > 0) {
+              if (__DEV__) console.log('📊 Found', relationships.length, 'provider relationships');
+
+              const providerIds = relationships.map(rel => rel.provider_id);
+              const { data: relatedProviders, error: providerError } = await supabase
+                .from('trackpay_users')
+                .select('*')
+                .in('id', providerIds)
+                .eq('role', 'provider');
+
+              if (providerError) {
+                console.error('❌ Error loading related providers:', providerError);
+              } else {
+                if (__DEV__) {
+                  console.log('💰 ServiceProviderList: Loading provider summaries for', relatedProviders.length, 'providers...');
+                }
+
+                const allSessions = await getSessionsByClient(userProfile.id);
+                if (__DEV__) {
+                  console.log('📊 ServiceProviderList: Loaded', allSessions.length, 'total sessions for client');
+                }
+
+                const providersWithSummary = await Promise.allSettled(
+                  (relatedProviders || []).map(async (provider) => {
+                    try {
+                      const sessions = allSessions.filter(s => s.providerId === provider.id);
+                      if (__DEV__) {
+                        console.log('📊 Provider', provider.name, 'has', sessions.length, 'sessions');
+                      }
+
+                      const unpaidSessions = sessions.filter(s => s.status === 'unpaid');
+                      const requestedSessions = sessions.filter(s => s.status === 'requested');
+
+                      const computePersonHours = (session: any) => {
+                        const baseDuration = session.duration || 0;
+                        const crew = session.crewSize || 1;
+                        return typeof session.personHours === 'number'
+                          ? session.personHours
+                          : baseDuration * crew;
+                      };
+
+                      const unpaidPersonHours = unpaidSessions.reduce((sum, s) => sum + computePersonHours(s), 0);
+                      const requestedPersonHours = requestedSessions.reduce((sum, s) => sum + computePersonHours(s), 0);
+                      const unpaidBalance = unpaidSessions.reduce((sum, s) => sum + (s.amount || 0), 0);
+                      const requestedBalance = requestedSessions.reduce((sum, s) => sum + (s.amount || 0), 0);
+
+                      let paymentStatus: 'unpaid' | 'requested' | 'paid' = 'paid';
+                      if (unpaidSessions.length > 0) {
+                        paymentStatus = 'unpaid';
+                      } else if (requestedSessions.length > 0) {
+                        paymentStatus = 'requested';
+                      }
+
+                      return {
+                        id: provider.id,
+                        name: provider.name,
+                        unpaidHours: unpaidPersonHours,
+                        requestedHours: requestedPersonHours,
+                        unpaidBalance,
+                        requestedBalance,
+                        totalUnpaidBalance: unpaidBalance + requestedBalance,
+                        hasUnpaidSessions: unpaidSessions.length > 0,
+                        hasRequestedSessions: requestedSessions.length > 0,
+                        paymentStatus,
+                        currency: provider.currency || 'USD',
+                      };
+                    } catch (error) {
+                      if (__DEV__) {
+                        console.warn('⚠️ Failed to load sessions for provider:', provider.name, error.message);
+                      }
+                      return {
+                        id: provider.id,
+                        name: provider.name,
+                        unpaidHours: 0,
+                        requestedHours: 0,
+                        unpaidBalance: 0,
+                        requestedBalance: 0,
+                        totalUnpaidBalance: 0,
+                        hasUnpaidSessions: false,
+                        hasRequestedSessions: false,
+                        paymentStatus: 'paid' as const,
+                        currency: provider.currency || 'USD',
+                      };
+                    }
+                  })
+                );
+
+                providersData = providersWithSummary
+                  .filter((result): result is PromiseFulfilledResult<ServiceProvider> =>
+                    result.status === 'fulfilled'
+                  )
+                  .map(result => result.value);
+
+                if (__DEV__) {
+                  console.log('✅ Loaded', providersData.length, 'related providers with session data');
+                }
+              }
+            } else if (__DEV__) {
+              console.log('📊 No provider relationships found - empty provider list');
+            }
+          } catch (dbError) {
+            console.error('❌ Database error:', dbError);
+          }
+        } else if (isProvider) {
+          if (__DEV__) {
+            console.log('📊 Auth provider - loading clients for:', userProfile.name);
+          }
+
+          try {
+            const { data: relationships, error: relError } = await supabase
+              .from('trackpay_relationships')
+              .select('client_id')
+              .eq('provider_id', userProfile.id);
+
+            if (relError) {
+              console.error('❌ Error loading provider relationships:', relError);
+            } else if (relationships && relationships.length > 0) {
+              if (__DEV__) console.log('📊 Found', relationships.length, 'client relationships');
+
+              const clientIds = relationships.map(rel => rel.client_id);
+              const { data: relatedClients, error: clientError } = await supabase
+                .from('trackpay_users')
+                .select('*')
+                .in('id', clientIds)
+                .eq('role', 'client');
+
+              if (clientError) {
+                console.error('❌ Error loading related clients:', clientError);
+              } else {
+                if (__DEV__) {
+                  console.log('💰 ServiceProviderList: Loading client summaries for', relatedClients.length, 'clients...');
+                }
+
+                const { data: allSessions, error: sessionsError } = await supabase
+                  .from('trackpay_sessions')
+                  .select(`
+                    id,
+                    client_id,
+                    provider_id,
+                    duration_minutes,
+                    crew_size,
+                    person_hours,
+                    hourly_rate,
+                    amount_due,
+                    status
+                  `)
+                  .eq('provider_id', userProfile.id);
+
+                if (sessionsError) {
+                  console.error('❌ Error loading sessions for provider:', sessionsError);
+                }
+
+                const sessions = allSessions || [];
+                if (__DEV__) {
+                  console.log('📊 ServiceProviderList: Loaded', sessions.length, 'total sessions for provider');
+                }
+
+                const clientsWithSummary = await Promise.allSettled(
+                  (relatedClients || []).map(async (client) => {
+                    try {
+                      const clientSessions = sessions.filter(s => s.client_id === client.id);
+                      if (__DEV__) {
+                        console.log('📊 Client', client.name, 'has', clientSessions.length, 'sessions');
+                      }
+
+                      const unpaidSessions = clientSessions.filter(s => s.status === 'unpaid');
+                      const requestedSessions = clientSessions.filter(s => s.status === 'requested');
+
+                      const computePersonHours = (session: any) => {
+                        const baseDuration = (session.duration_minutes || 0) / 60;
+                        const crew = session.crew_size || 1;
+                        return typeof session.person_hours === 'number'
+                          ? session.person_hours
+                          : baseDuration * crew;
+                      };
+
+                      const unpaidPersonHours = unpaidSessions.reduce((sum, s) => sum + computePersonHours(s), 0);
+                      const requestedPersonHours = requestedSessions.reduce((sum, s) => sum + computePersonHours(s), 0);
+                      const unpaidBalance = unpaidSessions.reduce((sum, s) => sum + (s.amount_due || 0), 0);
+                      const requestedBalance = requestedSessions.reduce((sum, s) => sum + (s.amount_due || 0), 0);
+
+                      let paymentStatus: 'unpaid' | 'requested' | 'paid' = 'paid';
+                      if (unpaidSessions.length > 0) {
+                        paymentStatus = 'unpaid';
+                      } else if (requestedSessions.length > 0) {
+                        paymentStatus = 'requested';
+                      }
+
+                      return {
+                        id: client.id,
+                        name: client.name,
+                        unpaidHours: unpaidPersonHours,
+                        requestedHours: requestedPersonHours,
+                        unpaidBalance,
+                        requestedBalance,
+                        totalUnpaidBalance: unpaidBalance + requestedBalance,
+                        hasUnpaidSessions: unpaidSessions.length > 0,
+                        hasRequestedSessions: requestedSessions.length > 0,
+                        paymentStatus,
+                        currency: client.currency || 'USD',
+                      };
+                    } catch (error) {
+                      if (__DEV__) {
+                        console.warn('⚠️ Failed to load sessions for client:', client.name, error.message);
+                      }
+                      return {
+                        id: client.id,
+                        name: client.name,
+                        unpaidHours: 0,
+                        requestedHours: 0,
+                        unpaidBalance: 0,
+                        requestedBalance: 0,
+                        totalUnpaidBalance: 0,
+                        hasUnpaidSessions: false,
+                        hasRequestedSessions: false,
+                        paymentStatus: 'paid' as const,
+                        currency: client.currency || 'USD',
+                      };
+                    }
+                  })
+                );
+
+                providersData = clientsWithSummary
+                  .filter((result): result is PromiseFulfilledResult<ServiceProvider> =>
+                    result.status === 'fulfilled'
+                  )
+                  .map(result => result.value);
+
+                if (__DEV__) {
+                  console.log('✅ Loaded', providersData.length, 'related clients with session data');
+                }
+              }
+            } else if (__DEV__) {
+              console.log('📊 No client relationships found - empty list');
+            }
+          } catch (dbError) {
+            console.error('❌ Database error:', dbError);
+          }
+        } else if (__DEV__) {
+          console.log('ℹ️ User role not client/provider, skipping relationship lookup');
         }
       } else {
         // Fallback for non-auth users (development mode)

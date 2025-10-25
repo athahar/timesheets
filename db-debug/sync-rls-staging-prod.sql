@@ -24,11 +24,37 @@ ALTER TABLE public.trackpay_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.trackpay_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.trackpay_relationships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.trackpay_relationship_audit ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.trackpay_unpaid_balances ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.trackpay_unpaid_balances ENABLE ROW LEVEL SECURITY;
 
 -- ---------------------------------------------------------------------------
 -- STEP 2: Rebuild RLS policies for trackpay_users
 -- ---------------------------------------------------------------------------
+
+DROP FUNCTION IF EXISTS public.current_trackpay_profile_id();
+
+CREATE FUNCTION public.current_trackpay_profile_id()
+RETURNS uuid
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    current_id uuid;
+BEGIN
+    PERFORM set_config('row_security', 'off', true);
+    SELECT id
+      INTO current_id
+      FROM public.trackpay_users
+     WHERE auth_user_id = auth.uid()
+     LIMIT 1;
+    RETURN current_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.current_trackpay_profile_id() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.current_trackpay_profile_id() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.current_trackpay_profile_id() TO anon;
 
 DO
 $$
@@ -47,6 +73,7 @@ END;
 $$;
 
 -- Policy: authenticated sign-up must bind new row to caller's auth.uid()
+DROP POLICY IF EXISTS "tp_users_insert_self" ON public.trackpay_users;
 CREATE POLICY "tp_users_insert_self"
     ON public.trackpay_users
     FOR INSERT
@@ -56,6 +83,7 @@ CREATE POLICY "tp_users_insert_self"
     );
 
 -- Policy: authenticated users can read their own profile
+DROP POLICY IF EXISTS "tp_users_select_self" ON public.trackpay_users;
 CREATE POLICY "tp_users_select_self"
     ON public.trackpay_users
     FOR SELECT
@@ -65,6 +93,7 @@ CREATE POLICY "tp_users_select_self"
     );
 
 -- Policy: authenticated users can update their own profile
+DROP POLICY IF EXISTS "tp_users_update_self" ON public.trackpay_users;
 CREATE POLICY "tp_users_update_self"
     ON public.trackpay_users
     FOR UPDATE
@@ -77,6 +106,7 @@ CREATE POLICY "tp_users_update_self"
     );
 
 -- Policy: authenticated users can claim an unclaimed client profile (invite flow)
+DROP POLICY IF EXISTS "tp_users_claim_invite" ON public.trackpay_users;
 CREATE POLICY "tp_users_claim_invite"
     ON public.trackpay_users
     FOR UPDATE
@@ -93,6 +123,7 @@ CREATE POLICY "tp_users_claim_invite"
     );
 
 -- Policy: limited public lookup for invite validation (anon can only see unclaimed clients)
+DROP POLICY IF EXISTS "tp_users_lookup_unclaimed_clients" ON public.trackpay_users;
 CREATE POLICY "tp_users_lookup_unclaimed_clients"
     ON public.trackpay_users
     FOR SELECT
@@ -102,26 +133,39 @@ CREATE POLICY "tp_users_lookup_unclaimed_clients"
         AND claimed_status = 'unclaimed'
     );
 
+-- Policy: allow invite screens to show provider name for active invites
+DROP POLICY IF EXISTS "tp_users_lookup_invite_providers" ON public.trackpay_users;
+CREATE POLICY "tp_users_lookup_invite_providers"
+    ON public.trackpay_users
+    FOR SELECT
+    TO anon
+    USING (
+        role = 'provider'
+        AND EXISTS (
+            SELECT 1
+            FROM public.trackpay_invites inv
+            WHERE inv.provider_id = trackpay_users.id
+              AND inv.status = 'pending'
+              AND inv.expires_at > now()
+        )
+    );
+
 -- Policy: authenticated users can see providers/clients they are related to
+DROP POLICY IF EXISTS "tp_users_select_related" ON public.trackpay_users;
 CREATE POLICY "tp_users_select_related"
     ON public.trackpay_users
     FOR SELECT
     TO authenticated
     USING (
-        EXISTS (
-            SELECT 1
+        trackpay_users.id IN (
+            SELECT rel.provider_id
             FROM public.trackpay_relationships rel
-            WHERE (
-                rel.provider_id = trackpay_users.id
-                AND rel.client_id = (
-                    SELECT id FROM public.trackpay_users me WHERE me.auth_user_id = auth.uid()
-                )
-            ) OR (
-                rel.client_id = trackpay_users.id
-                AND rel.provider_id = (
-                    SELECT id FROM public.trackpay_users me WHERE me.auth_user_id = auth.uid()
-                )
-            )
+            WHERE rel.client_id = public.current_trackpay_profile_id()
+        )
+        OR trackpay_users.id IN (
+            SELECT rel.client_id
+            FROM public.trackpay_relationships rel
+            WHERE rel.provider_id = public.current_trackpay_profile_id()
         )
     );
 
