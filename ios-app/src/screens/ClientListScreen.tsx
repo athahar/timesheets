@@ -567,6 +567,7 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
 
   const renderSectionHeader = useCallback(({ section }: { section: ClientSection }) => {
     const isMyClientsSection = section.titleKey === 'myClients';
+    const hasMyClientsSection = sections.some(s => s.titleKey === 'myClients');
     const titleText = section.titleKey === 'workInProgress'
       ? simpleT('clientList.workInProgress')
       : simpleT('clientList.myClients');
@@ -574,14 +575,14 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
     return (
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{titleText}</Text>
-        {isMyClientsSection && (
+        {(isMyClientsSection || !hasMyClientsSection) && (
           <TouchableOpacity onPress={handleAddClientPress} style={styles.addClientButton}>
             <Text style={styles.addClientButtonText}>{simpleT('clientList.addNewClient')}</Text>
           </TouchableOpacity>
         )}
       </View>
     );
-  }, [handleAddClientPress]);
+  }, [handleAddClientPress, sections]);
 
   const allClients = useMemo(() => sections.flatMap(s => s.data), [sections]);
   const totalUnpaid = useMemo(() => allClients.reduce((sum, client) => sum + client.unpaidBalance, 0), [allClients]);
