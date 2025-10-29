@@ -5,6 +5,17 @@ PROJECT_ROOT="${PROJECT_ROOT:-$(pwd)}"
 echo "PROJECT_ROOT: $PROJECT_ROOT"
 echo "Current directory: $(pwd)"
 
+# Ensure PROJECT_ROOT points to directory that contains ios/
+if [ ! -d "$PROJECT_ROOT/ios" ]; then
+  if [ -d "$PROJECT_ROOT/../project/ios-app/ios" ]; then
+    echo "📁 ios/ not found in build dir, using project checkout copy"
+    PROJECT_ROOT="$(cd "$PROJECT_ROOT/../project/ios-app" && pwd)"
+  elif [ -d "$PROJECT_ROOT/../ios" ]; then
+    echo "📁 ios/ found one level up, adjusting root"
+    PROJECT_ROOT="$(cd "$PROJECT_ROOT/.." && pwd)"
+  fi
+fi
+
 cd "$PROJECT_ROOT"
 echo "After cd PROJECT_ROOT: $(pwd)"
 
