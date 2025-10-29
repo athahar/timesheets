@@ -8,14 +8,25 @@ echo "Current directory: $(pwd)"
 # Ensure PROJECT_ROOT points to directory that contains ios/
 if [ ! -d "$PROJECT_ROOT/ios" ]; then
   echo "⚠️  ios/ directory missing in build workspace; searching other locations"
-  for candidate in \
-    "$PROJECT_ROOT/../project/ios-app/ios" \
-    "$PROJECT_ROOT/../project/ios" \
-    "$PROJECT_ROOT/../ios" \
-    "$PROJECT_ROOT/../../../project/ios"; do
+  CANDIDATES=(
+    "$PROJECT_ROOT/../../project/ios-app/ios"
+    "$PROJECT_ROOT/../../project/ios/ios"
+    "$PROJECT_ROOT/../../project/ios"
+    "$PROJECT_ROOT/../project/ios-app/ios"
+    "$PROJECT_ROOT/../ios-app/ios"
+    "$PROJECT_ROOT/../ios"
+  )
+
+  for candidate in "${CANDIDATES[@]}"; do
+    echo "🔎 Checking $candidate"
     if [ -d "$candidate" ]; then
       echo "📁 Found ios/ at $candidate"
-      PROJECT_ROOT="$(cd "$(dirname "$candidate")" && pwd)"
+      if [ "$PROJECT_ROOT" != "$PWD" ]; then
+        echo "📦 Copying ios/ into build workspace"
+        rm -rf "$PROJECT_ROOT/ios"
+        mkdir -p "$PROJECT_ROOT/ios"
+        rsync -a "$candidate/" "$PROJECT_ROOT/ios/"
+      fi
       break
     fi
   done
