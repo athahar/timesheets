@@ -19,6 +19,7 @@ if [ ! -d "$PROJECT_ROOT/ios" ]; then
 
   for candidate in "${CANDIDATES[@]}"; do
     echo "🔎 Checking $candidate"
+    ls -a "$(dirname "$candidate")" 2>/dev/null || true
     if [ -d "$candidate" ]; then
       echo "📁 Found ios/ at $candidate"
       if [ "$PROJECT_ROOT" != "$PWD" ]; then
