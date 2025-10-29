@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 echo "🔧 EAS pre-install: bundler + pods"
+PROJECT_ROOT="${PROJECT_ROOT:-$(pwd)}"
 echo "PROJECT_ROOT: $PROJECT_ROOT"
 echo "Current directory: $(pwd)"
 

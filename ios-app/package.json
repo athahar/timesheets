@@ -23,7 +23,8 @@
     "env:staging": "mv .env.development.backup .env.development 2>/dev/null || true && cp .env.staging .env && echo '✅ Switched to STAGING environment'",
     "env:prod": "mv .env.development .env.development.backup 2>/dev/null || true && cp .env.production .env && echo '✅ Switched to PRODUCTION environment'",
     "env:check": "echo '📋 Current environment:' && grep EXPO_PUBLIC_ENV .env 2>/dev/null || echo 'No .env file' && grep EXPO_PUBLIC_SUPABASE_URL .env 2>/dev/null || true",
-    "eas-build-pre-install": "bash .eas/hooks/pre-install/01-cocoapods.sh"
+    "eas-build-pre-install": "bash .eas/hooks/pre-install/01-cocoapods.sh",
+    "postinstall": "if [ \"$EAS_BUILD\" = \"true\" ]; then npm run eas-build-pre-install; else echo \"Skipping EAS pod setup\"; fi"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
