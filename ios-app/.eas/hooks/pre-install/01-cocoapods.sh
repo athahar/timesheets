@@ -19,6 +19,7 @@ if ! command -v pod >/dev/null 2>&1; then
 else
   echo "✅ CocoaPods already installed: $(pod --version)"
 fi
+
 # Provide a stable shim inside the project (optional safety)
 mkdir -p ".eas/bin"
 cat > ".eas/bin/pod" <<'EOF'
@@ -28,11 +29,19 @@ EOF
 chmod +x ".eas/bin/pod"
 
 # Persist env so later build phases see CocoaPods on PATH
+ENV_FILE="${EAS_BUILD_ENVIRONMENT:-${BASH_ENV:-}}"
+if [[ -z "${ENV_FILE}" ]]; then
+  ENV_FILE="$(pwd)/.eas/build_env.sh"
+fi
+mkdir -p "$(dirname "$ENV_FILE")"
+touch "$ENV_FILE"
+
 {
   echo "export GEM_HOME=\"$HOME/.rubygems\""
   echo "export PATH=\"$(pwd)/.eas/bin:$HOME/.rubygems/bin:\$PATH\""
-} >> "$EAS_BUILD_ENVIRONMENT"
+} >> "$ENV_FILE"
 
-echo "PATH=$PATH"
-echo "Using pod: $(command -v pod || echo 'not yet available')"
-echo "pod version: $(pod --version || echo 'unknown')"
+echo "🔎 Persisted env to: $ENV_FILE"
+echo "PATH (hook): $PATH"
+echo "pod which (hook): $(command -v pod || echo 'not found')"
+echo "pod version (hook): $(pod --version || echo 'unknown')"
