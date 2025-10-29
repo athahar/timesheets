@@ -14,7 +14,7 @@ node_modules/
 
 # iOS app directory
 /ios-app/.expo
-/ios-app/ios
+# /ios-app/ios  # UNIGNORED: Needed for Dynamic Island Widget Extension in EAS builds
 /ios-app/android
 
 # Database exports & schema files (root level only)

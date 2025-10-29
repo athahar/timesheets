@@ -26,6 +26,15 @@ const nativeModule: ActivityKitModule | null =
     ? TrackPayActivityKitModule
     : null;
 
+// Debug logging
+if (__DEV__) {
+  console.log('[DynamicIsland] Native module available:', !!nativeModule);
+  console.log('[DynamicIsland] Platform:', Platform.OS);
+  console.log('[DynamicIsland] iOS Version:', Platform.Version);
+  console.log('[DynamicIsland] TrackPayActivityKitModule exists:', !!TrackPayActivityKitModule);
+  console.log('[DynamicIsland] All NativeModules:', Object.keys(NativeModules).sort());
+}
+
 /**
  * Check if Dynamic Island is supported on this device
  * Requires iOS 16.4+ and ActivityKit module availability
