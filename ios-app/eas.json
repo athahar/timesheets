@@ -4,9 +4,6 @@
     "appVersionSource": "local"
   },
   "build": {
-    "hooks": {
-      "pre-install": "bash eas-build-pre-install.sh"
-    },
     "development": {
       "developmentClient": true,
       "distribution": "internal",
@@ -19,6 +16,9 @@
       "ios": {
         "resourceClass": "m-medium",
         "buildConfiguration": "Release"
+      },
+      "hooks": {
+        "pre-install": "bash eas-build-pre-install.sh"
       },
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://qpoqeqasefatyrjeronp.supabase.co",
@@ -34,6 +34,9 @@
     "production": {
       "ios": {
         "resourceClass": "m-medium"
+      },
+      "hooks": {
+        "pre-install": "bash eas-build-pre-install.sh"
       },
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://frzcwdzmbogwhjninaoa.supabase.co",
