@@ -2,7 +2,7 @@
 set -euo pipefail
 echo "🔧 EAS pre-install: bundler + pods"
 
-cd "$PROJECT_ROOT/ios-app"
+cd "$PROJECT_ROOT"
 
 if [ -d ios ]; then
   cd ios
