@@ -74,6 +74,65 @@ Service providers need a lightweight way to remove mistakenly logged work sessio
 
 ---
 
+## Database Migration (Supabase)
+
+- Create a new migration (e.g. `20251029_delete_work_session.sql`) with the statements below.
+- Script adds soft-delete metadata, ensures defaults, and tightens RLS so only the owning provider can mark an unpaid session deleted.
+
+```sql
+BEGIN;
+
+-- Soft-delete metadata on work sessions
+ALTER TABLE public.trackpay_sessions
+  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS deleted_by_user_id UUID REFERENCES public.trackpay_users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS delete_reason TEXT DEFAULT 'mistake';
+
+UPDATE public.trackpay_sessions
+SET delete_reason = 'mistake'
+WHERE delete_reason IS NULL;
+
+ALTER TABLE public.trackpay_sessions
+  ALTER COLUMN delete_reason SET DEFAULT 'mistake',
+  ALTER COLUMN delete_reason SET NOT NULL;
+
+-- Optional partial index to speed up active session lookups
+CREATE INDEX IF NOT EXISTS idx_trackpay_sessions_active
+  ON public.trackpay_sessions (provider_id, client_id, start_time DESC)
+  WHERE deleted_at IS NULL;
+
+-- RLS: tighten provider update permissions to include soft-delete path
+DROP POLICY IF EXISTS "Users can update their own sessions" ON public.trackpay_sessions;
+CREATE POLICY "Users can update their own sessions"
+  ON public.trackpay_sessions
+  FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.trackpay_users u
+      WHERE u.id = trackpay_sessions.provider_id
+        AND u.auth_user_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1
+      FROM public.trackpay_users u
+      WHERE u.id = trackpay_sessions.provider_id
+        AND u.auth_user_id = auth.uid()
+    )
+    AND trackpay_sessions.status <> 'paid'
+    AND (
+      trackpay_sessions.deleted_at IS NULL
+      OR trackpay_sessions.status = 'unpaid'
+    )
+  );
+
+COMMIT;
+```
+
+---
+
 ## API Contract (Proposed)
 
 - **Endpoint**: `DELETE /work-sessions/{id}`
