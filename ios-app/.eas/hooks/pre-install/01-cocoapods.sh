@@ -19,7 +19,20 @@ if ! command -v pod >/dev/null 2>&1; then
 else
   echo "✅ CocoaPods already installed: $(pod --version)"
 fi
+# Provide a stable shim inside the project (optional safety)
+mkdir -p ".eas/bin"
+cat > ".eas/bin/pod" <<'EOF'
+#!/usr/bin/env bash
+exec pod "$@"
+EOF
+chmod +x ".eas/bin/pod"
+
+# Persist env so later build phases see CocoaPods on PATH
+{
+  echo "export GEM_HOME=\"$HOME/.rubygems\""
+  echo "export PATH=\"$(pwd)/.eas/bin:$HOME/.rubygems/bin:\$PATH\""
+} >> "$EAS_BUILD_ENVIRONMENT"
 
 echo "PATH=$PATH"
-echo "Using pod: $(command -v pod)"
-echo "pod version: $(pod --version)"
+echo "Using pod: $(command -v pod || echo 'not yet available')"
+echo "pod version: $(pod --version || echo 'unknown')"
