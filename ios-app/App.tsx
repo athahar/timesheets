@@ -1,14 +1,21 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Alert, AppState, AppStateStatus } from 'react-native';
+import { Alert, AppState, AppStateStatus, Linking } from 'react-native';
+import { NavigationContainerRef } from '@react-navigation/native';
 import { RootNavigator } from './src/navigation/AppNavigator';
-import { initializeWithSeedData, debugInfo } from './src/services/storageService';
+import { initializeWithSeedData, debugInfo, endSession, getClients } from './src/services/storageService';
 import { directSupabase } from './src/services/directSupabase';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 // TEMP: Use simple i18n implementation while debugging
 import { initSimpleI18n } from './src/i18n/simple';
 // PostHog Analytics
-import { initPosthog, enableDryRun, flush, AnalyticsProvider } from './src/services/analytics';
+import { initPosthog, enableDryRun, flush, AnalyticsProvider, capture } from './src/services/analytics';
+// Dynamic Island
+import {
+  endDynamicIslandActivity,
+  getActiveActivities,
+  startDynamicIslandActivity
+} from './src/services/native/DynamicIslandBridge';
 
 // Environment variable validation
 const validateEnvironment = () => {
@@ -42,6 +49,9 @@ const validateEnvironment = () => {
   }
   return true;
 };
+
+// Create navigation ref for deep linking
+export const navigationRef = React.createRef<NavigationContainerRef<any>>();
 
 export default function App() {
   const [isReady, setIsReady] = React.useState(false);
@@ -158,6 +168,145 @@ export default function App() {
       subscription?.remove();
     };
   }, []);
+
+  // Deep linking handler
+  useEffect(() => {
+    if (!isReady) return;
+
+    const handleDeepLink = async (event: { url: string }) => {
+      const url = event.url;
+
+      if (__DEV__) {
+        console.log('[DeepLink] Received:', url);
+      }
+
+      // Handle stop-session deep link (from Stop Session button)
+      if (url.startsWith('trackpay://stop-session')) {
+        const params = new URLSearchParams(url.split('?')[1]);
+        const sessionId = params.get('sessionId');
+
+        if (sessionId) {
+          try {
+            if (__DEV__) {
+              console.log('[DeepLink] Stopping session from Dynamic Island:', sessionId);
+            }
+
+            // End session in backend
+            await endSession(sessionId);
+
+            // End Dynamic Island activity
+            await endDynamicIslandActivity(sessionId);
+
+            // Analytics
+            capture('dynamic_island_stop_pressed', {
+              session_id: sessionId,
+            });
+          } catch (error) {
+            if (__DEV__) {
+              console.error('[DeepLink] Failed to stop session:', error);
+            }
+          }
+        }
+      }
+
+      // Handle navigation deep link (tap compact/minimal island)
+      if (url.startsWith('trackpay://session')) {
+        const params = new URLSearchParams(url.split('?')[1]);
+        const clientId = params.get('clientId');
+
+        if (clientId && navigationRef.current?.isReady()) {
+          // Navigate to SessionTracking screen
+          navigationRef.current.navigate('SessionTracking', { clientId });
+
+          if (__DEV__) {
+            console.log('[DeepLink] Navigating to SessionTracking:', clientId);
+          }
+        }
+      }
+    };
+
+    // Listen for deep links while app is open
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+
+    // Handle initial URL (if app was closed and opened via deep link)
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleDeepLink({ url });
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [isReady]);
+
+  // State sync for Dynamic Island on app relaunch
+  useEffect(() => {
+    if (!isReady) return;
+
+    const syncDynamicIslandState = async () => {
+      try {
+        const activities = await getActiveActivities();
+
+        if (activities.length === 0) {
+          if (__DEV__) {
+            console.log('[DynamicIsland] No active activities found');
+          }
+          return;
+        }
+
+        if (__DEV__) {
+          console.log('[DynamicIsland] Found active activities:', activities.length);
+        }
+
+        // Fetch all sessions with status='active'
+        const allClients = await getClients();
+
+        // For each activity, check if session still exists and is active
+        for (const activity of activities) {
+          // Check with storage service if session is still active
+          const client = allClients.find(c => c.id === activity.clientId);
+
+          if (client) {
+            // Valid session - log successful sync
+            if (__DEV__) {
+              console.log('[DynamicIsland] Synced active session:', activity.sessionId);
+            }
+
+            capture('dynamic_island_synced_on_launch', {
+              session_id: activity.sessionId,
+              client_id: activity.clientId,
+            });
+          } else {
+            // Stale activity - clean up
+            if (__DEV__) {
+              console.log('[DynamicIsland] Cleaning up stale activity:', activity.sessionId);
+            }
+
+            await endDynamicIslandActivity(activity.sessionId);
+
+            capture('dynamic_island_failed', {
+              session_id: activity.sessionId,
+              error_code: 'STALE_ACTIVITY',
+              error_message: 'Activity exists but session is not active',
+              operation: 'sync',
+            });
+          }
+        }
+      } catch (error) {
+        if (__DEV__) {
+          console.error('[DynamicIsland] State sync failed:', error);
+        }
+      }
+    };
+
+    // Run sync after a brief delay (let app initialize)
+    const timer = setTimeout(() => {
+      syncDynamicIslandState();
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [isReady]);
 
   // Show nothing while initializing (prevents white flash)
   if (!isReady) {

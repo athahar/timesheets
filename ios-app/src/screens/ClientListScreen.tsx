@@ -48,6 +48,11 @@ import { TP } from '../styles/themeV2';
 import { simpleT } from '../i18n/simple';
 // Analytics
 import { capture, group, E, nowIso } from '../services/analytics';
+// Dynamic Island
+import {
+  startDynamicIslandActivity,
+  endDynamicIslandActivity
+} from '../services/native/DynamicIslandBridge';
 // Invite Growth Loop
 import { getOrCreateInviteCode } from '../features/invite/getOrCreateInviteCode';
 import { buildHoursShare } from '../features/invite/inviteShare';
@@ -277,7 +282,15 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
 
-      await startSession(client.id, 1); // Start with 1-person crew
+      const session = await startSession(client.id, 1); // Start with 1-person crew
+
+      // Start Dynamic Island activity
+      await startDynamicIslandActivity(
+        session.id,
+        client.id,
+        client.name,
+        new Date(session.startTime)
+      );
 
       // Analytics: Track session started
       try {
@@ -345,6 +358,9 @@ export const ClientListScreen: React.FC<ClientListScreenProps> = ({ navigation }
       const perPersonHours = durationHours;
       const totalPersonHours = perPersonHours * finalCrewSize;
       const totalAmount = totalPersonHours * (client.hourlyRate || 0);
+
+      // End Dynamic Island activity
+      await endDynamicIslandActivity(activeSession.id);
 
       await endSession(activeSession.id);
 

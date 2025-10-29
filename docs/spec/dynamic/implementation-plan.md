@@ -1394,24 +1394,24 @@ No additional changes needed - ActivityKit automatically displays lock screen ba
 
 **Not in scope for initial release:**
 
-1. **Pause/Resume Sessions**
+1. **Pause/Resume Sessions** [No]
    - Add pause button in expanded island
    - Track pause timestamps in Supabase
    - Resume timer from paused state
 
-2. **Multi-Client Support**
+2. **Multi-Client Support** [No]
    - Allow multiple concurrent sessions
    - Island shows aggregated timer ("3 active")
    - Tap opens picker
 
-3. **Remote Push Updates**
+3. **Remote Push Updates** [NO]
    - ActivityKit push token registration
    - Update island from backend (e.g., client confirms payment)
 
-4. **Haptic Feedback**
+4. **Haptic Feedback** [Maybe]
    - Haptics when stop button pressed
 
-5. **Billing Display**
+5. **Billing Display** [NO]
    - Show hourly rate in expanded view
    - Real-time earnings counter
 

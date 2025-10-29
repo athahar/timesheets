@@ -3,6 +3,9 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Linking } from 'react-native';
 
+// Navigation ref for deep linking (imported from App.tsx)
+import { navigationRef } from '../../App';
+
 // Auth Context
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 
@@ -211,7 +214,6 @@ const Navigation = () => {
 
 // Root Navigator Component
 export const RootNavigator = () => {
-  const navigationRef = useRef<any>();
   const routeNameRef = useRef<string>();
 
   const linking = {

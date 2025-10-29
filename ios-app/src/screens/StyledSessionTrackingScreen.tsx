@@ -27,6 +27,11 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 // Analytics
 import { capture, group, E, nowIso, calculatePersonHours } from '../services/analytics';
+// Dynamic Island
+import {
+  startDynamicIslandActivity,
+  endDynamicIslandActivity
+} from '../services/native/DynamicIslandBridge';
 
 // Helper function to format names in proper sentence case
 const formatName = (name: string): string => {
@@ -203,6 +208,16 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
       setCrewSize(newSession.crewSize || crewSize);
       setSessionTime(0);
 
+      // Start Dynamic Island activity
+      if (client) {
+        await startDynamicIslandActivity(
+          newSession.id,
+          clientId,
+          client.name,
+          new Date(newSession.startTime)
+        );
+      }
+
       // Analytics: Track session started
       try {
         if (user?.id) {
@@ -238,6 +253,9 @@ export const StyledSessionTrackingScreen: React.FC<SessionTrackingScreenProps> =
       const perPersonHoursCalc = sessionTime / 3600;
       const totalPersonHoursCalc = calculatePersonHours(perPersonHoursCalc, finalCrewSize);
       const totalAmount = totalPersonHoursCalc * (client?.hourlyRate || 0);
+
+      // End Dynamic Island activity first
+      await endDynamicIslandActivity(activeSession.id);
 
       await endSession(activeSession.id);
       setActiveSession(null);

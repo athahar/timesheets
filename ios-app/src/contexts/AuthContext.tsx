@@ -14,6 +14,11 @@ import {
   E,
   capture,
 } from '../services/analytics';
+// Dynamic Island
+import {
+  getActiveActivities,
+  endDynamicIslandActivity
+} from '../services/native/DynamicIslandBridge';
 
 export interface UserProfile {
   id: string;
@@ -444,6 +449,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signOut = async (): Promise<void> => {
     try {
       setIsLoading(true);
+
+      // Clean up any active Dynamic Island activities
+      try {
+        const activities = await getActiveActivities();
+
+        if (__DEV__) {
+          console.log('[Auth] Cleaning up Dynamic Island activities on logout:', activities.length);
+        }
+
+        for (const activity of activities) {
+          await endDynamicIslandActivity(activity.sessionId);
+        }
+      } catch (error) {
+        if (__DEV__) {
+          console.error('[Auth] Dynamic Island cleanup failed:', error);
+        }
+      }
 
       // Analytics: Reset on logout
       try {

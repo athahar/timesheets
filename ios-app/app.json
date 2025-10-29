@@ -50,7 +50,8 @@
     "owner": "athahar",
     "plugins": [
       "expo-font",
-      "expo-localization"
+      "expo-localization",
+      "./plugins/withActivityKit.js"
     ]
   }
 }
