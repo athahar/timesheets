@@ -17,10 +17,14 @@ node_modules/
 /ios-app/ios
 /ios-app/android
 
-# Database exports & schema files
-*.schema.txt
-*.schema.sql
-/supabase/
+# Database exports & schema files (root level only)
+/*.schema.txt
+/*.schema.sql
+
+# Supabase - ignore generated/temp files only
+/supabase/types.d.ts
+/supabase/fingerprint-compare.ts
+/supabase/schema_fingerprint.sql
 
 # Root level files that should stay in ios-app/
 /package.json
