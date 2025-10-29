@@ -1,31 +1,17 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
 
-echo "🔧 EAS Pre-Install Hook: Setting up CocoaPods for Widget Extension"
+echo "🔧 EAS pre-install: bundler + pods"
 
-# Ensure we're in the right directory
 cd "$(dirname "$0")"
 
-# Check if ios directory exists (bare workflow)
-if [ -d "ios" ]; then
-  echo "✅ Found ios/ directory (bare workflow detected)"
-
-  # Install CocoaPods if not already installed
-  if ! command -v pod &> /dev/null; then
-    echo "📦 Installing CocoaPods..."
-    sudo gem install cocoapods
-  else
-    echo "✅ CocoaPods already installed: $(pod --version)"
-  fi
-
-  # Install pods
-  echo "📦 Installing iOS dependencies..."
+if [ -d ios ]; then
   cd ios
-  pod install --repo-update
+  if [ -f "../Gemfile" ]; then
+    bundle install --path ../vendor/bundle
+    bundle exec pod install --repo-update
+  else
+    pod install --repo-update
+  fi
   cd ..
-
-  echo "✅ CocoaPods setup complete"
-else
-  echo "⚠️ No ios/ directory found, skipping pod install"
 fi

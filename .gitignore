@@ -35,3 +35,7 @@ node_modules/
 
 # Backups
 *.backup
+
+# Ruby bundler local artifacts
+/vendor/
+/ios-app/.bundle/
